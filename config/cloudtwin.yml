@@ -1,0 +1,25 @@
+cloudtwin:
+  storage:
+    mode: sqlite          # sqlite | memory
+    path: /data/cloudtwin.db
+
+  providers:
+    aws:
+      services: ["ses", "s3", "sns", "sqs"]
+      ses:
+        strict_verification: false
+        smtp:
+          host: null          # set to enable SMTP relay, e.g. smtp.mailpit.local
+          port: 1025
+          username: null
+          password: null
+          use_tls: false
+
+  dashboard:
+    enabled: false
+    port: 8787
+
+  logging:
+    level: info
+
+  api_port: 4793

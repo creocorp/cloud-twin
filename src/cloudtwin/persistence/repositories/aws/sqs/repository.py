@@ -1,0 +1,30 @@
+"""SQS — abstract repository interfaces."""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Optional
+
+from cloudtwin.persistence.models.aws.sqs import SqsMessage, SqsQueue
+
+
+class SqsQueueRepository(ABC):
+    @abstractmethod
+    async def get(self, name: str) -> Optional[SqsQueue]: ...
+    @abstractmethod
+    async def list_all(self) -> list[SqsQueue]: ...
+    @abstractmethod
+    async def save(self, queue: SqsQueue) -> SqsQueue: ...
+    @abstractmethod
+    async def delete(self, name: str) -> None: ...
+
+
+class SqsMessageRepository(ABC):
+    @abstractmethod
+    async def save(self, message: SqsMessage) -> SqsMessage: ...
+    @abstractmethod
+    async def get_visible(self, queue_id: int, limit: int = 1) -> list[SqsMessage]: ...
+    @abstractmethod
+    async def mark_invisible(self, receipt_handle: str) -> None: ...
+    @abstractmethod
+    async def delete(self, receipt_handle: str) -> None: ...
