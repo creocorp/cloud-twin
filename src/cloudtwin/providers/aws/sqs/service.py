@@ -136,3 +136,30 @@ class SqsService:
         await self._message_repo.delete(receipt_handle)
         name = self._name_from_url(queue_url)
         await self._telemetry.emit("aws", "sqs", "delete_message", {"queue": name})
+
+    async def change_message_visibility(self, queue_url: str, receipt_handle: str, visibility_timeout: int) -> None:
+        """Make a message visible again (timeout=0) or invisible. Idempotent."""
+        name = self._name_from_url(queue_url)
+        queue = await self._queue_repo.get(name)
+        if queue is None:
+            raise NotFoundError(f"Queue not found: {name}")
+        if visibility_timeout == 0:
+            await self._message_repo.make_visible(receipt_handle)
+        else:
+            await self._message_repo.mark_invisible(receipt_handle)
+        await self._telemetry.emit("aws", "sqs", "change_message_visibility", {"queue": name})
+
+    async def get_queue_attributes(self, queue_url: str) -> dict:
+        """Return basic queue attributes."""
+        name = self._name_from_url(queue_url)
+        queue = await self._queue_repo.get(name)
+        if queue is None:
+            raise NotFoundError(f"Queue not found: {name}")
+        total = await self._message_repo.count_all(queue.id)
+        not_visible = await self._message_repo.count_not_visible(queue.id)
+        return {
+            "ApproximateNumberOfMessages": str(total - not_visible),
+            "ApproximateNumberOfMessagesNotVisible": str(not_visible),
+            "QueueArn": f"arn:aws:sqs:us-east-1:{_ACCOUNT_ID}:{name}",
+            "CreatedTimestamp": queue.created_at,
+        }

@@ -112,6 +112,30 @@ def register_sqs_handlers(router: JsonProtocolRouter, service: SqsService) -> No
             return _error(exc.code, exc.message, exc.http_status)
         return JSONResponse({})
 
+    async def change_message_visibility(request: Request, body: dict) -> Response:
+        queue_url = body.get("QueueUrl", "")
+        receipt_handle = body.get("ReceiptHandle", "")
+        visibility_timeout = int(body.get("VisibilityTimeout", 0))
+        if not queue_url or not receipt_handle:
+            return _error("InvalidParameterValue", "QueueUrl and ReceiptHandle are required")
+        try:
+            await service.change_message_visibility(queue_url, receipt_handle, visibility_timeout)
+        except CloudTwinError as exc:
+            return _error(exc.code, exc.message, exc.http_status)
+        return JSONResponse({})
+
+    async def get_queue_attributes(request: Request, body: dict) -> Response:
+        queue_url = body.get("QueueUrl", "")
+        if not queue_url:
+            return _error("InvalidParameterValue", "QueueUrl is required")
+        try:
+            attrs = await service.get_queue_attributes(queue_url)
+        except NotFoundError:
+            return _error("AWS.SimpleQueueService.NonExistentQueue", "The specified queue does not exist.", 404)
+        except CloudTwinError as exc:
+            return _error(exc.code, exc.message, exc.http_status)
+        return JSONResponse({"Attributes": attrs})
+
     router.register("AmazonSQS.CreateQueue", create_queue)
     router.register("AmazonSQS.ListQueues", list_queues)
     router.register("AmazonSQS.GetQueueUrl", get_queue_url)
@@ -119,3 +143,5 @@ def register_sqs_handlers(router: JsonProtocolRouter, service: SqsService) -> No
     router.register("AmazonSQS.ReceiveMessage", receive_message)
     router.register("AmazonSQS.DeleteMessage", delete_message)
     router.register("AmazonSQS.DeleteQueue", delete_queue)
+    router.register("AmazonSQS.ChangeMessageVisibility", change_message_visibility)
+    router.register("AmazonSQS.GetQueueAttributes", get_queue_attributes)

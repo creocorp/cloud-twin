@@ -8,7 +8,9 @@ are pointed at the local server.
 
 from __future__ import annotations
 
+import os
 import socket
+import tempfile
 import threading
 import time
 
@@ -50,18 +52,26 @@ def _wait_ready(base_url: str, attempts: int = 60, delay: float = 0.1) -> None:
     raise RuntimeError(f"CloudTwin never became ready at {base_url}")
 
 
+def _storage_config() -> StorageConfig:
+    mode = os.getenv("CLOUDTWIN_STORAGE_MODE", "memory")
+    if mode == "sqlite":
+        db_dir = tempfile.mkdtemp(prefix="cloudtwin_test_")
+        return StorageConfig(mode="sqlite", path=f"{db_dir}/test.db")
+    return StorageConfig(mode="memory")
+
+
 @pytest.fixture(scope="session")
 def gcp_server_url():
     port = _free_port()
 
     config = Config(
-        storage=StorageConfig(mode="memory"),
+        storage=_storage_config(),
         providers=ProvidersConfig(
             aws=AwsConfig(services=[]),
             azure=AzureConfig(services=[]),
             gcp=GcpConfig(
                 project=_PROJECT,
-                services=["storage", "pubsub"],
+                services=["storage", "pubsub", "firestore", "cloudtasks", "secretmanager", "cloudfunctions"],
             ),
         ),
         dashboard=DashboardConfig(enabled=False),
@@ -120,3 +130,9 @@ def pubsub_subscriber(gcp_server_url):
         credentials=AnonymousCredentials(),
     )
     return SubscriberClient(transport=transport)
+
+
+@pytest.fixture(scope="session")
+def gcp_http(gcp_server_url):
+    """httpx client for all new GCP service REST endpoints."""
+    return httpx.Client(base_url=gcp_server_url, timeout=10.0)

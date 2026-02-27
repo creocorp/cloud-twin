@@ -73,6 +73,10 @@ class SqliteSnsTopicRepository(SnsTopicRepository):
         await self._db.conn.commit()
         return await self.get(topic.arn)
 
+    async def delete(self, arn: str) -> None:
+        await self._db.conn.execute("DELETE FROM sns_topics WHERE arn = ?", (arn,))
+        await self._db.conn.commit()
+
 
 class SqliteSnsSubscriptionRepository(SnsSubscriptionRepository):
     def __init__(self, db):
@@ -110,6 +114,16 @@ class SqliteSnsSubscriptionRepository(SnsSubscriptionRepository):
         )
         await self._db.conn.commit()
         return await self.get(sub.subscription_arn)
+
+    async def list_all(self) -> list[SnsSubscription]:
+        async with self._db.conn.execute("SELECT * FROM sns_subscriptions") as cur:
+            return [self._row(r) for r in await cur.fetchall()]
+
+    async def delete(self, subscription_arn: str) -> None:
+        await self._db.conn.execute(
+            "DELETE FROM sns_subscriptions WHERE subscription_arn = ?", (subscription_arn,)
+        )
+        await self._db.conn.commit()
 
 
 class SqliteSnsMessageRepository(SnsMessageRepository):

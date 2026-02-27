@@ -24,6 +24,35 @@ from cloudtwin.persistence.repositories.gcp.pubsub import (
     SqlitePubsubMessageRepository,
     SqlitePubsubAckableRepository,
 )
+from cloudtwin.persistence.repositories.gcp.firestore import (
+    FirestoreDocumentRepository,
+    InMemoryFirestoreDocumentRepository,
+    SqliteFirestoreDocumentRepository,
+)
+from cloudtwin.persistence.repositories.gcp.cloudtasks import (
+    CloudTasksQueueRepository,
+    CloudTaskRepository,
+    InMemoryCloudTasksQueueRepository,
+    InMemoryCloudTaskRepository,
+    SqliteCloudTasksQueueRepository,
+    SqliteCloudTaskRepository,
+)
+from cloudtwin.persistence.repositories.gcp.secretmanager import (
+    GcpSecretRepository,
+    GcpSecretVersionRepository,
+    InMemoryGcpSecretRepository,
+    InMemoryGcpSecretVersionRepository,
+    SqliteGcpSecretRepository,
+    SqliteGcpSecretVersionRepository,
+)
+from cloudtwin.persistence.repositories.gcp.cloudfunctions import (
+    CloudFunctionRepository,
+    CloudFunctionInvocationRepository,
+    InMemoryCloudFunctionRepository,
+    InMemoryCloudFunctionInvocationRepository,
+    SqliteCloudFunctionRepository,
+    SqliteCloudFunctionInvocationRepository,
+)
 
 __all__ = [
     # Storage
@@ -37,4 +66,20 @@ __all__ = [
     "InMemoryPubsubMessageRepository", "InMemoryPubsubAckableRepository",
     "SqlitePubsubTopicRepository", "SqlitePubsubSubscriptionRepository",
     "SqlitePubsubMessageRepository", "SqlitePubsubAckableRepository",
+    # Firestore
+    "FirestoreCollectionRepository", "FirestoreDocumentRepository",
+    "InMemoryFirestoreCollectionRepository", "InMemoryFirestoreDocumentRepository",
+    "SqliteFirestoreCollectionRepository", "SqliteFirestoreDocumentRepository",
+    # Cloud Tasks
+    "CloudTasksQueueRepository", "CloudTaskRepository",
+    "InMemoryCloudTasksQueueRepository", "InMemoryCloudTaskRepository",
+    "SqliteCloudTasksQueueRepository", "SqliteCloudTaskRepository",
+    # Secret Manager
+    "GcpSecretRepository", "GcpSecretVersionRepository",
+    "InMemoryGcpSecretRepository", "InMemoryGcpSecretVersionRepository",
+    "SqliteGcpSecretRepository", "SqliteGcpSecretVersionRepository",
+    # Cloud Functions
+    "CloudFunctionRepository", "CloudFunctionInvocationRepository",
+    "InMemoryCloudFunctionRepository", "InMemoryCloudFunctionInvocationRepository",
+    "SqliteCloudFunctionRepository", "SqliteCloudFunctionInvocationRepository",
 ]

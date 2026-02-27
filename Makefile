@@ -37,8 +37,12 @@ test-unit: install-dev  ## Run unit tests only
 	$(PYTEST) tests/test_*.py -v
 
 .PHONY: test-integration
-test-integration: install-dev  ## Run boto3 integration tests against a live server
+test-integration: install-dev  ## Run integration tests (in-memory storage)
 	$(PYTEST) tests/integration/ -v
+
+.PHONY: test-integration-sqlite
+test-integration-sqlite: install-dev  ## Run integration tests against a real SQLite database
+	CLOUDTWIN_STORAGE_MODE=sqlite $(PYTEST) tests/integration/ -v
 
 .PHONY: test-verbose
 test-verbose: install-dev  ## Run full test suite with verbose output

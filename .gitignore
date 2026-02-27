@@ -27,3 +27,7 @@ htmlcov/
 
 # OS
 .DS_Store
+
+# Frontend (dashboard/)
+node_modules/
+.env

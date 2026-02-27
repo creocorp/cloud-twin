@@ -8,7 +8,7 @@ single process with no external dependencies. All state is persisted in SQLite o
 kept in-memory. It is designed as a drop-in endpoint override for SDK-based
 application code during local development and CI.
 
-**Ports:** `4793` → Cloud API, `8787` → Future Dashboard  
+**Ports:** `4793` → Cloud API, `8787` → Dashboard (opt-in)  
 **Primary goal:** SDK-compatible endpoints, not a full cloud replica.
 
 ---
@@ -16,6 +16,14 @@ application code during local development and CI.
 ## Repository Layout
 
 ```
+dashboard/                      # Vite + React + Tailwind dashboard (opt-in, port 8787)
+  src/
+    api/client.ts               # Typed fetch wrappers for /api/dashboard/* endpoints
+    hooks/useApi.ts             # useApi / usePolling React hooks
+    components/                 # layout/ and shared/ UI components
+    pages/                      # One page per service (aws/, azure/, gcp/)
+  vite.config.ts                # Dev server proxies /api/* → port 4793
+
 src/cloudtwin/
   app.py                        # FastAPI application factory (create_app)
   config.py                     # Dataclass config + YAML/env loader (load_config)
@@ -394,3 +402,39 @@ resource names (bucket names, domains) per test to avoid cross-test interference
 - Logger names follow the module hierarchy: `logging.getLogger("cloudtwin.ses")`,
   `logging.getLogger("cloudtwin.s3")`, etc.
 - ISO 8601 UTC strings for all timestamps (`datetime.now(timezone.utc).isoformat()`)
+
+---
+
+## Documentation Maintenance
+
+Whenever you add, modify, or remove a service, provider, or architectural pattern, you **must** also update the following documents:
+
+### `README.md`
+- Add the new service/provider to the supported services table or feature list
+- Update any quickstart examples if the new service changes how CloudTwin is invoked
+- Update port/endpoint references if new routes are introduced
+- Remove or correct any outdated capability descriptions
+
+### `docs/developer-guide.md`
+- Add a new section (or subsection) describing the new service: its purpose, supported operations, and any SDK compatibility notes
+- Document any non-obvious configuration options introduced by the service
+- Add example SDK usage snippets for the new service (boto3, Azure SDK, or GCP SDK as appropriate)
+- If a new protocol or dispatch mechanism was introduced, document it in the protocol reference section
+
+### `.github/copilot-instructions.md` *(this file)*
+- If a **new design or architectural principle** is introduced (e.g. a new dispatch pattern, a new layer, a new abstraction), add it to the **Core Design Principles** or **Key Patterns** section
+- If an existing principle is changed or clarified, update the relevant section in place
+- If a new cloud provider is added, update the repository layout tree and the "Adding a New Cloud Provider" section
+- If a new AWS (or Azure/GCP) service pattern diverges from existing conventions, document the divergence explicitly so future contributors follow the correct pattern
+
+### When These Updates Are Required
+
+| Trigger | `README.md` | `docs/developer-guide.md` | `copilot-instructions.md` |
+|---|---|---|---|
+| New service added | ✅ | ✅ | Only if new pattern introduced |
+| New cloud provider added | ✅ | ✅ | ✅ |
+| New protocol/dispatch mechanism | ✅ | ✅ | ✅ |
+| Architectural principle changed | ✅ (if user-facing) | ✅ | ✅ |
+| Bug fix / minor change | ❌ | ❌ | ❌ |
+
+> **Rule:** If you would tell a new contributor "here's how this works" — it belongs in the docs. Never leave architecture undocumented.

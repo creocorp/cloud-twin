@@ -8,7 +8,9 @@ httpx is used directly for Service Bus tests (SDK uses AMQP, not HTTP).
 
 from __future__ import annotations
 
+import os
 import socket
+import tempfile
 import threading
 import time
 
@@ -54,16 +56,24 @@ _ACCOUNT_KEY = "Eby8vdM02xNOcqFlJdE1SWKvW4GS0IEJSVDMuoFSSjM4="
 _NAMESPACE = "cloudtwin-test"
 
 
+def _storage_config() -> StorageConfig:
+    mode = os.getenv("CLOUDTWIN_STORAGE_MODE", "memory")
+    if mode == "sqlite":
+        db_dir = tempfile.mkdtemp(prefix="cloudtwin_test_")
+        return StorageConfig(mode="sqlite", path=f"{db_dir}/test.db")
+    return StorageConfig(mode="memory")
+
+
 @pytest.fixture(scope="session")
 def azure_server_url():
     port = _free_port()
 
     config = Config(
-        storage=StorageConfig(mode="memory"),
+        storage=_storage_config(),
         providers=ProvidersConfig(
             aws=AwsConfig(services=[]),
             azure=AzureConfig(
-                services=["blob", "servicebus"],
+                services=["blob", "servicebus", "queue", "eventgrid", "keyvault", "functions"],
                 blob=AzureBlobConfig(account_name=_ACCOUNT_NAME, account_key=_ACCOUNT_KEY),
                 servicebus=AzureServiceBusConfig(namespace=_NAMESPACE),
             ),
@@ -103,4 +113,10 @@ def blob_client(azure_server_url):
 @pytest.fixture(scope="session")
 def asb_http(azure_server_url):
     """httpx client pre-configured for the Service Bus namespace."""
+    return httpx.Client(base_url=azure_server_url, timeout=10.0)
+
+
+@pytest.fixture(scope="session")
+def azure_http(azure_server_url):
+    """httpx client for all new Azure service REST endpoints."""
     return httpx.Client(base_url=azure_server_url, timeout=10.0)

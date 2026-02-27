@@ -33,6 +33,9 @@ class InMemorySnsTopicRepository(SnsTopicRepository):
         self._by_arn[topic.arn] = topic
         return topic
 
+    async def delete(self, arn: str) -> None:
+        self._by_arn.pop(arn, None)
+
 
 class InMemorySnsSubscriptionRepository(SnsSubscriptionRepository):
     def __init__(self):
@@ -45,12 +48,18 @@ class InMemorySnsSubscriptionRepository(SnsSubscriptionRepository):
     async def list_by_topic(self, topic_arn: str) -> list[SnsSubscription]:
         return [s for s in self._store.values() if s.topic_arn == topic_arn]
 
+    async def list_all(self) -> list[SnsSubscription]:
+        return list(self._store.values())
+
     async def save(self, sub: SnsSubscription) -> SnsSubscription:
         if sub.subscription_arn not in self._store:
             sub.id = self._next_id
             self._next_id += 1
         self._store[sub.subscription_arn] = sub
         return sub
+
+    async def delete(self, subscription_arn: str) -> None:
+        self._store.pop(subscription_arn, None)
 
 
 class InMemorySnsMessageRepository(SnsMessageRepository):

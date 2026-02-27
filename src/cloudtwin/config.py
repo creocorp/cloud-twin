@@ -42,7 +42,7 @@ class SesConfig:
 
 @dataclass
 class AwsConfig:
-    services: list[str] = field(default_factory=lambda: ["ses", "s3", "sns", "sqs"])
+    services: list[str] = field(default_factory=lambda: ["ses", "sns", "sqs", "lambda", "dynamodb", "secretsmanager", "s3"])
     ses: SesConfig = field(default_factory=SesConfig)
 
 
@@ -60,7 +60,7 @@ class AzureServiceBusConfig:
 
 @dataclass
 class AzureConfig:
-    services: list[str] = field(default_factory=lambda: ["blob", "servicebus"])
+    services: list[str] = field(default_factory=lambda: ["blob", "servicebus", "queue", "eventgrid", "keyvault", "functions"])
     blob: AzureBlobConfig = field(default_factory=AzureBlobConfig)
     servicebus: AzureServiceBusConfig = field(default_factory=AzureServiceBusConfig)
 
@@ -78,7 +78,7 @@ class GcpPubsubConfig:
 @dataclass
 class GcpConfig:
     project: str = "cloudtwin-local"
-    services: list[str] = field(default_factory=lambda: ["storage", "pubsub"])
+    services: list[str] = field(default_factory=lambda: ["storage", "pubsub", "firestore", "cloudtasks", "secretmanager", "cloudfunctions"])
     storage: GcpStorageConfig = field(default_factory=GcpStorageConfig)
     pubsub: GcpPubsubConfig = field(default_factory=GcpPubsubConfig)
 
@@ -169,7 +169,7 @@ def load_config() -> Config:
     # --- aws ---
     aws_section = yaml_data.get("providers", {}).get("aws", {})
     aws = AwsConfig(
-        services=aws_section.get("services", ["ses", "s3", "sns", "sqs"]),
+        services=aws_section.get("services", ["ses", "sns", "sqs", "lambda", "dynamodb", "secretsmanager", "s3"]),
         ses=ses,
     )
 

@@ -23,6 +23,10 @@ log = logging.getLogger("cloudtwin.gcp")
 _SERVICE_REGISTRY: dict[str, str] = {
     "storage": "cloudtwin.providers.gcp.storage",
     "pubsub": "cloudtwin.providers.gcp.pubsub",
+    "firestore": "cloudtwin.providers.gcp.firestore",
+    "cloudtasks": "cloudtwin.providers.gcp.cloudtasks",
+    "secretmanager": "cloudtwin.providers.gcp.secretmanager",
+    "cloudfunctions": "cloudtwin.providers.gcp.cloudfunctions",
 }
 
 

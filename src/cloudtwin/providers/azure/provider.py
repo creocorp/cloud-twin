@@ -23,6 +23,10 @@ log = logging.getLogger("cloudtwin.azure")
 _SERVICE_REGISTRY: dict[str, str] = {
     "blob": "cloudtwin.providers.azure.blob",
     "servicebus": "cloudtwin.providers.azure.servicebus",
+    "queue": "cloudtwin.providers.azure.queue",
+    "eventgrid": "cloudtwin.providers.azure.eventgrid",
+    "keyvault": "cloudtwin.providers.azure.keyvault",
+    "functions": "cloudtwin.providers.azure.functions",
 }
 
 

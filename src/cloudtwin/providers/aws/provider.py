@@ -38,6 +38,9 @@ _SERVICE_REGISTRY: dict[str, str] = {
     "s3": "cloudtwin.providers.aws.s3",
     "sns": "cloudtwin.providers.aws.sns",
     "sqs": "cloudtwin.providers.aws.sqs",
+    "lambda": "cloudtwin.providers.aws.lambda_",
+    "dynamodb": "cloudtwin.providers.aws.dynamodb",
+    "secretsmanager": "cloudtwin.providers.aws.secretsmanager",
 }
 
 

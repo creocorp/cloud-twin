@@ -37,6 +37,30 @@ from cloudtwin.persistence.repositories.aws.sqs import (
     SqliteSqsMessageRepository,
     SqliteSqsQueueRepository,
 )
+from cloudtwin.persistence.repositories.aws.secretsmanager import (
+    InMemorySecretRepository,
+    InMemorySecretVersionRepository,
+    SecretRepository,
+    SecretVersionRepository,
+    SqliteSecretRepository,
+    SqliteSecretVersionRepository,
+)
+from cloudtwin.persistence.repositories.aws.dynamodb import (
+    DynamoItemRepository,
+    DynamoTableRepository,
+    InMemoryDynamoItemRepository,
+    InMemoryDynamoTableRepository,
+    SqliteDynamoItemRepository,
+    SqliteDynamoTableRepository,
+)
+from cloudtwin.persistence.repositories.aws.lambda_ import (
+    InMemoryLambdaFunctionRepository,
+    InMemoryLambdaInvocationRepository,
+    LambdaFunctionRepository,
+    LambdaInvocationRepository,
+    SqliteLambdaFunctionRepository,
+    SqliteLambdaInvocationRepository,
+)
 
 __all__ = [
     # SES
@@ -55,4 +79,16 @@ __all__ = [
     "SqsQueueRepository", "SqsMessageRepository",
     "SqliteSqsQueueRepository", "SqliteSqsMessageRepository",
     "InMemorySqsQueueRepository", "InMemorySqsMessageRepository",
+    # Secrets Manager
+    "SecretRepository", "SecretVersionRepository",
+    "SqliteSecretRepository", "SqliteSecretVersionRepository",
+    "InMemorySecretRepository", "InMemorySecretVersionRepository",
+    # DynamoDB
+    "DynamoTableRepository", "DynamoItemRepository",
+    "SqliteDynamoTableRepository", "SqliteDynamoItemRepository",
+    "InMemoryDynamoTableRepository", "InMemoryDynamoItemRepository",
+    # Lambda
+    "LambdaFunctionRepository", "LambdaInvocationRepository",
+    "SqliteLambdaFunctionRepository", "SqliteLambdaInvocationRepository",
+    "InMemoryLambdaFunctionRepository", "InMemoryLambdaInvocationRepository",
 ]

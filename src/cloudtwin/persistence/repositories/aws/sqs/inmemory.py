@@ -55,5 +55,15 @@ class InMemorySqsMessageRepository(SqsMessageRepository):
         if receipt_handle in self._store:
             self._store[receipt_handle].visible = False
 
+    async def make_visible(self, receipt_handle: str) -> None:
+        if receipt_handle in self._store:
+            self._store[receipt_handle].visible = True
+
     async def delete(self, receipt_handle: str) -> None:
         self._store.pop(receipt_handle, None)
+
+    async def count_all(self, queue_id: int) -> int:
+        return sum(1 for m in self._store.values() if m.queue_id == queue_id)
+
+    async def count_not_visible(self, queue_id: int) -> int:
+        return sum(1 for m in self._store.values() if m.queue_id == queue_id and not m.visible)

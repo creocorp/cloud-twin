@@ -101,8 +101,28 @@ class SqliteSqsMessageRepository(SqsMessageRepository):
         )
         await self._db.conn.commit()
 
+    async def make_visible(self, receipt_handle: str) -> None:
+        await self._db.conn.execute(
+            "UPDATE sqs_messages SET visible = 1 WHERE receipt_handle = ?", (receipt_handle,)
+        )
+        await self._db.conn.commit()
+
     async def delete(self, receipt_handle: str) -> None:
         await self._db.conn.execute(
             "DELETE FROM sqs_messages WHERE receipt_handle = ?", (receipt_handle,)
         )
         await self._db.conn.commit()
+
+    async def count_all(self, queue_id: int) -> int:
+        async with self._db.conn.execute(
+            "SELECT COUNT(*) FROM sqs_messages WHERE queue_id = ?", (queue_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            return row[0] if row else 0
+
+    async def count_not_visible(self, queue_id: int) -> int:
+        async with self._db.conn.execute(
+            "SELECT COUNT(*) FROM sqs_messages WHERE queue_id = ? AND visible = 0", (queue_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            return row[0] if row else 0

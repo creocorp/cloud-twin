@@ -19,6 +19,7 @@ modify the CloudTwin codebase.
 - [Adding a new cloud provider](#adding-a-new-cloud-provider)
 - [AWS protocol reference](#aws-protocol-reference)
 - [Configuration internals](#configuration-internals)
+- [Dashboard](#dashboard)
 - [Running tests](#running-tests)
 
 ---
@@ -373,3 +374,105 @@ Also add the service name to the `services=[...]` list in the `server_url` fixtu
   never for instantiation or side effects
 - Logger names follow the module hierarchy: `logging.getLogger("cloudtwin.ses")`
 - ISO 8601 UTC strings for all timestamps: `datetime.now(timezone.utc).isoformat()`
+
+---
+
+## Dashboard
+
+The dashboard is a Vite + React + Tailwind app located at `dashboard/` (repo
+root). It is independent of the Python package — no JS tooling touches `src/`.
+
+### Directory layout
+
+```
+dashboard/
+  index.html
+  vite.config.ts          # dev server on :8787, proxies /api/* → :4793
+  package.json
+  tailwind.config.js
+  src/
+    main.tsx              # React entry point
+    App.tsx               # HashRouter + all routes
+    index.css             # Tailwind directives
+    api/
+      client.ts           # Typed fetch wrappers + response interfaces
+    hooks/
+      useApi.ts           # useApi / usePolling hooks
+    components/
+      layout/
+        Layout.tsx        # Sidebar + Outlet wrapper
+        Sidebar.tsx       # Navigation with AWS / Azure / GCP groups
+      shared/             # Badge, EmptyState, ErrorBanner, PageHeader,
+                          # RefreshButton, ResourceTable, Spinner, StatCard
+    pages/
+      Overview.tsx        # Health + service grid
+      EventLog.tsx        # Live telemetry feed (auto-polls every 3 s)
+      aws/SES.tsx
+      aws/S3.tsx
+      aws/SNS.tsx
+      aws/SQS.tsx
+      azure/Blob.tsx
+      azure/ServiceBus.tsx
+      gcp/Storage.tsx
+      gcp/PubSub.tsx
+```
+
+### API contract
+
+The dashboard calls `/api/dashboard/*` endpoints which **the Python backend
+needs to implement**. Response shapes are defined in `src/api/client.ts`.
+Until a backend endpoint exists, the dashboard shows a yellow "API endpoint
+not yet available" notice instead of an error.
+
+| Dashboard route | Expected API endpoint |
+|---|---|
+| Overview | `GET /api/dashboard/health` |
+| Event Log | `GET /api/dashboard/events?limit=N` |
+| AWS SES | `GET /api/dashboard/aws/ses` |
+| AWS S3 | `GET /api/dashboard/aws/s3` |
+| AWS SNS | `GET /api/dashboard/aws/sns` |
+| AWS SQS | `GET /api/dashboard/aws/sqs` |
+| Azure Blob | `GET /api/dashboard/azure/blob` |
+| Azure Service Bus | `GET /api/dashboard/azure/servicebus` |
+| GCP Storage | `GET /api/dashboard/gcp/storage` |
+| GCP Pub/Sub | `GET /api/dashboard/gcp/pubsub` |
+
+### Enabling / disabling
+
+The dashboard is gated by `DashboardConfig.enabled` (default `false`).
+When disabled, the Python backend should not mount the static files or the
+`/api/dashboard/*` endpoints. Users opt in via config or env var:
+
+```yaml
+cloudtwin:
+  dashboard:
+    enabled: true
+    port: 8787
+```
+
+```bash
+CLOUDTWIN_DASHBOARD_ENABLED=true python -m cloudtwin
+```
+
+### Development workflow
+
+```bash
+# Terminal 1 — Python API
+python -m cloudtwin
+
+# Terminal 2 — Vite dev server (proxies /api/* to :4793)
+cd dashboard && npm install && npm run dev
+# → http://localhost:8787
+```
+
+### Production build
+
+The Python backend serves the built assets from `dashboard/dist/` via FastAPI
+`StaticFiles` when the dashboard is enabled:
+
+```python
+# app.py (to be implemented by backend)
+from fastapi.staticfiles import StaticFiles
+if config.dashboard.enabled:
+    app.mount("/", StaticFiles(directory="dashboard/dist", html=True), name="dashboard")
+```

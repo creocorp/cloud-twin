@@ -69,6 +69,20 @@ class SnsService:
         topics = await self._topic_repo.list_all()
         return [t.arn for t in topics]
 
+    async def delete_topic(self, topic_arn: str) -> None:
+        """Delete a topic and its subscriptions."""
+        topic = await self._topic_repo.get(topic_arn)
+        if topic is None:
+            raise NotFoundError(f"Topic not found: {topic_arn}")
+
+        # delete subscriptions first
+        subs = await self._subscription_repo.list_by_topic(topic_arn)
+        for sub in subs:
+            await self._subscription_repo.delete(sub.subscription_arn)
+
+        await self._topic_repo.delete(topic_arn)
+        await self._telemetry.emit("aws", "sns", "delete_topic", {"arn": topic_arn})
+
     # -------------------------------------------------------------------
     # Subscriptions
     # -------------------------------------------------------------------
@@ -100,6 +114,29 @@ class SnsService:
             {"topic_arn": topic_arn, "protocol": protocol, "endpoint": endpoint},
         )
         return sub_arn
+
+    async def unsubscribe(self, subscription_arn: str) -> None:
+        """Unsubscribe an endpoint from a topic."""
+        sub = await self._subscription_repo.get(subscription_arn)
+        if sub is None:
+            raise NotFoundError(f"Subscription not found: {subscription_arn}")
+
+        await self._subscription_repo.delete(subscription_arn)
+        await self._telemetry.emit("aws", "sns", "unsubscribe", {"subscription_arn": subscription_arn})
+
+    async def list_subscriptions(self) -> list[str]:
+        """Return all subscription ARNs."""
+        subs = await self._subscription_repo.list_all()
+        return [s.subscription_arn for s in subs]
+
+    async def list_subscriptions_by_topic(self, topic_arn: str) -> list[str]:
+        """Return all subscription ARNs for a specific topic."""
+        topic = await self._topic_repo.get(topic_arn)
+        if topic is None:
+            raise NotFoundError(f"Topic not found: {topic_arn}")
+
+        subs = await self._subscription_repo.list_by_topic(topic_arn)
+        return [s.subscription_arn for s in subs]
 
     # -------------------------------------------------------------------
     # Publish

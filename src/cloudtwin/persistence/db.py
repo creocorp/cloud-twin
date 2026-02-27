@@ -15,10 +15,21 @@ from cloudtwin.persistence.repositories.aws.ses.sqlite import DDL as _SES_DDL
 from cloudtwin.persistence.repositories.aws.s3.sqlite import DDL as _S3_DDL
 from cloudtwin.persistence.repositories.aws.sns.sqlite import DDL as _SNS_DDL
 from cloudtwin.persistence.repositories.aws.sqs.sqlite import DDL as _SQS_DDL
+from cloudtwin.persistence.repositories.aws.secretsmanager.sqlite import DDL as _SECRETSMANAGER_DDL
+from cloudtwin.persistence.repositories.aws.dynamodb.sqlite import DDL as _DYNAMODB_DDL
+from cloudtwin.persistence.repositories.aws.lambda_.sqlite import DDL as _LAMBDA_DDL
 from cloudtwin.persistence.repositories.azure.blob.sqlite import DDL as _AZURE_BLOB_DDL
 from cloudtwin.persistence.repositories.azure.servicebus.sqlite import DDL as _ASB_DDL
+from cloudtwin.persistence.repositories.azure.queue.sqlite import DDL as _AZURE_QUEUE_DDL
+from cloudtwin.persistence.repositories.azure.keyvault.sqlite import DDL as _KEYVAULT_DDL
+from cloudtwin.persistence.repositories.azure.eventgrid.sqlite import DDL as _EVENTGRID_DDL
+from cloudtwin.persistence.repositories.azure.functions.sqlite import DDL as _AZURE_FUNCTIONS_DDL
 from cloudtwin.persistence.repositories.gcp.storage.sqlite import DDL as _GCS_DDL
 from cloudtwin.persistence.repositories.gcp.pubsub.sqlite import DDL as _PUBSUB_DDL
+from cloudtwin.persistence.repositories.gcp.firestore.sqlite import DDL as _FIRESTORE_DDL
+from cloudtwin.persistence.repositories.gcp.cloudtasks.sqlite import DDL as _CLOUDTASKS_DDL
+from cloudtwin.persistence.repositories.gcp.secretmanager.sqlite import DDL as _GCP_SECRETMANAGER_DDL
+from cloudtwin.persistence.repositories.gcp.cloudfunctions.sqlite import DDL as _GCP_CLOUDFUNCTIONS_DDL
 from cloudtwin.persistence.repositories.common.events.sqlite import DDL as _EVENTS_DDL
 
 DDL = (
@@ -27,12 +38,23 @@ DDL = (
     + _S3_DDL
     + _SNS_DDL
     + _SQS_DDL
+    + _SECRETSMANAGER_DDL
+    + _DYNAMODB_DDL
+    + _LAMBDA_DDL
     # Azure
     + _AZURE_BLOB_DDL
     + _ASB_DDL
+    + _AZURE_QUEUE_DDL
+    + _KEYVAULT_DDL
+    + _EVENTGRID_DDL
+    + _AZURE_FUNCTIONS_DDL
     # GCP
     + _GCS_DDL
     + _PUBSUB_DDL
+    + _FIRESTORE_DDL
+    + _CLOUDTASKS_DDL
+    + _GCP_SECRETMANAGER_DDL
+    + _GCP_CLOUDFUNCTIONS_DDL
     # Common
     + _EVENTS_DDL
 )

@@ -8,7 +8,9 @@ full HTTP + XML stack instead of mocking anything.
 
 from __future__ import annotations
 
+import os
 import socket
+import tempfile
 import threading
 import time
 
@@ -63,15 +65,23 @@ def _wait_ready(base_url: str, attempts: int = 60, delay: float = 0.1) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _storage_config() -> StorageConfig:
+    mode = os.getenv("CLOUDTWIN_STORAGE_MODE", "memory")
+    if mode == "sqlite":
+        db_dir = tempfile.mkdtemp(prefix="cloudtwin_test_")
+        return StorageConfig(mode="sqlite", path=f"{db_dir}/test.db")
+    return StorageConfig(mode="memory")
+
+
 @pytest.fixture(scope="session")
 def server_url():
     port = _free_port()
 
     config = Config(
-        storage=StorageConfig(mode="memory"),
+        storage=_storage_config(),
         providers=ProvidersConfig(
             aws=AwsConfig(
-                services=["ses", "s3", "sns", "sqs"],
+                services=["ses", "sns", "sqs", "lambda", "dynamodb", "secretsmanager", "s3"],
                 ses=SesConfig(strict_verification=False, smtp=SmtpConfig()),
             )
         ),
@@ -139,3 +149,24 @@ def sqs(server_url):
     import boto3
 
     return boto3.client("sqs", endpoint_url=server_url, **_FAKE_CREDS)
+
+
+@pytest.fixture(scope="session")
+def lambda_client(server_url):
+    import boto3
+
+    return boto3.client("lambda", endpoint_url=server_url, **_FAKE_CREDS)
+
+
+@pytest.fixture(scope="session")
+def dynamodb(server_url):
+    import boto3
+
+    return boto3.client("dynamodb", endpoint_url=server_url, **_FAKE_CREDS)
+
+
+@pytest.fixture(scope="session")
+def secretsmanager(server_url):
+    import boto3
+
+    return boto3.client("secretsmanager", endpoint_url=server_url, **_FAKE_CREDS)

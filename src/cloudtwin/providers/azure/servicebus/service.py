@@ -152,6 +152,7 @@ class ServiceBusService:
         messages = await self._messages.get_active(queue.id, "queue", limit=limit)
         for msg in messages:
             await self._messages.update_state(msg.lock_token, "locked")
+            msg.state = "locked"
         return messages
 
     # ------------------------------------------------------------------
@@ -187,6 +188,7 @@ class ServiceBusService:
         messages = await self._messages.get_active(sub.id, "subscription", limit=limit)
         for msg in messages:
             await self._messages.update_state(msg.lock_token, "locked")
+            msg.state = "locked"
         return messages
 
     # ------------------------------------------------------------------
