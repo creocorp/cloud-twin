@@ -114,7 +114,7 @@ export function Sidebar() {
       ))}
 
       <div className="mt-auto px-5 py-4 border-t border-gray-800">
-        <p className="text-gray-600 text-xs">port 4793 · 8787</p>
+        <p className="text-gray-600 text-xs">port 4793 · 8793</p>
       </div>
     </aside>
   );

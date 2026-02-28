@@ -124,7 +124,7 @@ variables take precedence.
 | `CLOUDTWIN_HOST` | `0.0.0.0` | Bind address |
 | `CLOUDTWIN_PORT` | `4793` | API port |
 | `CLOUDTWIN_STORAGE_MODE` | `sqlite` | `sqlite` or `memory` |
-| `CLOUDTWIN_DB_PATH` | `/data/cloudtwin.db` | SQLite database path (sqlite mode only) |
+| `CLOUDTWIN_STORAGE_PATH` | `./data/cloudtwin.db` | SQLite database path (sqlite mode only) |
 | `CLOUDTWIN_CONFIG_PATH` | `/config/cloudtwin.yml` | Path to optional YAML config file |
 
 To use a config file, set `CLOUDTWIN_CONFIG_PATH` or place a file at the default
@@ -153,7 +153,7 @@ storage:
 
 ## Dashboard
 
-CloudTwin ships with an optional web dashboard at `http://localhost:8787`
+CloudTwin ships with an optional web dashboard at `http://localhost:8793`
 that shows live status, resources, and event logs for all services.
 
 The dashboard is **disabled by default**. Enable it in your config:
@@ -162,7 +162,7 @@ The dashboard is **disabled by default**. Enable it in your config:
 cloudtwin:
   dashboard:
     enabled: true
-    port: 8787
+    port: 8793
 ```
 
 Or via environment variable:
@@ -181,7 +181,7 @@ python -m cloudtwin
 cd dashboard
 npm install
 npm run dev
-# Open http://localhost:8787
+# Open http://localhost:8793
 ```
 
 The Vite dev server proxies `/api/*` requests to the CloudTwin API on port 4793.

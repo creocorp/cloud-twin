@@ -5,11 +5,11 @@ import react from "@vitejs/plugin-react";
 // In dev, Vite proxies /api/* to the Python backend so you can run:
 //   python -m cloudtwin &
 //   cd dashboard && npm run dev
-// In production the FastAPI app mounts the built dist/ as StaticFiles on port 8787.
+// In production the FastAPI app mounts the built dist/ as StaticFiles on port 8793.
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 8787,
+    port: 8793,
     proxy: {
       "/api": {
         target: "http://localhost:4793",

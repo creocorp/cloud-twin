@@ -17,7 +17,7 @@ cloudtwin:
 
   dashboard:
     enabled: false
-    port: 8787
+    port: 8793
 
   logging:
     level: info

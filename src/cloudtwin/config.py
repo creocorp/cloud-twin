@@ -93,13 +93,13 @@ class ProvidersConfig:
 @dataclass
 class StorageConfig:
     mode: str = "sqlite"  # "sqlite" | "memory"
-    path: str = "/data/cloudtwin.db"
+    path: str = "./data/cloudtwin.db"
 
 
 @dataclass
 class DashboardConfig:
     enabled: bool = False
-    port: int = 8787
+    port: int = 8793
 
 
 @dataclass
@@ -143,7 +143,7 @@ def load_config() -> Config:
     storage_section = yaml_data.get("storage", {})
     storage = StorageConfig(
         mode=_env("CLOUDTWIN_STORAGE_MODE", storage_section.get("mode", "sqlite")),
-        path=_env("CLOUDTWIN_STORAGE_PATH", storage_section.get("path", "/data/cloudtwin.db")),
+        path=_env("CLOUDTWIN_STORAGE_PATH", storage_section.get("path", "./data/cloudtwin.db")),
     )
 
     # --- smtp ---
@@ -182,7 +182,7 @@ def load_config() -> Config:
         dash_enabled = dash_section.get("enabled", False)
     dashboard = DashboardConfig(
         enabled=dash_enabled,
-        port=int(_env("CLOUDTWIN_DASHBOARD_PORT", dash_section.get("port", 8787))),
+        port=int(_env("CLOUDTWIN_DASHBOARD_PORT", dash_section.get("port", 8793))),
     )
 
     # --- logging ---

@@ -387,7 +387,7 @@ root). It is independent of the Python package — no JS tooling touches `src/`.
 ```
 dashboard/
   index.html
-  vite.config.ts          # dev server on :8787, proxies /api/* → :4793
+  vite.config.ts          # dev server on :8793, proxies /api/* → :4793
   package.json
   tailwind.config.js
   src/
@@ -447,7 +447,7 @@ When disabled, the Python backend should not mount the static files or the
 cloudtwin:
   dashboard:
     enabled: true
-    port: 8787
+    port: 8793
 ```
 
 ```bash
@@ -462,7 +462,7 @@ python -m cloudtwin
 
 # Terminal 2 — Vite dev server (proxies /api/* to :4793)
 cd dashboard && npm install && npm run dev
-# → http://localhost:8787
+# → http://localhost:8793
 ```
 
 ### Production build

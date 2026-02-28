@@ -24,7 +24,17 @@ install-dev: $(VENV)/bin/activate  ## Install all dependencies (runtime + dev) i
 
 .PHONY: run
 run: install  ## Start the CloudTwin server (port 4793)
-	$(UVICORN) cloudtwin.app:app --host 0.0.0.0 --port 4793 --reload
+	mkdir -p data
+	$(UVICORN) cloudtwin.app:create_app --factory --host 0.0.0.0 --port 4793 --reload
+
+.PHONY: run-with-dashboard
+run-with-dashboard: install  ## Start CloudTwin with the dashboard enabled (http://localhost:4793/dashboard)
+	mkdir -p data
+	CLOUDTWIN_DASHBOARD_ENABLED=true $(UVICORN) cloudtwin.app:create_app --factory --host 0.0.0.0 --port 4793 --reload
+
+.PHONY: dashboard-dev
+dashboard-dev:  ## Start the Vite dashboard dev server (proxies /api/* to port 4793)
+	cd dashboard && npm run dev
 
 # ── Test ───────────────────────────────────────────────────────────────────────
 
