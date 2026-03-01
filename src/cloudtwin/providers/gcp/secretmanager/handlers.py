@@ -44,7 +44,9 @@ def make_router(service: GcpSecretManagerService) -> APIRouter:
             return JSONResponse({"error": exc.message}, status_code=404)
 
     @router.post("/v1/projects/{project}/secrets/{secret_name}:addVersion")
-    async def add_secret_version(project: str, secret_name: str, request: Request) -> JSONResponse:
+    async def add_secret_version(
+        project: str, secret_name: str, request: Request
+    ) -> JSONResponse:
         try:
             body = await request.json()
         except Exception:
@@ -53,18 +55,28 @@ def make_router(service: GcpSecretManagerService) -> APIRouter:
         payload = base64.b64decode(raw) if raw else b""
         try:
             version = await service.add_secret_version(project, secret_name, payload)
-            return JSONResponse({"name": f"{version.secret_full_name}/versions/{version.version_id}"})
+            return JSONResponse(
+                {"name": f"{version.secret_full_name}/versions/{version.version_id}"}
+            )
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
 
-    @router.get("/v1/projects/{project}/secrets/{secret_name}/versions/{version_id}:access")
-    async def access_secret_version(project: str, secret_name: str, version_id: str) -> JSONResponse:
+    @router.get(
+        "/v1/projects/{project}/secrets/{secret_name}/versions/{version_id}:access"
+    )
+    async def access_secret_version(
+        project: str, secret_name: str, version_id: str
+    ) -> JSONResponse:
         try:
-            version = await service.access_secret_version(project, secret_name, version_id)
-            return JSONResponse({
-                "name": f"{version.secret_full_name}/versions/{version.version_id}",
-                "payload": {"data": base64.b64encode(version.payload).decode()},
-            })
+            version = await service.access_secret_version(
+                project, secret_name, version_id
+            )
+            return JSONResponse(
+                {
+                    "name": f"{version.secret_full_name}/versions/{version.version_id}",
+                    "payload": {"data": base64.b64encode(version.payload).decode()},
+                }
+            )
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
 

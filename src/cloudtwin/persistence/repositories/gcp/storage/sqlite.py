@@ -45,8 +45,11 @@ class SqliteGcsBucketRepository(GcsBucketRepository):
 
     def _row(self, row) -> GcsBucket:
         return GcsBucket(
-            id=row["id"], project=row["project"], name=row["name"],
-            location=row["location"], created_at=row["created_at"],
+            id=row["id"],
+            project=row["project"],
+            name=row["name"],
+            location=row["location"],
+            created_at=row["created_at"],
         )
 
     async def get(self, project: str, name: str) -> Optional[GcsBucket]:
@@ -83,14 +86,20 @@ class SqliteGcsObjectRepository(GcsObjectRepository):
 
     def _row(self, row) -> GcsObject:
         return GcsObject(
-            id=row["id"], bucket_id=row["bucket_id"], name=row["name"],
-            content_type=row["content_type"], content_length=row["content_length"],
-            data=row["data"], metadata=row["metadata"], created_at=row["created_at"],
+            id=row["id"],
+            bucket_id=row["bucket_id"],
+            name=row["name"],
+            content_type=row["content_type"],
+            content_length=row["content_length"],
+            data=row["data"],
+            metadata=row["metadata"],
+            created_at=row["created_at"],
         )
 
     async def get(self, bucket_id: int, name: str) -> Optional[GcsObject]:
         async with self._db.conn.execute(
-            "SELECT * FROM gcs_objects WHERE bucket_id = ? AND name = ?", (bucket_id, name)
+            "SELECT * FROM gcs_objects WHERE bucket_id = ? AND name = ?",
+            (bucket_id, name),
         ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
@@ -115,14 +124,22 @@ class SqliteGcsObjectRepository(GcsObjectRepository):
                 metadata = excluded.metadata,
                 created_at = excluded.created_at
             """,
-            (obj.bucket_id, obj.name, obj.content_type, obj.content_length,
-             obj.data, obj.metadata, obj.created_at or _now()),
+            (
+                obj.bucket_id,
+                obj.name,
+                obj.content_type,
+                obj.content_length,
+                obj.data,
+                obj.metadata,
+                obj.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return obj
 
     async def delete(self, bucket_id: int, name: str) -> None:
         await self._db.conn.execute(
-            "DELETE FROM gcs_objects WHERE bucket_id = ? AND name = ?", (bucket_id, name)
+            "DELETE FROM gcs_objects WHERE bucket_id = ? AND name = ?",
+            (bucket_id, name),
         )
         await self._db.conn.commit()

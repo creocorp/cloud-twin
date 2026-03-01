@@ -6,14 +6,16 @@ from __future__ import annotations
 
 from xml.etree.ElementTree import Element, SubElement, tostring
 
-
 AWS_NS = "https://email.amazonaws.com/doc/2010-12-01/"
 S3_NS = "http://s3.amazonaws.com/doc/2006-03-01/"
 SNS_NS = "http://sns.amazonaws.com/doc/2010-03-31/"
 
 
 def _to_xml_bytes(root: Element) -> bytes:
-    return b'<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(root, encoding="unicode").encode()
+    return (
+        b'<?xml version="1.0" encoding="UTF-8"?>\n'
+        + tostring(root, encoding="unicode").encode()
+    )
 
 
 # ---------------------------------------------------------------------------

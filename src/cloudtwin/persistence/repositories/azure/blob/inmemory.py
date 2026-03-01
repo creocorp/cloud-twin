@@ -41,8 +41,14 @@ class InMemoryAzureBlobRepository(AzureBlobRepository):
     async def get(self, container_id: int, name: str) -> Optional[AzureBlob]:
         return self._store.get((container_id, name))
 
-    async def list_by_container(self, container_id: int, prefix: str = "") -> list[AzureBlob]:
-        return [b for (cid, k), b in self._store.items() if cid == container_id and k.startswith(prefix)]
+    async def list_by_container(
+        self, container_id: int, prefix: str = ""
+    ) -> list[AzureBlob]:
+        return [
+            b
+            for (cid, k), b in self._store.items()
+            if cid == container_id and k.startswith(prefix)
+        ]
 
     async def save(self, blob: AzureBlob) -> AzureBlob:
         self._store[(blob.container_id, blob.name)] = blob

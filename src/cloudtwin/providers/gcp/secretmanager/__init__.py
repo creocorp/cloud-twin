@@ -14,7 +14,9 @@ from cloudtwin.providers.gcp.secretmanager.service import GcpSecretManagerServic
 log = logging.getLogger("cloudtwin.gcp.secretmanager")
 
 
-def register(app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs) -> None:
+def register(
+    app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs
+) -> None:
     service = GcpSecretManagerService(
         secret_repo=repos["gcp_secret"],
         version_repo=repos["gcp_secret_version"],

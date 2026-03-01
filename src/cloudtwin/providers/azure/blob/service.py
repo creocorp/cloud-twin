@@ -9,7 +9,10 @@ from typing import Optional
 from cloudtwin.core.errors import ConflictError, NotFoundError
 from cloudtwin.core.telemetry import TelemetryEngine
 from cloudtwin.persistence.models.azure import AzureBlob, AzureContainer
-from cloudtwin.persistence.repositories.azure import AzureBlobRepository, AzureContainerRepository
+from cloudtwin.persistence.repositories.azure import (
+    AzureBlobRepository,
+    AzureContainerRepository,
+)
 
 log = logging.getLogger("cloudtwin.azure.blob")
 
@@ -44,7 +47,9 @@ class BlobService:
             return existing
         container = AzureContainer(account=self._account, name=name, created_at=_now())
         result = await self._containers.save(container)
-        await self._telemetry.emit("azure", "blob", "create_container", {"container": name})
+        await self._telemetry.emit(
+            "azure", "blob", "create_container", {"container": name}
+        )
         return result
 
     async def delete_container(self, name: str) -> None:
@@ -52,7 +57,9 @@ class BlobService:
         if not existing:
             raise NotFoundError(f"Container not found: {name}")
         await self._containers.delete(self._account, name)
-        await self._telemetry.emit("azure", "blob", "delete_container", {"container": name})
+        await self._telemetry.emit(
+            "azure", "blob", "delete_container", {"container": name}
+        )
 
     async def get_container(self, name: str) -> AzureContainer:
         container = await self._containers.get(self._account, name)
@@ -64,7 +71,9 @@ class BlobService:
     # Blobs
     # ------------------------------------------------------------------
 
-    async def list_blobs(self, container_name: str, prefix: str = "") -> list[AzureBlob]:
+    async def list_blobs(
+        self, container_name: str, prefix: str = ""
+    ) -> list[AzureBlob]:
         container = await self.get_container(container_name)
         return await self._blobs.list_by_container(container.id, prefix=prefix)
 
@@ -78,6 +87,7 @@ class BlobService:
     ) -> AzureBlob:
         container = await self.get_container(container_name)
         import json
+
         blob = AzureBlob(
             container_id=container.id,
             name=blob_name,
@@ -88,9 +98,12 @@ class BlobService:
             created_at=_now(),
         )
         result = await self._blobs.save(blob)
-        await self._telemetry.emit("azure", "blob", "put_blob", {
-            "container": container_name, "blob": blob_name, "size": len(data)
-        })
+        await self._telemetry.emit(
+            "azure",
+            "blob",
+            "put_blob",
+            {"container": container_name, "blob": blob_name, "size": len(data)},
+        )
         return result
 
     async def get_blob(self, container_name: str, blob_name: str) -> AzureBlob:
@@ -106,6 +119,9 @@ class BlobService:
         if not blob:
             raise NotFoundError(f"Blob not found: {container_name}/{blob_name}")
         await self._blobs.delete(container.id, blob_name)
-        await self._telemetry.emit("azure", "blob", "delete_blob", {
-            "container": container_name, "blob": blob_name
-        })
+        await self._telemetry.emit(
+            "azure",
+            "blob",
+            "delete_blob",
+            {"container": container_name, "blob": blob_name},
+        )

@@ -16,7 +16,10 @@ from cloudtwin.persistence.repositories.gcp.secretmanager.sqlite import (
 )
 
 __all__ = [
-    "GcpSecretRepository", "GcpSecretVersionRepository",
-    "SqliteGcpSecretRepository", "SqliteGcpSecretVersionRepository",
-    "InMemoryGcpSecretRepository", "InMemoryGcpSecretVersionRepository",
+    "GcpSecretRepository",
+    "GcpSecretVersionRepository",
+    "SqliteGcpSecretRepository",
+    "SqliteGcpSecretVersionRepository",
+    "InMemoryGcpSecretRepository",
+    "InMemoryGcpSecretVersionRepository",
 ]

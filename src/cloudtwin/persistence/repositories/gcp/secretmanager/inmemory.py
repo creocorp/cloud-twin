@@ -45,12 +45,22 @@ class InMemoryGcpSecretVersionRepository(GcpSecretVersionRepository):
         return version
 
     async def get_latest(self, secret_full_name: str) -> Optional[GcpSecretVersion]:
-        matches = [v for v in self._store if v.secret_full_name == secret_full_name and v.state == "enabled"]
+        matches = [
+            v
+            for v in self._store
+            if v.secret_full_name == secret_full_name and v.state == "enabled"
+        ]
         return matches[-1] if matches else None
 
-    async def get_by_version_id(self, secret_full_name: str, version_id: str) -> Optional[GcpSecretVersion]:
+    async def get_by_version_id(
+        self, secret_full_name: str, version_id: str
+    ) -> Optional[GcpSecretVersion]:
         return next(
-            (v for v in self._store if v.secret_full_name == secret_full_name and v.version_id == version_id),
+            (
+                v
+                for v in self._store
+                if v.secret_full_name == secret_full_name and v.version_id == version_id
+            ),
             None,
         )
 

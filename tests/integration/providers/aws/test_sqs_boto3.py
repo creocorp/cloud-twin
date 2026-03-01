@@ -87,7 +87,10 @@ def test_send_message_returns_id_and_md5(sqs):
 
 def test_send_multiple_messages_unique_ids(sqs):
     url = sqs.create_queue(QueueName="send-multi-queue")["QueueUrl"]
-    ids = {sqs.send_message(QueueUrl=url, MessageBody=f"msg {i}")["MessageId"] for i in range(5)}
+    ids = {
+        sqs.send_message(QueueUrl=url, MessageBody=f"msg {i}")["MessageId"]
+        for i in range(5)
+    }
     assert len(ids) == 5
 
 

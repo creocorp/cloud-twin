@@ -70,11 +70,16 @@ class S3Service:
             created_at=_now(),
         )
         result = await self._object_repo.save(obj)
-        await self._telemetry.emit("aws", "s3", "put_object", {
-            "bucket": bucket_name,
-            "key": key,
-            "size": len(data),
-        })
+        await self._telemetry.emit(
+            "aws",
+            "s3",
+            "put_object",
+            {
+                "bucket": bucket_name,
+                "key": key,
+                "size": len(data),
+            },
+        )
         return result
 
     async def get_object(self, bucket_name: str, key: str) -> S3Object:
@@ -82,19 +87,29 @@ class S3Service:
         obj = await self._object_repo.get(bucket.id, key)
         if obj is None:
             raise NotFoundError(f"Object not found: s3://{bucket_name}/{key}")
-        await self._telemetry.emit("aws", "s3", "get_object", {
-            "bucket": bucket_name,
-            "key": key,
-        })
+        await self._telemetry.emit(
+            "aws",
+            "s3",
+            "get_object",
+            {
+                "bucket": bucket_name,
+                "key": key,
+            },
+        )
         return obj
 
     async def delete_object(self, bucket_name: str, key: str) -> None:
         bucket = await self._require_bucket(bucket_name)
         await self._object_repo.delete(bucket.id, key)
-        await self._telemetry.emit("aws", "s3", "delete_object", {
-            "bucket": bucket_name,
-            "key": key,
-        })
+        await self._telemetry.emit(
+            "aws",
+            "s3",
+            "delete_object",
+            {
+                "bucket": bucket_name,
+                "key": key,
+            },
+        )
 
     async def list_objects_v2(
         self, bucket_name: str, prefix: str = "", max_keys: int = 1000

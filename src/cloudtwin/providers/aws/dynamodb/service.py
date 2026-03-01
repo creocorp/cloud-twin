@@ -42,7 +42,9 @@ class DynamoDBService:
 
     # ------------------------------------------------------------------ tables
 
-    async def create_table(self, name: str, key_schema: list, attribute_definitions: list) -> DynamoTable:
+    async def create_table(
+        self, name: str, key_schema: list, attribute_definitions: list
+    ) -> DynamoTable:
         existing = await self._tables.get(name)
         if existing:
             return existing
@@ -90,8 +92,11 @@ class DynamoDBService:
             raise NotFoundError(f"Table not found: {table_name}")
         pk, sk = self._extract_key(table, item)
         dynamo_item = DynamoItem(
-            table_name=table_name, pk=pk, sk=sk,
-            item=json.dumps(item), created_at=_now(),
+            table_name=table_name,
+            pk=pk,
+            sk=sk,
+            item=json.dumps(item),
+            created_at=_now(),
         )
         await self._items.put(dynamo_item)
         await self._telemetry.emit("aws", "dynamodb", "put_item", {"table": table_name})
@@ -110,7 +115,9 @@ class DynamoDBService:
             raise NotFoundError(f"Table not found: {table_name}")
         pk, sk = self._extract_key(table, key)
         await self._items.delete(table_name, pk, sk)
-        await self._telemetry.emit("aws", "dynamodb", "delete_item", {"table": table_name})
+        await self._telemetry.emit(
+            "aws", "dynamodb", "delete_item", {"table": table_name}
+        )
 
     async def scan(self, table_name: str) -> list[dict]:
         table = await self._tables.get(table_name)

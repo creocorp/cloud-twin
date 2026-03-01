@@ -71,7 +71,14 @@ def gcp_server_url():
             azure=AzureConfig(services=[]),
             gcp=GcpConfig(
                 project=_PROJECT,
-                services=["storage", "pubsub", "firestore", "cloudtasks", "secretmanager", "cloudfunctions"],
+                services=[
+                    "storage",
+                    "pubsub",
+                    "firestore",
+                    "cloudtasks",
+                    "secretmanager",
+                    "cloudfunctions",
+                ],
             ),
         ),
         dashboard=DashboardConfig(enabled=False),
@@ -95,8 +102,6 @@ def gcp_server_url():
     t.join(timeout=5)
 
 
-
-
 @pytest.fixture(scope="session")
 def gcs(gcp_server_url):
     from google.cloud import storage
@@ -111,7 +116,9 @@ def gcs(gcp_server_url):
 @pytest.fixture(scope="session")
 def pubsub_publisher(gcp_server_url):
     from google.pubsub_v1.services.publisher import PublisherClient
-    from google.pubsub_v1.services.publisher.transports.rest import PublisherRestTransport
+    from google.pubsub_v1.services.publisher.transports.rest import (
+        PublisherRestTransport,
+    )
 
     transport = PublisherRestTransport(
         host=gcp_server_url,
@@ -123,7 +130,9 @@ def pubsub_publisher(gcp_server_url):
 @pytest.fixture(scope="session")
 def pubsub_subscriber(gcp_server_url):
     from google.pubsub_v1.services.subscriber import SubscriberClient
-    from google.pubsub_v1.services.subscriber.transports.rest import SubscriberRestTransport
+    from google.pubsub_v1.services.subscriber.transports.rest import (
+        SubscriberRestTransport,
+    )
 
     transport = SubscriberRestTransport(
         host=gcp_server_url,

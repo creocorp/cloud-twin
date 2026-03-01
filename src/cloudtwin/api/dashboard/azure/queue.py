@@ -13,7 +13,11 @@ async def azure_queue(request: Request):
     queues = await repos["azure_queue"].list_all()
     result = []
     for q in queues:
-        msgs = await repos["azure_queue_message"].list_by_queue(q.id) if q.id is not None else []
+        msgs = (
+            await repos["azure_queue_message"].list_by_queue(q.id)
+            if q.id is not None
+            else []
+        )
         result.append(
             {
                 "account": q.account,

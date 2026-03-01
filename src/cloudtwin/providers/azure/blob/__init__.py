@@ -10,7 +10,9 @@ from cloudtwin.providers.azure.blob.handlers import make_router
 from cloudtwin.providers.azure.blob.service import BlobService
 
 
-def register(app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine) -> None:
+def register(
+    app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine
+) -> None:
     account_name = config.providers.azure.blob.account_name
     service = BlobService(
         account_name=account_name,

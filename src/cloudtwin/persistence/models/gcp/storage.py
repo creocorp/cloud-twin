@@ -22,6 +22,6 @@ class GcsObject:
     content_type: Optional[str]
     content_length: Optional[int]
     data: Optional[bytes]
-    metadata: str             # JSON dict string
+    metadata: str  # JSON dict string
     created_at: str
     id: Optional[int] = None

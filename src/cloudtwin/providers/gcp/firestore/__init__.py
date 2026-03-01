@@ -14,7 +14,9 @@ from cloudtwin.providers.gcp.firestore.service import FirestoreService
 log = logging.getLogger("cloudtwin.gcp.firestore")
 
 
-def register(app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs) -> None:
+def register(
+    app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs
+) -> None:
     service = FirestoreService(
         repo=repos["firestore_document"],
         telemetry=telemetry,

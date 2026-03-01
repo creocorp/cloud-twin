@@ -29,7 +29,9 @@ class TestTopics:
     def test_list_topics(self, pubsub_publisher):
         name = _name()
         pubsub_publisher.create_topic(name=_topic_path(name))
-        topics = list(pubsub_publisher.list_topics(request={"project": f"projects/{_PROJECT}"}))
+        topics = list(
+            pubsub_publisher.list_topics(request={"project": f"projects/{_PROJECT}"})
+        )
         topic_names = [t.name for t in topics]
         assert _topic_path(name) in topic_names
 
@@ -38,7 +40,9 @@ class TestTopics:
         pubsub_publisher.create_topic(name=_topic_path(name))
         pubsub_publisher.delete_topic(topic=_topic_path(name))
         # After deletion, it should not appear in list
-        topics = list(pubsub_publisher.list_topics(request={"project": f"projects/{_PROJECT}"}))
+        topics = list(
+            pubsub_publisher.list_topics(request={"project": f"projects/{_PROJECT}"})
+        )
         assert _topic_path(name) not in [t.name for t in topics]
 
 
@@ -60,9 +64,11 @@ class TestSubscriptions:
         pubsub_subscriber.create_subscription(
             request={"name": _sub_path(sub_name), "topic": _topic_path(topic_name)}
         )
-        subs = list(pubsub_subscriber.list_subscriptions(
-            request={"project": f"projects/{_PROJECT}"}
-        ))
+        subs = list(
+            pubsub_subscriber.list_subscriptions(
+                request={"project": f"projects/{_PROJECT}"}
+            )
+        )
         sub_names = [s.name for s in subs]
         assert _sub_path(sub_name) in sub_names
 
@@ -74,9 +80,11 @@ class TestSubscriptions:
             request={"name": _sub_path(sub_name), "topic": _topic_path(topic_name)}
         )
         pubsub_subscriber.delete_subscription(subscription=_sub_path(sub_name))
-        subs = list(pubsub_subscriber.list_subscriptions(
-            request={"project": f"projects/{_PROJECT}"}
-        ))
+        subs = list(
+            pubsub_subscriber.list_subscriptions(
+                request={"project": f"projects/{_PROJECT}"}
+            )
+        )
         assert _sub_path(sub_name) not in [s.name for s in subs]
 
 
@@ -151,7 +159,9 @@ class TestPublishAndPull:
         )
         assert len(r2.received_messages) == 0
 
-    def test_fanout_to_multiple_subscriptions(self, pubsub_publisher, pubsub_subscriber):
+    def test_fanout_to_multiple_subscriptions(
+        self, pubsub_publisher, pubsub_subscriber
+    ):
         from google.cloud.pubsub_v1.types import PubsubMessage
 
         topic_name = _name()

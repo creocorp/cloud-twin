@@ -14,7 +14,9 @@ from cloudtwin.providers.azure.keyvault.service import KeyVaultService
 log = logging.getLogger("cloudtwin.azure.keyvault")
 
 
-def register(app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs) -> None:
+def register(
+    app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs
+) -> None:
     service = KeyVaultService(
         repo=repos["kv_secret"],
         telemetry=telemetry,

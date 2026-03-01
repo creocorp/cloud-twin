@@ -16,7 +16,10 @@ from cloudtwin.persistence.repositories.gcp.cloudfunctions.sqlite import (
 )
 
 __all__ = [
-    "CloudFunctionRepository", "CloudFunctionInvocationRepository",
-    "SqliteCloudFunctionRepository", "SqliteCloudFunctionInvocationRepository",
-    "InMemoryCloudFunctionRepository", "InMemoryCloudFunctionInvocationRepository",
+    "CloudFunctionRepository",
+    "CloudFunctionInvocationRepository",
+    "SqliteCloudFunctionRepository",
+    "SqliteCloudFunctionInvocationRepository",
+    "InMemoryCloudFunctionRepository",
+    "InMemoryCloudFunctionInvocationRepository",
 ]

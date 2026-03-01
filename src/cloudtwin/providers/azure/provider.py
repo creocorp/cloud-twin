@@ -34,7 +34,11 @@ class AzureProvider:
     def __init__(self, config: Config, db, repos: dict | None = None):
         self._config = config
         self._db = db
-        self._repos = repos if repos is not None else make_repositories(db, mode=config.storage.mode)
+        self._repos = (
+            repos
+            if repos is not None
+            else make_repositories(db, mode=config.storage.mode)
+        )
         self._telemetry = TelemetryEngine(self._repos.get("event"))
 
     def register(self, app: FastAPI) -> None:

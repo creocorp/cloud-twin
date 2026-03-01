@@ -14,7 +14,9 @@ from cloudtwin.providers.gcp.cloudfunctions.service import GcpCloudFunctionsServ
 log = logging.getLogger("cloudtwin.gcp.cloudfunctions")
 
 
-def register(app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs) -> None:
+def register(
+    app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs
+) -> None:
     service = GcpCloudFunctionsService(
         function_repo=repos["gcp_function"],
         invocation_repo=repos["gcp_function_invocation"],

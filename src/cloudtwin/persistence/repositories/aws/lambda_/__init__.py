@@ -16,7 +16,10 @@ from cloudtwin.persistence.repositories.aws.lambda_.sqlite import (
 )
 
 __all__ = [
-    "LambdaFunctionRepository", "LambdaInvocationRepository",
-    "SqliteLambdaFunctionRepository", "SqliteLambdaInvocationRepository",
-    "InMemoryLambdaFunctionRepository", "InMemoryLambdaInvocationRepository",
+    "LambdaFunctionRepository",
+    "LambdaInvocationRepository",
+    "SqliteLambdaFunctionRepository",
+    "SqliteLambdaInvocationRepository",
+    "InMemoryLambdaFunctionRepository",
+    "InMemoryLambdaInvocationRepository",
 ]

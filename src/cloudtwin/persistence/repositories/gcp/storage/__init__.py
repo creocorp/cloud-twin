@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.gcp.storage.repository import (
-    GcsBucketRepository,
-    GcsObjectRepository,
-)
 from cloudtwin.persistence.repositories.gcp.storage.inmemory import (
     InMemoryGcsBucketRepository,
     InMemoryGcsObjectRepository,
+)
+from cloudtwin.persistence.repositories.gcp.storage.repository import (
+    GcsBucketRepository,
+    GcsObjectRepository,
 )
 from cloudtwin.persistence.repositories.gcp.storage.sqlite import (
     SqliteGcsBucketRepository,

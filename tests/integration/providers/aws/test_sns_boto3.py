@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # CreateTopic
 # ---------------------------------------------------------------------------
@@ -80,20 +79,30 @@ def test_subscribe_returns_subscription_arn(sns):
 def test_subscribe_idempotent(sns):
     """Same endpoint subscribed twice must return the same SubscriptionArn."""
     topic_arn = sns.create_topic(Name="sub-idempotent-topic")["TopicArn"]
-    sub1 = sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint="a@b.com")["SubscriptionArn"]
-    sub2 = sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint="a@b.com")["SubscriptionArn"]
+    sub1 = sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint="a@b.com")[
+        "SubscriptionArn"
+    ]
+    sub2 = sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint="a@b.com")[
+        "SubscriptionArn"
+    ]
     assert sub1 == sub2
 
 
 def test_subscribe_different_endpoints_are_distinct(sns):
     topic_arn = sns.create_topic(Name="sub-multi-endpoint-topic")["TopicArn"]
-    sub1 = sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint="a@x.com")["SubscriptionArn"]
-    sub2 = sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint="b@x.com")["SubscriptionArn"]
+    sub1 = sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint="a@x.com")[
+        "SubscriptionArn"
+    ]
+    sub2 = sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint="b@x.com")[
+        "SubscriptionArn"
+    ]
     assert sub1 != sub2
 
 
 def test_subscribe_nonexistent_topic_raises(sns):
-    with pytest.raises(Exception, match="NotFound|not found|NoSuchEntity|NotFoundException|not exist"):
+    with pytest.raises(
+        Exception, match="NotFound|not found|NoSuchEntity|NotFoundException|not exist"
+    ):
         sns.subscribe(
             TopicArn="arn:aws:sns:us-east-1:000000000000:ghost-topic",
             Protocol="email",

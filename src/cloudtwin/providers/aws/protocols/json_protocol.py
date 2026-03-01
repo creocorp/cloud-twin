@@ -24,7 +24,9 @@ class JsonProtocolRouter:
     def __init__(self):
         self._handlers: dict[str, Callable[[Request, dict], Awaitable[Response]]] = {}
 
-    def register(self, target: str, handler: Callable[[Request, dict], Awaitable[Response]]):
+    def register(
+        self, target: str, handler: Callable[[Request, dict], Awaitable[Response]]
+    ):
         """Register a handler for the given X-Amz-Target value (e.g. 'AmazonSQS.SendMessage')."""
         self._handlers[target] = handler
 

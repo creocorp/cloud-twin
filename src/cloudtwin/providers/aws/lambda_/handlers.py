@@ -57,19 +57,29 @@ def make_router(service: LambdaService) -> APIRouter:
             fn = await service.get_function(function_name)
             return JSONResponse({"Configuration": _fn_config(fn)})
         except NotFoundError as exc:
-            return JSONResponse({"__type": "ResourceNotFoundException", "message": exc.message}, status_code=404)
+            return JSONResponse(
+                {"__type": "ResourceNotFoundException", "message": exc.message},
+                status_code=404,
+            )
 
     @router.put("/2015-03-31/functions/{function_name}/code")
-    async def update_function_code(function_name: str, request: Request) -> JSONResponse:
+    async def update_function_code(
+        function_name: str, request: Request
+    ) -> JSONResponse:
         try:
             body = await request.json()
         except Exception:
             return JSONResponse({"message": "Invalid JSON"}, status_code=400)
         try:
-            fn = await service.update_function_code(function_name, str(body.get("ZipFile", "")))
+            fn = await service.update_function_code(
+                function_name, str(body.get("ZipFile", ""))
+            )
             return JSONResponse(_fn_config(fn))
         except NotFoundError as exc:
-            return JSONResponse({"__type": "ResourceNotFoundException", "message": exc.message}, status_code=404)
+            return JSONResponse(
+                {"__type": "ResourceNotFoundException", "message": exc.message},
+                status_code=404,
+            )
 
     @router.delete("/2015-03-31/functions/{function_name}")
     async def delete_function(function_name: str) -> Response:
@@ -77,7 +87,10 @@ def make_router(service: LambdaService) -> APIRouter:
             await service.delete_function(function_name)
             return Response(status_code=204)
         except NotFoundError as exc:
-            return JSONResponse({"__type": "ResourceNotFoundException", "message": exc.message}, status_code=404)
+            return JSONResponse(
+                {"__type": "ResourceNotFoundException", "message": exc.message},
+                status_code=404,
+            )
 
     @router.post("/2015-03-31/functions/{function_name}/invocations")
     async def invoke_function(function_name: str, request: Request) -> JSONResponse:
@@ -90,7 +103,10 @@ def make_router(service: LambdaService) -> APIRouter:
             result = await service.invoke(function_name, payload)
             return JSONResponse({"StatusCode": 200, "Payload": result})
         except NotFoundError as exc:
-            return JSONResponse({"__type": "ResourceNotFoundException", "message": exc.message}, status_code=404)
+            return JSONResponse(
+                {"__type": "ResourceNotFoundException", "message": exc.message},
+                status_code=404,
+            )
         except CloudTwinError as exc:
             return JSONResponse({"message": exc.message}, status_code=exc.http_status)
 

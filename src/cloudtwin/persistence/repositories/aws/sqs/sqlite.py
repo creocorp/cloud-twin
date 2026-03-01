@@ -40,10 +40,14 @@ class SqliteSqsQueueRepository(SqsQueueRepository):
         self._db = db
 
     def _row(self, row) -> SqsQueue:
-        return SqsQueue(id=row["id"], name=row["name"], url=row["url"], created_at=row["created_at"])
+        return SqsQueue(
+            id=row["id"], name=row["name"], url=row["url"], created_at=row["created_at"]
+        )
 
     async def get(self, name: str) -> Optional[SqsQueue]:
-        async with self._db.conn.execute("SELECT * FROM sqs_queues WHERE name = ?", (name,)) as cur:
+        async with self._db.conn.execute(
+            "SELECT * FROM sqs_queues WHERE name = ?", (name,)
+        ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
 
@@ -70,9 +74,13 @@ class SqliteSqsMessageRepository(SqsMessageRepository):
 
     def _row(self, row) -> SqsMessage:
         return SqsMessage(
-            id=row["id"], message_id=row["message_id"], queue_id=row["queue_id"],
-            body=row["body"], receipt_handle=row["receipt_handle"],
-            visible=bool(row["visible"]), created_at=row["created_at"],
+            id=row["id"],
+            message_id=row["message_id"],
+            queue_id=row["queue_id"],
+            body=row["body"],
+            receipt_handle=row["receipt_handle"],
+            visible=bool(row["visible"]),
+            created_at=row["created_at"],
         )
 
     async def save(self, message: SqsMessage) -> SqsMessage:
@@ -82,8 +90,14 @@ class SqliteSqsMessageRepository(SqsMessageRepository):
                 (message_id, queue_id, body, receipt_handle, visible, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (message.message_id, message.queue_id, message.body,
-             message.receipt_handle, int(message.visible), message.created_at or _now()),
+            (
+                message.message_id,
+                message.queue_id,
+                message.body,
+                message.receipt_handle,
+                int(message.visible),
+                message.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return message
@@ -97,13 +111,15 @@ class SqliteSqsMessageRepository(SqsMessageRepository):
 
     async def mark_invisible(self, receipt_handle: str) -> None:
         await self._db.conn.execute(
-            "UPDATE sqs_messages SET visible = 0 WHERE receipt_handle = ?", (receipt_handle,)
+            "UPDATE sqs_messages SET visible = 0 WHERE receipt_handle = ?",
+            (receipt_handle,),
         )
         await self._db.conn.commit()
 
     async def make_visible(self, receipt_handle: str) -> None:
         await self._db.conn.execute(
-            "UPDATE sqs_messages SET visible = 1 WHERE receipt_handle = ?", (receipt_handle,)
+            "UPDATE sqs_messages SET visible = 1 WHERE receipt_handle = ?",
+            (receipt_handle,),
         )
         await self._db.conn.commit()
 
@@ -122,7 +138,8 @@ class SqliteSqsMessageRepository(SqsMessageRepository):
 
     async def count_not_visible(self, queue_id: int) -> int:
         async with self._db.conn.execute(
-            "SELECT COUNT(*) FROM sqs_messages WHERE queue_id = ? AND visible = 0", (queue_id,)
+            "SELECT COUNT(*) FROM sqs_messages WHERE queue_id = ? AND visible = 0",
+            (queue_id,),
         ) as cur:
             row = await cur.fetchone()
             return row[0] if row else 0

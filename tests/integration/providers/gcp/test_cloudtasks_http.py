@@ -22,14 +22,26 @@ class TestQueues:
     def test_create_queue(self, gcp_http):
         r = gcp_http.post(
             _queues_path(),
-            json={"name": f"projects/{_PROJECT}/locations/{_LOCATION}/queues/ct-q-create"},
+            json={
+                "name": f"projects/{_PROJECT}/locations/{_LOCATION}/queues/ct-q-create"
+            },
         )
         assert r.status_code == 200
         assert "ct-q-create" in r.json()["name"]
 
     def test_list_queues(self, gcp_http):
-        gcp_http.post(_queues_path(), json={"name": f"projects/{_PROJECT}/locations/{_LOCATION}/queues/ct-q-list-1"})
-        gcp_http.post(_queues_path(), json={"name": f"projects/{_PROJECT}/locations/{_LOCATION}/queues/ct-q-list-2"})
+        gcp_http.post(
+            _queues_path(),
+            json={
+                "name": f"projects/{_PROJECT}/locations/{_LOCATION}/queues/ct-q-list-1"
+            },
+        )
+        gcp_http.post(
+            _queues_path(),
+            json={
+                "name": f"projects/{_PROJECT}/locations/{_LOCATION}/queues/ct-q-list-2"
+            },
+        )
         r = gcp_http.get(_queues_path())
         assert r.status_code == 200
         names = [q["name"] for q in r.json()["queues"]]
@@ -37,7 +49,10 @@ class TestQueues:
         assert any("ct-q-list-2" in n for n in names)
 
     def test_get_queue(self, gcp_http):
-        gcp_http.post(_queues_path(), json={"name": f"projects/{_PROJECT}/locations/{_LOCATION}/queues/ct-q-get"})
+        gcp_http.post(
+            _queues_path(),
+            json={"name": f"projects/{_PROJECT}/locations/{_LOCATION}/queues/ct-q-get"},
+        )
         r = gcp_http.get(_queue_path("ct-q-get"))
         assert r.status_code == 200
         assert "ct-q-get" in r.json()["name"]
@@ -47,7 +62,10 @@ class TestQueues:
         assert r.status_code == 404
 
     def test_delete_queue(self, gcp_http):
-        gcp_http.post(_queues_path(), json={"name": f"projects/{_PROJECT}/locations/{_LOCATION}/queues/ct-q-del"})
+        gcp_http.post(
+            _queues_path(),
+            json={"name": f"projects/{_PROJECT}/locations/{_LOCATION}/queues/ct-q-del"},
+        )
         r = gcp_http.delete(_queue_path("ct-q-del"))
         assert r.status_code == 200
 
@@ -65,7 +83,10 @@ class TestTasks:
 
     def test_create_task(self, gcp_http):
         self._ensure_queue(gcp_http, "ct-task-q")
-        r = gcp_http.post(_tasks_path("ct-task-q"), json={"task": {"httpRequest": {"url": "http://example.com"}}})
+        r = gcp_http.post(
+            _tasks_path("ct-task-q"),
+            json={"task": {"httpRequest": {"url": "http://example.com"}}},
+        )
         assert r.status_code == 200
         assert "name" in r.json()
 

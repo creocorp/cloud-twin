@@ -43,7 +43,9 @@ class SqliteS3BucketRepository(S3BucketRepository):
         return S3Bucket(id=row["id"], name=row["name"], created_at=row["created_at"])
 
     async def get(self, name: str) -> Optional[S3Bucket]:
-        async with self._db.conn.execute("SELECT * FROM s3_buckets WHERE name = ?", (name,)) as cur:
+        async with self._db.conn.execute(
+            "SELECT * FROM s3_buckets WHERE name = ?", (name,)
+        ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
 
@@ -70,9 +72,13 @@ class SqliteS3ObjectRepository(S3ObjectRepository):
 
     def _row(self, row) -> S3Object:
         return S3Object(
-            id=row["id"], bucket_id=row["bucket_id"], key=row["key"],
-            content_type=row["content_type"], content_length=row["content_length"],
-            data=row["data"], created_at=row["created_at"],
+            id=row["id"],
+            bucket_id=row["bucket_id"],
+            key=row["key"],
+            content_type=row["content_type"],
+            content_length=row["content_length"],
+            data=row["data"],
+            created_at=row["created_at"],
         )
 
     async def get(self, bucket_id: int, key: str) -> Optional[S3Object]:
@@ -101,8 +107,14 @@ class SqliteS3ObjectRepository(S3ObjectRepository):
                 data = excluded.data,
                 created_at = excluded.created_at
             """,
-            (obj.bucket_id, obj.key, obj.content_type, obj.content_length,
-             obj.data, obj.created_at or _now()),
+            (
+                obj.bucket_id,
+                obj.key,
+                obj.content_type,
+                obj.content_length,
+                obj.data,
+                obj.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return obj

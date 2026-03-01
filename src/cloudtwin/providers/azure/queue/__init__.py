@@ -14,7 +14,9 @@ from cloudtwin.providers.azure.queue.service import AzureQueueService
 log = logging.getLogger("cloudtwin.azure.queue")
 
 
-def register(app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs) -> None:
+def register(
+    app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs
+) -> None:
     service = AzureQueueService(
         queue_repo=repos["azure_storage_queue"],
         message_repo=repos["azure_queue_message"],

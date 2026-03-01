@@ -68,8 +68,11 @@ class SqlitePubsubTopicRepository(PubsubTopicRepository):
 
     def _row(self, row) -> PubsubTopic:
         return PubsubTopic(
-            id=row["id"], project=row["project"], name=row["name"],
-            full_name=row["full_name"], created_at=row["created_at"],
+            id=row["id"],
+            project=row["project"],
+            name=row["name"],
+            full_name=row["full_name"],
+            created_at=row["created_at"],
         )
 
     async def get(self, full_name: str) -> Optional[PubsubTopic]:
@@ -107,9 +110,13 @@ class SqlitePubsubSubscriptionRepository(PubsubSubscriptionRepository):
 
     def _row(self, row) -> PubsubSubscription:
         return PubsubSubscription(
-            id=row["id"], project=row["project"], name=row["name"],
-            full_name=row["full_name"], topic_full_name=row["topic_full_name"],
-            ack_deadline_seconds=row["ack_deadline_seconds"], created_at=row["created_at"],
+            id=row["id"],
+            project=row["project"],
+            name=row["name"],
+            full_name=row["full_name"],
+            topic_full_name=row["topic_full_name"],
+            ack_deadline_seconds=row["ack_deadline_seconds"],
+            created_at=row["created_at"],
         )
 
     async def get(self, full_name: str) -> Optional[PubsubSubscription]:
@@ -121,7 +128,8 @@ class SqlitePubsubSubscriptionRepository(PubsubSubscriptionRepository):
 
     async def list_by_topic(self, topic_full_name: str) -> list[PubsubSubscription]:
         async with self._db.conn.execute(
-            "SELECT * FROM pubsub_subscriptions WHERE topic_full_name = ?", (topic_full_name,)
+            "SELECT * FROM pubsub_subscriptions WHERE topic_full_name = ?",
+            (topic_full_name,),
         ) as cur:
             return [self._row(r) for r in await cur.fetchall()]
 
@@ -138,8 +146,14 @@ class SqlitePubsubSubscriptionRepository(PubsubSubscriptionRepository):
                 (project, name, full_name, topic_full_name, ack_deadline_seconds, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (sub.project, sub.name, sub.full_name, sub.topic_full_name,
-             sub.ack_deadline_seconds, sub.created_at or _now()),
+            (
+                sub.project,
+                sub.name,
+                sub.full_name,
+                sub.topic_full_name,
+                sub.ack_deadline_seconds,
+                sub.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return await self.get(sub.full_name)
@@ -157,16 +171,25 @@ class SqlitePubsubMessageRepository(PubsubMessageRepository):
 
     def _row(self, row) -> PubsubMessage:
         return PubsubMessage(
-            id=row["id"], message_id=row["message_id"], topic_full_name=row["topic_full_name"],
-            data=row["data"], attributes=row["attributes"], created_at=row["created_at"],
+            id=row["id"],
+            message_id=row["message_id"],
+            topic_full_name=row["topic_full_name"],
+            data=row["data"],
+            attributes=row["attributes"],
+            created_at=row["created_at"],
         )
 
     async def save(self, message: PubsubMessage) -> PubsubMessage:
         await self._db.conn.execute(
             "INSERT INTO pubsub_messages (message_id, topic_full_name, data, attributes, created_at)"
             " VALUES (?, ?, ?, ?, ?)",
-            (message.message_id, message.topic_full_name, message.data,
-             message.attributes, message.created_at or _now()),
+            (
+                message.message_id,
+                message.topic_full_name,
+                message.data,
+                message.attributes,
+                message.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return message
@@ -192,7 +215,9 @@ class SqlitePubsubAckableRepository(PubsubAckableRepository):
 
     def _row(self, row) -> PubsubAckable:
         return PubsubAckable(
-            id=row["id"], ack_id=row["ack_id"], message_id=row["message_id"],
+            id=row["id"],
+            ack_id=row["ack_id"],
+            message_id=row["message_id"],
             subscription_full_name=row["subscription_full_name"],
             delivery_attempt=row["delivery_attempt"],
             ack_deadline_seconds=row["ack_deadline_seconds"],
@@ -207,8 +232,14 @@ class SqlitePubsubAckableRepository(PubsubAckableRepository):
                  delivery_attempt, ack_deadline_seconds, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (ackable.ack_id, ackable.message_id, ackable.subscription_full_name,
-             ackable.delivery_attempt, ackable.ack_deadline_seconds, ackable.created_at or _now()),
+            (
+                ackable.ack_id,
+                ackable.message_id,
+                ackable.subscription_full_name,
+                ackable.delivery_attempt,
+                ackable.ack_deadline_seconds,
+                ackable.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return ackable
@@ -220,7 +251,9 @@ class SqlitePubsubAckableRepository(PubsubAckableRepository):
             row = await cur.fetchone()
             return self._row(row) if row else None
 
-    async def get_pending(self, subscription_full_name: str, limit: int = 10) -> list[PubsubAckable]:
+    async def get_pending(
+        self, subscription_full_name: str, limit: int = 10
+    ) -> list[PubsubAckable]:
         async with self._db.conn.execute(
             "SELECT * FROM pubsub_ackables WHERE subscription_full_name = ? ORDER BY id LIMIT ?",
             (subscription_full_name, limit),

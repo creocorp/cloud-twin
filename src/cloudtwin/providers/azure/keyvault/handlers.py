@@ -17,18 +17,22 @@ def make_router(service: KeyVaultService) -> APIRouter:
     router = APIRouter()
 
     @router.put("/azure/keyvault/{vault}/secrets/{secret_name}")
-    async def set_secret(vault: str, secret_name: str, request: Request) -> JSONResponse:
+    async def set_secret(
+        vault: str, secret_name: str, request: Request
+    ) -> JSONResponse:
         try:
             body = await request.json()
         except Exception:
             return JSONResponse({"error": "Invalid JSON"}, status_code=400)
         try:
             secret = await service.set_secret(vault, secret_name, body.get("value", ""))
-            return JSONResponse({
-                "id": f"https://{vault}.vault.azure.net/secrets/{secret_name}/{secret.version}",
-                "value": secret.value,
-                "attributes": {"created": secret.created_at},
-            })
+            return JSONResponse(
+                {
+                    "id": f"https://{vault}.vault.azure.net/secrets/{secret_name}/{secret.version}",
+                    "value": secret.value,
+                    "attributes": {"created": secret.created_at},
+                }
+            )
         except CloudTwinError as exc:
             return JSONResponse({"error": exc.message}, status_code=exc.http_status)
 
@@ -36,32 +40,45 @@ def make_router(service: KeyVaultService) -> APIRouter:
     async def get_secret(vault: str, secret_name: str) -> JSONResponse:
         try:
             secret = await service.get_secret(vault, secret_name)
-            return JSONResponse({
-                "id": f"https://{vault}.vault.azure.net/secrets/{secret_name}/{secret.version}",
-                "value": secret.value,
-                "attributes": {"created": secret.created_at},
-            })
+            return JSONResponse(
+                {
+                    "id": f"https://{vault}.vault.azure.net/secrets/{secret_name}/{secret.version}",
+                    "value": secret.value,
+                    "attributes": {"created": secret.created_at},
+                }
+            )
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
 
     @router.get("/azure/keyvault/{vault}/secrets/{secret_name}/{version}")
-    async def get_secret_version(vault: str, secret_name: str, version: str) -> JSONResponse:
+    async def get_secret_version(
+        vault: str, secret_name: str, version: str
+    ) -> JSONResponse:
         try:
             secret = await service.get_secret(vault, secret_name, version)
-            return JSONResponse({
-                "id": f"https://{vault}.vault.azure.net/secrets/{secret_name}/{secret.version}",
-                "value": secret.value,
-            })
+            return JSONResponse(
+                {
+                    "id": f"https://{vault}.vault.azure.net/secrets/{secret_name}/{secret.version}",
+                    "value": secret.value,
+                }
+            )
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
 
     @router.get("/azure/keyvault/{vault}/secrets")
     async def list_secrets(vault: str) -> JSONResponse:
         secrets = await service.list_secrets(vault)
-        return JSONResponse({"value": [
-            {"id": f"https://{vault}.vault.azure.net/secrets/{s.name}", "attributes": {}}
-            for s in secrets
-        ]})
+        return JSONResponse(
+            {
+                "value": [
+                    {
+                        "id": f"https://{vault}.vault.azure.net/secrets/{s.name}",
+                        "attributes": {},
+                    }
+                    for s in secrets
+                ]
+            }
+        )
 
     @router.delete("/azure/keyvault/{vault}/secrets/{secret_name}")
     async def delete_secret(vault: str, secret_name: str) -> Response:

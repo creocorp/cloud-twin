@@ -5,7 +5,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from cloudtwin.persistence.models.azure.functions import AzureFunction, AzureFunctionInvocation
+from cloudtwin.persistence.models.azure.functions import (
+    AzureFunction,
+    AzureFunctionInvocation,
+)
 
 
 class AzureFunctionRepository(ABC):

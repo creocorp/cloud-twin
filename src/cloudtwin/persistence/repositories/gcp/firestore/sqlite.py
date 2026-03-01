@@ -7,7 +7,9 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from cloudtwin.persistence.models.gcp.firestore import FirestoreDocument
-from cloudtwin.persistence.repositories.gcp.firestore.repository import FirestoreDocumentRepository
+from cloudtwin.persistence.repositories.gcp.firestore.repository import (
+    FirestoreDocumentRepository,
+)
 
 DDL = """
 CREATE TABLE IF NOT EXISTS firestore_documents (
@@ -32,11 +34,17 @@ class SqliteFirestoreDocumentRepository(FirestoreDocumentRepository):
 
     def _row(self, row) -> FirestoreDocument:
         return FirestoreDocument(
-            id=row["id"], project=row["project"], collection=row["collection"],
-            document_id=row["document_id"], fields=row["fields"], created_at=row["created_at"],
+            id=row["id"],
+            project=row["project"],
+            collection=row["collection"],
+            document_id=row["document_id"],
+            fields=row["fields"],
+            created_at=row["created_at"],
         )
 
-    async def get(self, project: str, collection: str, document_id: str) -> Optional[FirestoreDocument]:
+    async def get(
+        self, project: str, collection: str, document_id: str
+    ) -> Optional[FirestoreDocument]:
         async with self._db.conn.execute(
             "SELECT * FROM firestore_documents WHERE project=? AND collection=? AND document_id=?",
             (project, collection, document_id),
@@ -44,7 +52,9 @@ class SqliteFirestoreDocumentRepository(FirestoreDocumentRepository):
             row = await cur.fetchone()
             return self._row(row) if row else None
 
-    async def list_by_collection(self, project: str, collection: str) -> list[FirestoreDocument]:
+    async def list_by_collection(
+        self, project: str, collection: str
+    ) -> list[FirestoreDocument]:
         async with self._db.conn.execute(
             "SELECT * FROM firestore_documents WHERE project=? AND collection=? ORDER BY id",
             (project, collection),
@@ -54,7 +64,13 @@ class SqliteFirestoreDocumentRepository(FirestoreDocumentRepository):
     async def save(self, doc: FirestoreDocument) -> FirestoreDocument:
         await self._db.conn.execute(
             "INSERT OR REPLACE INTO firestore_documents (project, collection, document_id, fields, created_at) VALUES (?,?,?,?,?)",
-            (doc.project, doc.collection, doc.document_id, doc.fields, doc.created_at or _now()),
+            (
+                doc.project,
+                doc.collection,
+                doc.document_id,
+                doc.fields,
+                doc.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return await self.get(doc.project, doc.collection, doc.document_id)
@@ -66,7 +82,9 @@ class SqliteFirestoreDocumentRepository(FirestoreDocumentRepository):
         )
         await self._db.conn.commit()
 
-    async def query(self, project: str, collection: str, field: str, op: str, value: str) -> list[FirestoreDocument]:
+    async def query(
+        self, project: str, collection: str, field: str, op: str, value: str
+    ) -> list[FirestoreDocument]:
         docs = await self.list_by_collection(project, collection)
         results = []
         for doc in docs:

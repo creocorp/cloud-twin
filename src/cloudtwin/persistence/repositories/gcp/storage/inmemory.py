@@ -42,7 +42,11 @@ class InMemoryGcsObjectRepository(GcsObjectRepository):
         return self._store.get((bucket_id, name))
 
     async def list_by_bucket(self, bucket_id: int, prefix: str = "") -> list[GcsObject]:
-        return [o for (bid, k), o in self._store.items() if bid == bucket_id and k.startswith(prefix)]
+        return [
+            o
+            for (bid, k), o in self._store.items()
+            if bid == bucket_id and k.startswith(prefix)
+        ]
 
     async def save(self, obj: GcsObject) -> GcsObject:
         self._store[(obj.bucket_id, obj.name)] = obj

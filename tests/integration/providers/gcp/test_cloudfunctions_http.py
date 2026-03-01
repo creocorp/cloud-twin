@@ -39,11 +39,15 @@ class TestFunctions:
     def test_list_functions(self, gcp_http):
         gcp_http.post(
             _functions_path(),
-            json={"name": f"projects/{_PROJECT}/locations/{_LOCATION}/functions/gcf-list-1"},
+            json={
+                "name": f"projects/{_PROJECT}/locations/{_LOCATION}/functions/gcf-list-1"
+            },
         )
         gcp_http.post(
             _functions_path(),
-            json={"name": f"projects/{_PROJECT}/locations/{_LOCATION}/functions/gcf-list-2"},
+            json={
+                "name": f"projects/{_PROJECT}/locations/{_LOCATION}/functions/gcf-list-2"
+            },
         )
         r = gcp_http.get(_functions_path())
         assert r.status_code == 200
@@ -54,7 +58,9 @@ class TestFunctions:
     def test_get_function(self, gcp_http):
         gcp_http.post(
             _functions_path(),
-            json={"name": f"projects/{_PROJECT}/locations/{_LOCATION}/functions/gcf-get-me"},
+            json={
+                "name": f"projects/{_PROJECT}/locations/{_LOCATION}/functions/gcf-get-me"
+            },
         )
         r = gcp_http.get(_function_path("gcf-get-me"))
         assert r.status_code == 200
@@ -67,7 +73,9 @@ class TestFunctions:
     def test_delete_function(self, gcp_http):
         gcp_http.post(
             _functions_path(),
-            json={"name": f"projects/{_PROJECT}/locations/{_LOCATION}/functions/gcf-delete-me"},
+            json={
+                "name": f"projects/{_PROJECT}/locations/{_LOCATION}/functions/gcf-delete-me"
+            },
         )
         r = gcp_http.delete(_function_path("gcf-delete-me"))
         assert r.status_code == 200
@@ -75,7 +83,9 @@ class TestFunctions:
     def test_delete_then_get_returns_404(self, gcp_http):
         gcp_http.post(
             _functions_path(),
-            json={"name": f"projects/{_PROJECT}/locations/{_LOCATION}/functions/gcf-del-get"},
+            json={
+                "name": f"projects/{_PROJECT}/locations/{_LOCATION}/functions/gcf-del-get"
+            },
         )
         gcp_http.delete(_function_path("gcf-del-get"))
         r = gcp_http.get(_function_path("gcf-del-get"))
@@ -84,7 +94,9 @@ class TestFunctions:
     def test_invoke_function(self, gcp_http):
         gcp_http.post(
             _functions_path(),
-            json={"name": f"projects/{_PROJECT}/locations/{_LOCATION}/functions/gcf-invoke"},
+            json={
+                "name": f"projects/{_PROJECT}/locations/{_LOCATION}/functions/gcf-invoke"
+            },
         )
         r = gcp_http.post(
             f"{_function_path('gcf-invoke')}:call",

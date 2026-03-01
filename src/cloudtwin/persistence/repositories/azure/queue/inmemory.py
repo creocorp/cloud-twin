@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from cloudtwin.persistence.models.azure.queue import AzureQueueMessage, AzureStorageQueue
+from cloudtwin.persistence.models.azure.queue import (
+    AzureQueueMessage,
+    AzureStorageQueue,
+)
 from cloudtwin.persistence.repositories.azure.queue.repository import (
     AzureQueueMessageRepository,
     AzureStorageQueueRepository,
@@ -46,12 +49,18 @@ class InMemoryAzureQueueMessageRepository(AzureQueueMessageRepository):
         self._store[message.pop_receipt] = message
         return message
 
-    async def get_visible(self, queue_id: int, limit: int = 1) -> list[AzureQueueMessage]:
-        results = [m for m in self._store.values() if m.queue_id == queue_id and m.visible]
+    async def get_visible(
+        self, queue_id: int, limit: int = 1
+    ) -> list[AzureQueueMessage]:
+        results = [
+            m for m in self._store.values() if m.queue_id == queue_id and m.visible
+        ]
         return sorted(results, key=lambda m: m.id or 0)[:limit]
 
     async def peek(self, queue_id: int, limit: int = 1) -> list[AzureQueueMessage]:
-        results = [m for m in self._store.values() if m.queue_id == queue_id and m.visible]
+        results = [
+            m for m in self._store.values() if m.queue_id == queue_id and m.visible
+        ]
         return sorted(results, key=lambda m: m.id or 0)[:limit]
 
     async def mark_invisible(self, pop_receipt: str) -> None:

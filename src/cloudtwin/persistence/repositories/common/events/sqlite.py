@@ -30,21 +30,35 @@ class SqliteEventRepository(EventRepository):
 
     def _row(self, row) -> Event:
         return Event(
-            id=row["id"], provider=row["provider"], service=row["service"],
-            action=row["action"], payload=row["payload"], created_at=row["created_at"],
+            id=row["id"],
+            provider=row["provider"],
+            service=row["service"],
+            action=row["action"],
+            payload=row["payload"],
+            created_at=row["created_at"],
         )
 
     async def save(self, event: Event) -> Event:
         await self._db.conn.execute(
             "INSERT INTO events (provider, service, action, payload, created_at)"
             " VALUES (?, ?, ?, ?, ?)",
-            (event.provider, event.service, event.action,
-             json.dumps(event.payload) if isinstance(event.payload, dict) else event.payload,
-             event.created_at or _now()),
+            (
+                event.provider,
+                event.service,
+                event.action,
+                (
+                    json.dumps(event.payload)
+                    if isinstance(event.payload, dict)
+                    else event.payload
+                ),
+                event.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return event
 
     async def list_all(self) -> list[Event]:
-        async with self._db.conn.execute("SELECT * FROM events ORDER BY id DESC") as cur:
+        async with self._db.conn.execute(
+            "SELECT * FROM events ORDER BY id DESC"
+        ) as cur:
             return [self._row(r) for r in await cur.fetchall()]

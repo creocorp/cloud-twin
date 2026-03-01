@@ -16,7 +16,10 @@ from cloudtwin.persistence.repositories.azure.functions.sqlite import (
 )
 
 __all__ = [
-    "AzureFunctionRepository", "AzureFunctionInvocationRepository",
-    "SqliteAzureFunctionRepository", "SqliteAzureFunctionInvocationRepository",
-    "InMemoryAzureFunctionRepository", "InMemoryAzureFunctionInvocationRepository",
+    "AzureFunctionRepository",
+    "AzureFunctionInvocationRepository",
+    "SqliteAzureFunctionRepository",
+    "SqliteAzureFunctionInvocationRepository",
+    "InMemoryAzureFunctionRepository",
+    "InMemoryAzureFunctionInvocationRepository",
 ]

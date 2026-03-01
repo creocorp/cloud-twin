@@ -99,8 +99,14 @@ class InMemoryPubsubAckableRepository(PubsubAckableRepository):
     async def get_by_ack_id(self, ack_id: str) -> Optional[PubsubAckable]:
         return self._store.get(ack_id)
 
-    async def get_pending(self, subscription_full_name: str, limit: int = 10) -> list[PubsubAckable]:
-        results = [a for a in self._ordered if a.subscription_full_name == subscription_full_name]
+    async def get_pending(
+        self, subscription_full_name: str, limit: int = 10
+    ) -> list[PubsubAckable]:
+        results = [
+            a
+            for a in self._ordered
+            if a.subscription_full_name == subscription_full_name
+        ]
         return results[:limit]
 
     async def delete(self, ack_id: str) -> None:

@@ -19,7 +19,7 @@ class GcpSecret:
 class GcpSecretVersion:
     secret_full_name: str
     version_id: str
-    payload: str     # base64-encoded secret data
-    state: str       # "enabled" | "disabled" | "destroyed"
+    payload: str  # base64-encoded secret data
+    state: str  # "enabled" | "disabled" | "destroyed"
     created_at: str
     id: Optional[int] = None

@@ -72,7 +72,9 @@ class PubsubService:
             project=project, name=name, full_name=full_name, created_at=_now()
         )
         result = await self._topics.save(topic)
-        await self._telemetry.emit("gcp", "pubsub", "create_topic", {"topic": full_name})
+        await self._telemetry.emit(
+            "gcp", "pubsub", "create_topic", {"topic": full_name}
+        )
         return result
 
     async def get_topic(self, full_name: str) -> PubsubTopic:
@@ -87,7 +89,9 @@ class PubsubService:
     async def delete_topic(self, full_name: str) -> None:
         await self.get_topic(full_name)
         await self._topics.delete(full_name)
-        await self._telemetry.emit("gcp", "pubsub", "delete_topic", {"topic": full_name})
+        await self._telemetry.emit(
+            "gcp", "pubsub", "delete_topic", {"topic": full_name}
+        )
 
     # ------------------------------------------------------------------
     # Subscriptions
@@ -116,9 +120,12 @@ class PubsubService:
             created_at=_now(),
         )
         result = await self._subscriptions.save(sub)
-        await self._telemetry.emit("gcp", "pubsub", "create_subscription", {
-            "subscription": full_name, "topic": topic_full_name
-        })
+        await self._telemetry.emit(
+            "gcp",
+            "pubsub",
+            "create_subscription",
+            {"subscription": full_name, "topic": topic_full_name},
+        )
         return result
 
     async def get_subscription(self, full_name: str) -> PubsubSubscription:
@@ -127,13 +134,17 @@ class PubsubService:
             raise NotFoundError(f"Subscription not found: {full_name}")
         return sub
 
-    async def list_subscriptions(self, project: Optional[str] = None) -> list[PubsubSubscription]:
+    async def list_subscriptions(
+        self, project: Optional[str] = None
+    ) -> list[PubsubSubscription]:
         return await self._subscriptions.list_by_project(project or self._project)
 
     async def delete_subscription(self, full_name: str) -> None:
         await self.get_subscription(full_name)
         await self._subscriptions.delete(full_name)
-        await self._telemetry.emit("gcp", "pubsub", "delete_subscription", {"subscription": full_name})
+        await self._telemetry.emit(
+            "gcp", "pubsub", "delete_subscription", {"subscription": full_name}
+        )
 
     # ------------------------------------------------------------------
     # Publish
@@ -149,6 +160,7 @@ class PubsubService:
         for msg_data in messages:
             msg_id = str(uuid.uuid4())
             import json
+
             msg = PubsubMessage(
                 message_id=msg_id,
                 topic_full_name=topic_full_name,
@@ -169,20 +181,28 @@ class PubsubService:
                 )
                 await self._ackables.save(ackable)
             message_ids.append(msg_id)
-        await self._telemetry.emit("gcp", "pubsub", "publish", {
-            "topic": topic_full_name, "count": len(messages)
-        })
+        await self._telemetry.emit(
+            "gcp",
+            "pubsub",
+            "publish",
+            {"topic": topic_full_name, "count": len(messages)},
+        )
         return message_ids
 
     # ------------------------------------------------------------------
     # Pull
     # ------------------------------------------------------------------
 
-    async def pull(self, subscription_full_name: str, max_messages: int = 10) -> list[dict]:
+    async def pull(
+        self, subscription_full_name: str, max_messages: int = 10
+    ) -> list[dict]:
         """Pull pending messages. Returns list of receivedMessages dicts."""
         import json
+
         await self.get_subscription(subscription_full_name)
-        ackables = await self._ackables.get_pending(subscription_full_name, limit=max_messages)
+        ackables = await self._ackables.get_pending(
+            subscription_full_name, limit=max_messages
+        )
         result = []
         for ackable in ackables:
             msg = await self._messages.get(ackable.message_id)
@@ -195,25 +215,32 @@ class PubsubService:
                     attributes = json.loads(msg.attributes)
                 except (ValueError, TypeError):
                     attributes = {}
-            result.append({
-                "ackId": ackable.ack_id,
-                "message": {
-                    "messageId": msg.message_id,
-                    "data": msg.data or "",
-                    "attributes": attributes,
-                    "publishTime": msg.created_at,
-                },
-                "deliveryAttempt": ackable.delivery_attempt,
-            })
+            result.append(
+                {
+                    "ackId": ackable.ack_id,
+                    "message": {
+                        "messageId": msg.message_id,
+                        "data": msg.data or "",
+                        "attributes": attributes,
+                        "publishTime": msg.created_at,
+                    },
+                    "deliveryAttempt": ackable.delivery_attempt,
+                }
+            )
         return result
 
     # ------------------------------------------------------------------
     # Acknowledge
     # ------------------------------------------------------------------
 
-    async def acknowledge(self, subscription_full_name: str, ack_ids: list[str]) -> None:
+    async def acknowledge(
+        self, subscription_full_name: str, ack_ids: list[str]
+    ) -> None:
         for ack_id in ack_ids:
             await self._ackables.delete(ack_id)
-        await self._telemetry.emit("gcp", "pubsub", "acknowledge", {
-            "subscription": subscription_full_name, "count": len(ack_ids)
-        })
+        await self._telemetry.emit(
+            "gcp",
+            "pubsub",
+            "acknowledge",
+            {"subscription": subscription_full_name, "count": len(ack_ids)},
+        )

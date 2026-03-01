@@ -16,7 +16,10 @@ from cloudtwin.persistence.repositories.azure.queue.sqlite import (
 )
 
 __all__ = [
-    "AzureStorageQueueRepository", "AzureQueueMessageRepository",
-    "SqliteAzureStorageQueueRepository", "SqliteAzureQueueMessageRepository",
-    "InMemoryAzureStorageQueueRepository", "InMemoryAzureQueueMessageRepository",
+    "AzureStorageQueueRepository",
+    "AzureQueueMessageRepository",
+    "SqliteAzureStorageQueueRepository",
+    "SqliteAzureQueueMessageRepository",
+    "InMemoryAzureStorageQueueRepository",
+    "InMemoryAzureQueueMessageRepository",
 ]

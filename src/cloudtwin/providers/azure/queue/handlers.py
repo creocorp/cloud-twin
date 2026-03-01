@@ -40,7 +40,9 @@ def make_router(service: AzureQueueService) -> APIRouter:
 
     # Messages
     @router.post("/azure/queue/{account}/{queue_name}/messages")
-    async def send_message(account: str, queue_name: str, request: Request) -> JSONResponse:
+    async def send_message(
+        account: str, queue_name: str, request: Request
+    ) -> JSONResponse:
         try:
             body = await request.body()
             text = body.decode()
@@ -48,34 +50,54 @@ def make_router(service: AzureQueueService) -> APIRouter:
             text = ""
         try:
             msg = await service.send_message(account, queue_name, text)
-            return JSONResponse({"MessageId": msg.message_id, "PopReceipt": msg.pop_receipt}, status_code=201)
+            return JSONResponse(
+                {"MessageId": msg.message_id, "PopReceipt": msg.pop_receipt},
+                status_code=201,
+            )
         except NotFoundError as exc:
             return JSONResponse({"message": exc.message}, status_code=404)
 
     @router.get("/azure/queue/{account}/{queue_name}/messages")
-    async def receive_messages(account: str, queue_name: str, numMessages: int = 1) -> JSONResponse:
+    async def receive_messages(
+        account: str, queue_name: str, numMessages: int = 1
+    ) -> JSONResponse:
         try:
             msgs = await service.receive_messages(account, queue_name, numMessages)
-            return JSONResponse({"QueueMessagesList": [
-                {"MessageId": m.message_id, "PopReceipt": m.pop_receipt, "MessageText": m.body}
-                for m in msgs
-            ]})
+            return JSONResponse(
+                {
+                    "QueueMessagesList": [
+                        {
+                            "MessageId": m.message_id,
+                            "PopReceipt": m.pop_receipt,
+                            "MessageText": m.body,
+                        }
+                        for m in msgs
+                    ]
+                }
+            )
         except NotFoundError as exc:
             return JSONResponse({"message": exc.message}, status_code=404)
 
     @router.get("/azure/queue/{account}/{queue_name}/messages/peek")
-    async def peek_messages(account: str, queue_name: str, numMessages: int = 1) -> JSONResponse:
+    async def peek_messages(
+        account: str, queue_name: str, numMessages: int = 1
+    ) -> JSONResponse:
         try:
             msgs = await service.peek_messages(account, queue_name, numMessages)
-            return JSONResponse({"QueueMessagesList": [
-                {"MessageId": m.message_id, "MessageText": m.body}
-                for m in msgs
-            ]})
+            return JSONResponse(
+                {
+                    "QueueMessagesList": [
+                        {"MessageId": m.message_id, "MessageText": m.body} for m in msgs
+                    ]
+                }
+            )
         except NotFoundError as exc:
             return JSONResponse({"message": exc.message}, status_code=404)
 
     @router.delete("/azure/queue/{account}/{queue_name}/messages/{message_id}")
-    async def delete_message(account: str, queue_name: str, message_id: str, popreceipt: str = "") -> Response:
+    async def delete_message(
+        account: str, queue_name: str, message_id: str, popreceipt: str = ""
+    ) -> Response:
         try:
             await service.delete_message(account, queue_name, popreceipt or message_id)
             return Response(status_code=204)

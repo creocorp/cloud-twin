@@ -11,6 +11,6 @@ class Event:
     provider: str
     service: str
     action: str
-    payload: str          # JSON string
+    payload: str  # JSON string
     created_at: str
     id: Optional[int] = None

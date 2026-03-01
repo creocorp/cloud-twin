@@ -9,7 +9,10 @@ from datetime import datetime, timezone
 
 from cloudtwin.core.errors import NotFoundError
 from cloudtwin.core.telemetry import TelemetryEngine
-from cloudtwin.persistence.models.gcp.cloudfunctions import CloudFunction, CloudFunctionInvocation
+from cloudtwin.persistence.models.gcp.cloudfunctions import (
+    CloudFunction,
+    CloudFunctionInvocation,
+)
 from cloudtwin.persistence.repositories.gcp.cloudfunctions import (
     CloudFunctionInvocationRepository,
     CloudFunctionRepository,
@@ -37,22 +40,39 @@ class GcpCloudFunctionsService:
         self._invocations = invocation_repo
         self._telemetry = telemetry
 
-    async def create_function(self, project: str, location: str, name: str, runtime: str = "python311", entrypoint: str = "") -> CloudFunction:
+    async def create_function(
+        self,
+        project: str,
+        location: str,
+        name: str,
+        runtime: str = "python311",
+        entrypoint: str = "",
+    ) -> CloudFunction:
         full_name = _full_name(project, location, name)
         existing = await self._functions.get(full_name)
         if existing:
             return existing
         fn = CloudFunction(
-            project=project, name=name,
-            full_name=full_name, runtime=runtime,
-            entry_point=entrypoint, source_code="",
+            project=project,
+            name=name,
+            full_name=full_name,
+            runtime=runtime,
+            entry_point=entrypoint,
+            source_code="",
             created_at=_now(),
         )
         saved = await self._functions.save(fn)
-        await self._telemetry.emit("gcp", "cloudfunctions", "create_function", {"project": project, "name": name})
+        await self._telemetry.emit(
+            "gcp",
+            "cloudfunctions",
+            "create_function",
+            {"project": project, "name": name},
+        )
         return saved
 
-    async def get_function(self, project: str, location: str, name: str) -> CloudFunction:
+    async def get_function(
+        self, project: str, location: str, name: str
+    ) -> CloudFunction:
         fn = await self._functions.get(_full_name(project, location, name))
         if not fn:
             raise NotFoundError(f"Function not found: {name}")
@@ -66,9 +86,13 @@ class GcpCloudFunctionsService:
         if not fn:
             raise NotFoundError(f"Function not found: {name}")
         await self._functions.delete(_full_name(project, location, name))
-        await self._telemetry.emit("gcp", "cloudfunctions", "delete_function", {"name": name})
+        await self._telemetry.emit(
+            "gcp", "cloudfunctions", "delete_function", {"name": name}
+        )
 
-    async def invoke(self, project: str, location: str, name: str, payload: str = "{}") -> str:
+    async def invoke(
+        self, project: str, location: str, name: str, payload: str = "{}"
+    ) -> str:
         fn = await self._functions.get(_full_name(project, location, name))
         if not fn:
             raise NotFoundError(f"Function not found: {name}")

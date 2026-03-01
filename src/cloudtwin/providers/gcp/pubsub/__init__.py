@@ -10,7 +10,9 @@ from cloudtwin.providers.gcp.pubsub.handlers import make_router
 from cloudtwin.providers.gcp.pubsub.service import PubsubService
 
 
-def register(app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine) -> None:
+def register(
+    app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine
+) -> None:
     service = PubsubService(
         project=config.providers.gcp.project,
         topic_repo=repos["pubsub_topic"],

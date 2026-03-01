@@ -25,14 +25,21 @@ class KeyVaultService:
 
     async def set_secret(self, vault: str, name: str, value: str) -> KeyVaultSecret:
         secret = KeyVaultSecret(
-            vault=vault, name=name, value=value,
-            version=str(uuid.uuid4()), created_at=_now(),
+            vault=vault,
+            name=name,
+            value=value,
+            version=str(uuid.uuid4()),
+            created_at=_now(),
         )
         saved = await self._repo.save(secret)
-        await self._telemetry.emit("azure", "keyvault", "set_secret", {"vault": vault, "name": name})
+        await self._telemetry.emit(
+            "azure", "keyvault", "set_secret", {"vault": vault, "name": name}
+        )
         return saved
 
-    async def get_secret(self, vault: str, name: str, version: str | None = None) -> KeyVaultSecret:
+    async def get_secret(
+        self, vault: str, name: str, version: str | None = None
+    ) -> KeyVaultSecret:
         if version:
             secret = await self._repo.get_version(vault, name, version)
         else:
@@ -49,4 +56,6 @@ class KeyVaultService:
         if not secret:
             raise NotFoundError(f"Secret not found: {name}")
         await self._repo.delete_all(vault, name)
-        await self._telemetry.emit("azure", "keyvault", "delete_secret", {"vault": vault, "name": name})
+        await self._telemetry.emit(
+            "azure", "keyvault", "delete_secret", {"vault": vault, "name": name}
+        )

@@ -13,7 +13,6 @@ import json
 import pytest
 from botocore.exceptions import ClientError
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -91,7 +90,9 @@ def test_put_and_get_json_object(s3):
     s3.create_bucket(Bucket=bucket)
 
     payload = json.dumps({"service": "cloudtwin", "version": "0.1"}).encode()
-    s3.put_object(Bucket=bucket, Key="config.json", Body=payload, ContentType="application/json")
+    s3.put_object(
+        Bucket=bucket, Key="config.json", Body=payload, ContentType="application/json"
+    )
 
     resp = s3.get_object(Bucket=bucket, Key="config.json")
     assert json.loads(resp["Body"].read()) == {"service": "cloudtwin", "version": "0.1"}

@@ -37,4 +37,6 @@ def register(
         telemetry=telemetry,
     )
     register_sqs_handlers(json_router, service)
-    log.info("SQS handlers registered (CreateQueue, SendMessage, ReceiveMessage, DeleteMessage)")
+    log.info(
+        "SQS handlers registered (CreateQueue, SendMessage, ReceiveMessage, DeleteMessage)"
+    )

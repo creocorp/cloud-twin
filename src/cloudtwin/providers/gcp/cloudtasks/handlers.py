@@ -17,7 +17,9 @@ def make_router(service: CloudTasksService) -> APIRouter:
     router = APIRouter()
 
     @router.post("/v2/projects/{project}/locations/{location}/queues")
-    async def create_queue(project: str, location: str, request: Request) -> JSONResponse:
+    async def create_queue(
+        project: str, location: str, request: Request
+    ) -> JSONResponse:
         try:
             body = await request.json()
         except Exception:
@@ -50,8 +52,12 @@ def make_router(service: CloudTasksService) -> APIRouter:
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
 
-    @router.post("/v2/projects/{project}/locations/{location}/queues/{queue_name}/tasks")
-    async def create_task(project: str, location: str, queue_name: str, request: Request) -> JSONResponse:
+    @router.post(
+        "/v2/projects/{project}/locations/{location}/queues/{queue_name}/tasks"
+    )
+    async def create_task(
+        project: str, location: str, queue_name: str, request: Request
+    ) -> JSONResponse:
         try:
             body = await request.json()
         except Exception:
@@ -59,7 +65,9 @@ def make_router(service: CloudTasksService) -> APIRouter:
         payload = body.get("task", {})
         try:
             task = await service.create_task(project, location, queue_name, payload)
-            return JSONResponse({"name": task.task_id, "state": task.state}, status_code=200)
+            return JSONResponse(
+                {"name": task.task_id, "state": task.state}, status_code=200
+            )
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
 
@@ -67,12 +75,18 @@ def make_router(service: CloudTasksService) -> APIRouter:
     async def list_tasks(project: str, location: str, queue_name: str) -> JSONResponse:
         try:
             tasks = await service.list_tasks(project, location, queue_name)
-            return JSONResponse({"tasks": [{"name": t.task_id, "state": t.state} for t in tasks]})
+            return JSONResponse(
+                {"tasks": [{"name": t.task_id, "state": t.state} for t in tasks]}
+            )
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
 
-    @router.delete("/v2/projects/{project}/locations/{location}/queues/{queue_name}/tasks/{task_id}")
-    async def delete_task(project: str, location: str, queue_name: str, task_id: str) -> Response:
+    @router.delete(
+        "/v2/projects/{project}/locations/{location}/queues/{queue_name}/tasks/{task_id}"
+    )
+    async def delete_task(
+        project: str, location: str, queue_name: str, task_id: str
+    ) -> Response:
         await service.delete_task(task_id)
         return Response(status_code=200)
 

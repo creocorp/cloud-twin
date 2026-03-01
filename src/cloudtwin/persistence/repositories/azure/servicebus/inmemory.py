@@ -103,10 +103,15 @@ class InMemoryAsbMessageRepository(AsbMessageRepository):
     async def get_by_lock_token(self, lock_token: str) -> Optional[AsbMessage]:
         return self._by_lock.get(lock_token)
 
-    async def get_active(self, entity_id: int, entity_type: str, limit: int = 1) -> list[AsbMessage]:
+    async def get_active(
+        self, entity_id: int, entity_type: str, limit: int = 1
+    ) -> list[AsbMessage]:
         results = [
-            m for m in self._by_id
-            if m.entity_id == entity_id and m.entity_type == entity_type and m.state == "active"
+            m
+            for m in self._by_id
+            if m.entity_id == entity_id
+            and m.entity_type == entity_type
+            and m.state == "active"
         ]
         return results[:limit]
 

@@ -8,7 +8,9 @@ from fastapi import FastAPI
 
 from cloudtwin.config import Config
 from cloudtwin.core.telemetry import TelemetryEngine
-from cloudtwin.providers.aws.secretsmanager.handlers import register_secretsmanager_handlers
+from cloudtwin.providers.aws.secretsmanager.handlers import (
+    register_secretsmanager_handlers,
+)
 from cloudtwin.providers.aws.secretsmanager.service import SecretsManagerService
 
 log = logging.getLogger("cloudtwin.aws.secretsmanager")

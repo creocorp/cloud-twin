@@ -23,8 +23,12 @@ def make_router(service: EventGridService) -> APIRouter:
         except Exception:
             body = {}
         try:
-            topic = await service.create_topic(topic_name, endpoint=body.get("endpoint", ""))
-            return JSONResponse({"name": topic.name, "endpoint": topic.endpoint}, status_code=201)
+            topic = await service.create_topic(
+                topic_name, endpoint=body.get("endpoint", "")
+            )
+            return JSONResponse(
+                {"name": topic.name, "endpoint": topic.endpoint}, status_code=201
+            )
         except CloudTwinError as exc:
             return JSONResponse({"error": exc.message}, status_code=exc.http_status)
 
@@ -39,7 +43,9 @@ def make_router(service: EventGridService) -> APIRouter:
     @router.get("/azure/eventgrid/topics")
     async def list_topics() -> JSONResponse:
         topics = await service.list_topics()
-        return JSONResponse({"value": [{"name": t.name, "endpoint": t.endpoint} for t in topics]})
+        return JSONResponse(
+            {"value": [{"name": t.name, "endpoint": t.endpoint} for t in topics]}
+        )
 
     @router.post("/azure/eventgrid/topics/{topic_name}/events")
     async def publish_events(topic_name: str, request: Request) -> JSONResponse:
@@ -58,11 +64,19 @@ def make_router(service: EventGridService) -> APIRouter:
     async def list_events(topic_name: str) -> JSONResponse:
         try:
             events = await service.list_events(topic_name)
-            return JSONResponse({"value": [
-                {"id": e.event_id, "eventType": e.event_type,
-                 "subject": e.subject, "data": e.data}
-                for e in events
-            ]})
+            return JSONResponse(
+                {
+                    "value": [
+                        {
+                            "id": e.event_id,
+                            "eventType": e.event_type,
+                            "subject": e.subject,
+                            "data": e.data,
+                        }
+                        for e in events
+                    ]
+                }
+            )
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
 

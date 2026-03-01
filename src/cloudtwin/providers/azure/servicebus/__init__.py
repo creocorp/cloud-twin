@@ -10,7 +10,9 @@ from cloudtwin.providers.azure.servicebus.handlers import make_router
 from cloudtwin.providers.azure.servicebus.service import ServiceBusService
 
 
-def register(app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine) -> None:
+def register(
+    app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine
+) -> None:
     namespace = config.providers.azure.servicebus.namespace
     service = ServiceBusService(
         namespace=namespace,

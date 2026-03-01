@@ -20,6 +20,6 @@ class EventGridEvent:
     event_id: str
     event_type: str
     subject: str
-    data: str        # JSON blob
+    data: str  # JSON blob
     created_at: str
     id: Optional[int] = None

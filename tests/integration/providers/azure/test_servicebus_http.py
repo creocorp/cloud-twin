@@ -165,7 +165,9 @@ class TestTopicsAndSubscriptions:
         asb_http.put(f"/{_NS}/topics/{t}/subscriptions/s1")
         asb_http.post(f"/{_NS}/topics/{t}/messages", content=b"msg")
 
-        msgs = asb_http.get(f"/{_NS}/topics/{t}/subscriptions/s1/messages").json()["messages"]
+        msgs = asb_http.get(f"/{_NS}/topics/{t}/subscriptions/s1/messages").json()[
+            "messages"
+        ]
         lock_token = msgs[0]["lock_token"]
         r = asb_http.delete(f"/{_NS}/topics/{t}/subscriptions/s1/messages/{lock_token}")
         assert r.status_code == 204

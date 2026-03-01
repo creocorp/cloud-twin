@@ -68,12 +68,16 @@ class SqliteAsbQueueRepository(AsbQueueRepository):
 
     def _row(self, row) -> AsbQueue:
         return AsbQueue(
-            id=row["id"], namespace=row["namespace"], name=row["name"], created_at=row["created_at"]
+            id=row["id"],
+            namespace=row["namespace"],
+            name=row["name"],
+            created_at=row["created_at"],
         )
 
     async def get(self, namespace: str, name: str) -> Optional[AsbQueue]:
         async with self._db.conn.execute(
-            "SELECT * FROM asb_queues WHERE namespace = ? AND name = ?", (namespace, name)
+            "SELECT * FROM asb_queues WHERE namespace = ? AND name = ?",
+            (namespace, name),
         ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
@@ -105,12 +109,16 @@ class SqliteAsbTopicRepository(AsbTopicRepository):
 
     def _row(self, row) -> AsbTopic:
         return AsbTopic(
-            id=row["id"], namespace=row["namespace"], name=row["name"], created_at=row["created_at"]
+            id=row["id"],
+            namespace=row["namespace"],
+            name=row["name"],
+            created_at=row["created_at"],
         )
 
     async def get(self, namespace: str, name: str) -> Optional[AsbTopic]:
         async with self._db.conn.execute(
-            "SELECT * FROM asb_topics WHERE namespace = ? AND name = ?", (namespace, name)
+            "SELECT * FROM asb_topics WHERE namespace = ? AND name = ?",
+            (namespace, name),
         ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
@@ -142,12 +150,16 @@ class SqliteAsbSubscriptionRepository(AsbSubscriptionRepository):
 
     def _row(self, row) -> AsbSubscription:
         return AsbSubscription(
-            id=row["id"], topic_id=row["topic_id"], name=row["name"], created_at=row["created_at"]
+            id=row["id"],
+            topic_id=row["topic_id"],
+            name=row["name"],
+            created_at=row["created_at"],
         )
 
     async def get(self, topic_id: int, name: str) -> Optional[AsbSubscription]:
         async with self._db.conn.execute(
-            "SELECT * FROM asb_subscriptions WHERE topic_id = ? AND name = ?", (topic_id, name)
+            "SELECT * FROM asb_subscriptions WHERE topic_id = ? AND name = ?",
+            (topic_id, name),
         ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
@@ -168,7 +180,8 @@ class SqliteAsbSubscriptionRepository(AsbSubscriptionRepository):
 
     async def delete(self, topic_id: int, name: str) -> None:
         await self._db.conn.execute(
-            "DELETE FROM asb_subscriptions WHERE topic_id = ? AND name = ?", (topic_id, name)
+            "DELETE FROM asb_subscriptions WHERE topic_id = ? AND name = ?",
+            (topic_id, name),
         )
         await self._db.conn.commit()
 
@@ -179,10 +192,15 @@ class SqliteAsbMessageRepository(AsbMessageRepository):
 
     def _row(self, row) -> AsbMessage:
         return AsbMessage(
-            id=row["id"], message_id=row["message_id"], entity_id=row["entity_id"],
-            entity_type=row["entity_type"], body=row["body"],
-            content_type=row["content_type"], lock_token=row["lock_token"],
-            state=row["state"], delivery_count=row["delivery_count"],
+            id=row["id"],
+            message_id=row["message_id"],
+            entity_id=row["entity_id"],
+            entity_type=row["entity_type"],
+            body=row["body"],
+            content_type=row["content_type"],
+            lock_token=row["lock_token"],
+            state=row["state"],
+            delivery_count=row["delivery_count"],
             created_at=row["created_at"],
         )
 
@@ -194,9 +212,17 @@ class SqliteAsbMessageRepository(AsbMessageRepository):
                  lock_token, state, delivery_count, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (message.message_id, message.entity_id, message.entity_type,
-             message.body, message.content_type, message.lock_token,
-             message.state, message.delivery_count, message.created_at or _now()),
+            (
+                message.message_id,
+                message.entity_id,
+                message.entity_type,
+                message.body,
+                message.content_type,
+                message.lock_token,
+                message.state,
+                message.delivery_count,
+                message.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return message
@@ -208,7 +234,9 @@ class SqliteAsbMessageRepository(AsbMessageRepository):
             row = await cur.fetchone()
             return self._row(row) if row else None
 
-    async def get_active(self, entity_id: int, entity_type: str, limit: int = 1) -> list[AsbMessage]:
+    async def get_active(
+        self, entity_id: int, entity_type: str, limit: int = 1
+    ) -> list[AsbMessage]:
         async with self._db.conn.execute(
             """
             SELECT * FROM asb_messages
@@ -221,7 +249,8 @@ class SqliteAsbMessageRepository(AsbMessageRepository):
 
     async def update_state(self, lock_token: str, state: str) -> None:
         await self._db.conn.execute(
-            "UPDATE asb_messages SET state = ? WHERE lock_token = ?", (state, lock_token)
+            "UPDATE asb_messages SET state = ? WHERE lock_token = ?",
+            (state, lock_token),
         )
         await self._db.conn.commit()
 

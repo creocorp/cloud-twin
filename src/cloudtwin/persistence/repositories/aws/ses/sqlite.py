@@ -48,8 +48,12 @@ class SqliteSesIdentityRepository(SesIdentityRepository):
 
     def _row(self, row) -> SesIdentity:
         return SesIdentity(
-            id=row["id"], identity=row["identity"], type=row["type"],
-            verified=bool(row["verified"]), token=row["token"], created_at=row["created_at"],
+            id=row["id"],
+            identity=row["identity"],
+            type=row["type"],
+            verified=bool(row["verified"]),
+            token=row["token"],
+            created_at=row["created_at"],
         )
 
     async def get(self, identity: str) -> Optional[SesIdentity]:
@@ -70,14 +74,21 @@ class SqliteSesIdentityRepository(SesIdentityRepository):
             VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(identity) DO UPDATE SET verified = excluded.verified, token = excluded.token
             """,
-            (identity.identity, identity.type, int(identity.verified),
-             identity.token, identity.created_at or _now()),
+            (
+                identity.identity,
+                identity.type,
+                int(identity.verified),
+                identity.token,
+                identity.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return await self.get(identity.identity)
 
     async def delete(self, identity: str) -> None:
-        await self._db.conn.execute("DELETE FROM ses_identities WHERE identity = ?", (identity,))
+        await self._db.conn.execute(
+            "DELETE FROM ses_identities WHERE identity = ?", (identity,)
+        )
         await self._db.conn.commit()
 
 
@@ -87,11 +98,17 @@ class SqliteSesMessageRepository(SesMessageRepository):
 
     def _row(self, row) -> SesMessage:
         return SesMessage(
-            id=row["id"], message_id=row["message_id"], source=row["source"],
-            destinations=json.loads(row["destinations"]), subject=row["subject"],
-            text_body=row["text_body"], html_body=row["html_body"],
-            raw_mime=row["raw_mime"], status=row["status"],
-            error_message=row["error_message"], created_at=row["created_at"],
+            id=row["id"],
+            message_id=row["message_id"],
+            source=row["source"],
+            destinations=json.loads(row["destinations"]),
+            subject=row["subject"],
+            text_body=row["text_body"],
+            html_body=row["html_body"],
+            raw_mime=row["raw_mime"],
+            status=row["status"],
+            error_message=row["error_message"],
+            created_at=row["created_at"],
         )
 
     async def save(self, message: SesMessage) -> SesMessage:
@@ -102,16 +119,26 @@ class SqliteSesMessageRepository(SesMessageRepository):
                  raw_mime, status, error_message, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (message.message_id, message.source, json.dumps(message.destinations),
-             message.subject, message.text_body, message.html_body,
-             message.raw_mime, message.status, message.error_message,
-             message.created_at or _now()),
+            (
+                message.message_id,
+                message.source,
+                json.dumps(message.destinations),
+                message.subject,
+                message.text_body,
+                message.html_body,
+                message.raw_mime,
+                message.status,
+                message.error_message,
+                message.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return message
 
     async def list_all(self) -> list[SesMessage]:
-        async with self._db.conn.execute("SELECT * FROM ses_messages ORDER BY id DESC") as cur:
+        async with self._db.conn.execute(
+            "SELECT * FROM ses_messages ORDER BY id DESC"
+        ) as cur:
             return [self._row(r) for r in await cur.fetchall()]
 
     async def get(self, message_id: str) -> Optional[SesMessage]:

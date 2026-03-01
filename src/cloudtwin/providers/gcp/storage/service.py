@@ -9,7 +9,10 @@ from typing import Optional
 from cloudtwin.core.errors import NotFoundError
 from cloudtwin.core.telemetry import TelemetryEngine
 from cloudtwin.persistence.models.gcp import GcsBucket, GcsObject
-from cloudtwin.persistence.repositories.gcp import GcsBucketRepository, GcsObjectRepository
+from cloudtwin.persistence.repositories.gcp import (
+    GcsBucketRepository,
+    GcsObjectRepository,
+)
 
 log = logging.getLogger("cloudtwin.gcp.storage")
 
@@ -39,7 +42,9 @@ class StorageService:
         existing = await self._buckets.get(self._project, name)
         if existing:
             return existing
-        bucket = GcsBucket(project=self._project, name=name, location=location, created_at=_now())
+        bucket = GcsBucket(
+            project=self._project, name=name, location=location, created_at=_now()
+        )
         result = await self._buckets.save(bucket)
         await self._telemetry.emit("gcp", "storage", "create_bucket", {"bucket": name})
         return result
@@ -71,6 +76,7 @@ class StorageService:
     ) -> GcsObject:
         bucket = await self.get_bucket(bucket_name)
         import json
+
         obj = GcsObject(
             bucket_id=bucket.id,
             name=object_name,
@@ -81,9 +87,12 @@ class StorageService:
             created_at=_now(),
         )
         result = await self._objects.save(obj)
-        await self._telemetry.emit("gcp", "storage", "upload_object", {
-            "bucket": bucket_name, "object": object_name, "size": len(data)
-        })
+        await self._telemetry.emit(
+            "gcp",
+            "storage",
+            "upload_object",
+            {"bucket": bucket_name, "object": object_name, "size": len(data)},
+        )
         return result
 
     async def get_object(self, bucket_name: str, object_name: str) -> GcsObject:
@@ -103,6 +112,9 @@ class StorageService:
         if not obj:
             raise NotFoundError(f"Object not found: {bucket_name}/{object_name}")
         await self._objects.delete(bucket.id, object_name)
-        await self._telemetry.emit("gcp", "storage", "delete_object", {
-            "bucket": bucket_name, "object": object_name
-        })
+        await self._telemetry.emit(
+            "gcp",
+            "storage",
+            "delete_object",
+            {"bucket": bucket_name, "object": object_name},
+        )

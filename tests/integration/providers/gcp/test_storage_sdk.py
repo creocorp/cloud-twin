@@ -38,6 +38,7 @@ class TestBuckets:
         gcs.create_bucket(name)
         gcs.get_bucket(name).delete()
         from google.cloud.exceptions import NotFound
+
         try:
             gcs.get_bucket(name)
             assert False, "Expected NotFound"
@@ -104,6 +105,7 @@ class TestObjects:
         blob.upload_from_string(b"bye")
         blob.delete()
         from google.cloud.exceptions import NotFound
+
         try:
             blob.download_as_bytes()
             assert False, "Expected NotFound"

@@ -48,9 +48,15 @@ class InMemorySecretVersionRepository(SecretVersionRepository):
         matches = [v for v in self._store if v.secret_name == secret_name]
         return matches[-1] if matches else None
 
-    async def get_by_version_id(self, secret_name: str, version_id: str) -> Optional[SecretVersion]:
+    async def get_by_version_id(
+        self, secret_name: str, version_id: str
+    ) -> Optional[SecretVersion]:
         return next(
-            (v for v in self._store if v.secret_name == secret_name and v.version_id == version_id),
+            (
+                v
+                for v in self._store
+                if v.secret_name == secret_name and v.version_id == version_id
+            ),
             None,
         )
 

@@ -9,7 +9,12 @@ from typing import Optional
 
 from cloudtwin.core.errors import NotFoundError
 from cloudtwin.core.telemetry import TelemetryEngine
-from cloudtwin.persistence.models.azure import AsbMessage, AsbQueue, AsbSubscription, AsbTopic
+from cloudtwin.persistence.models.azure import (
+    AsbMessage,
+    AsbQueue,
+    AsbSubscription,
+    AsbTopic,
+)
 from cloudtwin.persistence.repositories.azure import (
     AsbMessageRepository,
     AsbQueueRepository,
@@ -51,7 +56,9 @@ class ServiceBusService:
             return existing
         queue = AsbQueue(namespace=self._ns, name=name, created_at=_now())
         result = await self._queues.save(queue)
-        await self._telemetry.emit("azure", "servicebus", "create_queue", {"queue": name})
+        await self._telemetry.emit(
+            "azure", "servicebus", "create_queue", {"queue": name}
+        )
         return result
 
     async def get_queue(self, name: str) -> AsbQueue:
@@ -66,7 +73,9 @@ class ServiceBusService:
     async def delete_queue(self, name: str) -> None:
         await self.get_queue(name)
         await self._queues.delete(self._ns, name)
-        await self._telemetry.emit("azure", "servicebus", "delete_queue", {"queue": name})
+        await self._telemetry.emit(
+            "azure", "servicebus", "delete_queue", {"queue": name}
+        )
 
     # ------------------------------------------------------------------
     # Topics
@@ -78,7 +87,9 @@ class ServiceBusService:
             return existing
         topic = AsbTopic(namespace=self._ns, name=name, created_at=_now())
         result = await self._topics.save(topic)
-        await self._telemetry.emit("azure", "servicebus", "create_topic", {"topic": name})
+        await self._telemetry.emit(
+            "azure", "servicebus", "create_topic", {"topic": name}
+        )
         return result
 
     async def get_topic(self, name: str) -> AsbTopic:
@@ -93,22 +104,29 @@ class ServiceBusService:
     async def delete_topic(self, name: str) -> None:
         await self.get_topic(name)
         await self._topics.delete(self._ns, name)
-        await self._telemetry.emit("azure", "servicebus", "delete_topic", {"topic": name})
+        await self._telemetry.emit(
+            "azure", "servicebus", "delete_topic", {"topic": name}
+        )
 
     # ------------------------------------------------------------------
     # Subscriptions
     # ------------------------------------------------------------------
 
-    async def create_subscription(self, topic_name: str, sub_name: str) -> AsbSubscription:
+    async def create_subscription(
+        self, topic_name: str, sub_name: str
+    ) -> AsbSubscription:
         topic = await self.get_topic(topic_name)
         existing = await self._subscriptions.get(topic.id, sub_name)
         if existing:
             return existing
         sub = AsbSubscription(topic_id=topic.id, name=sub_name, created_at=_now())
         result = await self._subscriptions.save(sub)
-        await self._telemetry.emit("azure", "servicebus", "create_subscription", {
-            "topic": topic_name, "subscription": sub_name
-        })
+        await self._telemetry.emit(
+            "azure",
+            "servicebus",
+            "create_subscription",
+            {"topic": topic_name, "subscription": sub_name},
+        )
         return result
 
     async def get_subscription(self, topic_name: str, sub_name: str) -> AsbSubscription:
@@ -130,7 +148,9 @@ class ServiceBusService:
     # Messages – queues
     # ------------------------------------------------------------------
 
-    async def send_to_queue(self, queue_name: str, body: str, content_type: str = "text/plain") -> AsbMessage:
+    async def send_to_queue(
+        self, queue_name: str, body: str, content_type: str = "text/plain"
+    ) -> AsbMessage:
         queue = await self.get_queue(queue_name)
         msg = AsbMessage(
             message_id=str(uuid.uuid4()),
@@ -144,10 +164,14 @@ class ServiceBusService:
             created_at=_now(),
         )
         result = await self._messages.save(msg)
-        await self._telemetry.emit("azure", "servicebus", "send_queue_message", {"queue": queue_name})
+        await self._telemetry.emit(
+            "azure", "servicebus", "send_queue_message", {"queue": queue_name}
+        )
         return result
 
-    async def receive_from_queue(self, queue_name: str, limit: int = 1) -> list[AsbMessage]:
+    async def receive_from_queue(
+        self, queue_name: str, limit: int = 1
+    ) -> list[AsbMessage]:
         queue = await self.get_queue(queue_name)
         messages = await self._messages.get_active(queue.id, "queue", limit=limit)
         for msg in messages:
@@ -159,7 +183,9 @@ class ServiceBusService:
     # Messages – topics / subscriptions
     # ------------------------------------------------------------------
 
-    async def send_to_topic(self, topic_name: str, body: str, content_type: str = "text/plain") -> list[AsbMessage]:
+    async def send_to_topic(
+        self, topic_name: str, body: str, content_type: str = "text/plain"
+    ) -> list[AsbMessage]:
         topic = await self.get_topic(topic_name)
         subs = await self._subscriptions.list_by_topic(topic.id)
         results = []
@@ -176,9 +202,12 @@ class ServiceBusService:
                 created_at=_now(),
             )
             results.append(await self._messages.save(msg))
-        await self._telemetry.emit("azure", "servicebus", "send_topic_message", {
-            "topic": topic_name, "fan_out": len(results)
-        })
+        await self._telemetry.emit(
+            "azure",
+            "servicebus",
+            "send_topic_message",
+            {"topic": topic_name, "fan_out": len(results)},
+        )
         return results
 
     async def receive_from_subscription(

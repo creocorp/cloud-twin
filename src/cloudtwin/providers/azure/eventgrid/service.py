@@ -68,7 +68,12 @@ class EventGridService:
             )
             await self._events.save(event)
             count += 1
-        await self._telemetry.emit("azure", "eventgrid", "publish_events", {"topic": topic_name, "count": count})
+        await self._telemetry.emit(
+            "azure",
+            "eventgrid",
+            "publish_events",
+            {"topic": topic_name, "count": count},
+        )
         return count
 
     async def list_events(self, topic_name: str) -> list[EventGridEvent]:

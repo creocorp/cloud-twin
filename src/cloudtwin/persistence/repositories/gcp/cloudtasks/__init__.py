@@ -16,7 +16,10 @@ from cloudtwin.persistence.repositories.gcp.cloudtasks.sqlite import (
 )
 
 __all__ = [
-    "CloudTasksQueueRepository", "CloudTaskRepository",
-    "SqliteCloudTasksQueueRepository", "SqliteCloudTaskRepository",
-    "InMemoryCloudTasksQueueRepository", "InMemoryCloudTaskRepository",
+    "CloudTasksQueueRepository",
+    "CloudTaskRepository",
+    "SqliteCloudTasksQueueRepository",
+    "SqliteCloudTaskRepository",
+    "InMemoryCloudTasksQueueRepository",
+    "InMemoryCloudTaskRepository",
 ]

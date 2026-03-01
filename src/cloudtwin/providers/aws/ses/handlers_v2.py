@@ -41,7 +41,9 @@ def make_sesv2_router(config: SesConfig, service: SesService) -> APIRouter:
         body = await request.json()
         email_identity = body.get("EmailIdentity")
         if not email_identity:
-            return JSONResponse({"message": "EmailIdentity is required"}, status_code=400)
+            return JSONResponse(
+                {"message": "EmailIdentity is required"}, status_code=400
+            )
 
         # Treat strings without "@" as domain identities
         if "@" not in email_identity:
@@ -51,11 +53,13 @@ def make_sesv2_router(config: SesConfig, service: SesService) -> APIRouter:
             await service.verify_email_identity(email_identity)
             identity_type = "EMAIL_ADDRESS"
 
-        return JSONResponse({
-            "IdentityType": identity_type,
-            "VerifiedForSendingStatus": True,
-            "VerificationStatus": "SUCCESS",
-        })
+        return JSONResponse(
+            {
+                "IdentityType": identity_type,
+                "VerifiedForSendingStatus": True,
+                "VerificationStatus": "SUCCESS",
+            }
+        )
 
     # ------------------------------------------------------------------
     # ListEmailIdentities  GET /v2/email/identities
@@ -63,16 +67,18 @@ def make_sesv2_router(config: SesConfig, service: SesService) -> APIRouter:
     @router.get("/email/identities", status_code=200)
     async def list_email_identities():
         records = await service.list_all_identities()
-        return JSONResponse({
-            "EmailIdentities": [
-                {
-                    "IdentityName": r.identity,
-                    "IdentityType": _identity_type_v2(r.type),
-                    "VerifiedForSendingStatus": r.verified,
-                }
-                for r in records
-            ]
-        })
+        return JSONResponse(
+            {
+                "EmailIdentities": [
+                    {
+                        "IdentityName": r.identity,
+                        "IdentityType": _identity_type_v2(r.type),
+                        "VerifiedForSendingStatus": r.verified,
+                    }
+                    for r in records
+                ]
+            }
+        )
 
     # ------------------------------------------------------------------
     # GetEmailIdentity  GET /v2/email/identities/{EmailIdentity}
@@ -85,12 +91,14 @@ def make_sesv2_router(config: SesConfig, service: SesService) -> APIRouter:
                 {"message": f"Identity does not exist: {email_identity}"},
                 status_code=404,
             )
-        return JSONResponse({
-            "IdentityType": _identity_type_v2(record.type),
-            "VerifiedForSendingStatus": record.verified,
-            "VerificationStatus": _verification_status_v2(record.verified),
-            "FeedbackForwardingStatus": True,
-        })
+        return JSONResponse(
+            {
+                "IdentityType": _identity_type_v2(record.type),
+                "VerifiedForSendingStatus": record.verified,
+                "VerificationStatus": _verification_status_v2(record.verified),
+                "FeedbackForwardingStatus": True,
+            }
+        )
 
     # ------------------------------------------------------------------
     # DeleteEmailIdentity  DELETE /v2/email/identities/{EmailIdentity}
@@ -121,9 +129,13 @@ def make_sesv2_router(config: SesConfig, service: SesService) -> APIRouter:
         html_body = body_content.get("Html", {}).get("Data")
 
         if not source:
-            return JSONResponse({"message": "FromEmailAddress is required"}, status_code=400)
+            return JSONResponse(
+                {"message": "FromEmailAddress is required"}, status_code=400
+            )
         if not to_addresses:
-            return JSONResponse({"message": "At least one ToAddress is required"}, status_code=400)
+            return JSONResponse(
+                {"message": "At least one ToAddress is required"}, status_code=400
+            )
 
         try:
             message_id = await service.send_email(

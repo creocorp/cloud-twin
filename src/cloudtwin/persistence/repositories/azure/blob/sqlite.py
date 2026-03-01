@@ -44,12 +44,16 @@ class SqliteAzureContainerRepository(AzureContainerRepository):
 
     def _row(self, row) -> AzureContainer:
         return AzureContainer(
-            id=row["id"], account=row["account"], name=row["name"], created_at=row["created_at"]
+            id=row["id"],
+            account=row["account"],
+            name=row["name"],
+            created_at=row["created_at"],
         )
 
     async def get(self, account: str, name: str) -> Optional[AzureContainer]:
         async with self._db.conn.execute(
-            "SELECT * FROM azure_containers WHERE account = ? AND name = ?", (account, name)
+            "SELECT * FROM azure_containers WHERE account = ? AND name = ?",
+            (account, name),
         ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
@@ -70,7 +74,8 @@ class SqliteAzureContainerRepository(AzureContainerRepository):
 
     async def delete(self, account: str, name: str) -> None:
         await self._db.conn.execute(
-            "DELETE FROM azure_containers WHERE account = ? AND name = ?", (account, name)
+            "DELETE FROM azure_containers WHERE account = ? AND name = ?",
+            (account, name),
         )
         await self._db.conn.commit()
 
@@ -81,19 +86,27 @@ class SqliteAzureBlobRepository(AzureBlobRepository):
 
     def _row(self, row) -> AzureBlob:
         return AzureBlob(
-            id=row["id"], container_id=row["container_id"], name=row["name"],
-            content_type=row["content_type"], content_length=row["content_length"],
-            data=row["data"], metadata=row["metadata"], created_at=row["created_at"],
+            id=row["id"],
+            container_id=row["container_id"],
+            name=row["name"],
+            content_type=row["content_type"],
+            content_length=row["content_length"],
+            data=row["data"],
+            metadata=row["metadata"],
+            created_at=row["created_at"],
         )
 
     async def get(self, container_id: int, name: str) -> Optional[AzureBlob]:
         async with self._db.conn.execute(
-            "SELECT * FROM azure_blobs WHERE container_id = ? AND name = ?", (container_id, name)
+            "SELECT * FROM azure_blobs WHERE container_id = ? AND name = ?",
+            (container_id, name),
         ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
 
-    async def list_by_container(self, container_id: int, prefix: str = "") -> list[AzureBlob]:
+    async def list_by_container(
+        self, container_id: int, prefix: str = ""
+    ) -> list[AzureBlob]:
         async with self._db.conn.execute(
             "SELECT * FROM azure_blobs WHERE container_id = ? AND name LIKE ?",
             (container_id, f"{prefix}%"),
@@ -113,14 +126,22 @@ class SqliteAzureBlobRepository(AzureBlobRepository):
                 metadata = excluded.metadata,
                 created_at = excluded.created_at
             """,
-            (blob.container_id, blob.name, blob.content_type, blob.content_length,
-             blob.data, blob.metadata, blob.created_at or _now()),
+            (
+                blob.container_id,
+                blob.name,
+                blob.content_type,
+                blob.content_length,
+                blob.data,
+                blob.metadata,
+                blob.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return blob
 
     async def delete(self, container_id: int, name: str) -> None:
         await self._db.conn.execute(
-            "DELETE FROM azure_blobs WHERE container_id = ? AND name = ?", (container_id, name)
+            "DELETE FROM azure_blobs WHERE container_id = ? AND name = ?",
+            (container_id, name),
         )
         await self._db.conn.commit()

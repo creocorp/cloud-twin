@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.aws.sns.repository import (
-    SnsTopicRepository,
-    SnsSubscriptionRepository,
-    SnsMessageRepository,
-)
 from cloudtwin.persistence.repositories.aws.sns.inmemory import (
-    InMemorySnsTopicRepository,
-    InMemorySnsSubscriptionRepository,
     InMemorySnsMessageRepository,
+    InMemorySnsSubscriptionRepository,
+    InMemorySnsTopicRepository,
+)
+from cloudtwin.persistence.repositories.aws.sns.repository import (
+    SnsMessageRepository,
+    SnsSubscriptionRepository,
+    SnsTopicRepository,
 )
 from cloudtwin.persistence.repositories.aws.sns.sqlite import (
-    SqliteSnsTopicRepository,
-    SqliteSnsSubscriptionRepository,
     SqliteSnsMessageRepository,
+    SqliteSnsSubscriptionRepository,
+    SqliteSnsTopicRepository,
 )
 
 __all__ = [

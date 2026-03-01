@@ -46,8 +46,7 @@ class InMemorySqsMessageRepository(SqsMessageRepository):
 
     async def get_visible(self, queue_id: int, limit: int = 1) -> list[SqsMessage]:
         results = [
-            m for m in self._store.values()
-            if m.queue_id == queue_id and m.visible
+            m for m in self._store.values() if m.queue_id == queue_id and m.visible
         ]
         return sorted(results, key=lambda m: m.id or 0)[:limit]
 
@@ -66,4 +65,6 @@ class InMemorySqsMessageRepository(SqsMessageRepository):
         return sum(1 for m in self._store.values() if m.queue_id == queue_id)
 
     async def count_not_visible(self, queue_id: int) -> int:
-        return sum(1 for m in self._store.values() if m.queue_id == queue_id and not m.visible)
+        return sum(
+            1 for m in self._store.values() if m.queue_id == queue_id and not m.visible
+        )

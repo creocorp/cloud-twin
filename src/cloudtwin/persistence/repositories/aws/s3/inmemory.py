@@ -42,7 +42,8 @@ class InMemoryS3ObjectRepository(S3ObjectRepository):
 
     async def list_by_bucket(self, bucket_id: int, prefix: str = "") -> list[S3Object]:
         return [
-            obj for (bid, k), obj in self._store.items()
+            obj
+            for (bid, k), obj in self._store.items()
             if bid == bucket_id and k.startswith(prefix)
         ]
 

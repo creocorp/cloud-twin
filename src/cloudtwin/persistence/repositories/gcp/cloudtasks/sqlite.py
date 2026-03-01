@@ -42,8 +42,12 @@ class SqliteCloudTasksQueueRepository(CloudTasksQueueRepository):
 
     def _row(self, row) -> CloudTasksQueue:
         return CloudTasksQueue(
-            id=row["id"], project=row["project"], location=row["location"],
-            name=row["name"], full_name=row["full_name"], created_at=row["created_at"],
+            id=row["id"],
+            project=row["project"],
+            location=row["location"],
+            name=row["name"],
+            full_name=row["full_name"],
+            created_at=row["created_at"],
         )
 
     async def get(self, full_name: str) -> Optional[CloudTasksQueue]:
@@ -62,13 +66,21 @@ class SqliteCloudTasksQueueRepository(CloudTasksQueueRepository):
     async def save(self, queue: CloudTasksQueue) -> CloudTasksQueue:
         await self._db.conn.execute(
             "INSERT OR IGNORE INTO cloudtasks_queues (project, location, name, full_name, created_at) VALUES (?,?,?,?,?)",
-            (queue.project, queue.location, queue.name, queue.full_name, queue.created_at or _now()),
+            (
+                queue.project,
+                queue.location,
+                queue.name,
+                queue.full_name,
+                queue.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return await self.get(queue.full_name)
 
     async def delete(self, full_name: str) -> None:
-        await self._db.conn.execute("DELETE FROM cloudtasks_queues WHERE full_name = ?", (full_name,))
+        await self._db.conn.execute(
+            "DELETE FROM cloudtasks_queues WHERE full_name = ?", (full_name,)
+        )
         await self._db.conn.commit()
 
 
@@ -78,27 +90,39 @@ class SqliteCloudTaskRepository(CloudTaskRepository):
 
     def _row(self, row) -> CloudTask:
         return CloudTask(
-            id=row["id"], queue_full_name=row["queue_full_name"],
-            task_id=row["task_id"], payload=row["payload"],
-            state=row["state"], created_at=row["created_at"],
+            id=row["id"],
+            queue_full_name=row["queue_full_name"],
+            task_id=row["task_id"],
+            payload=row["payload"],
+            state=row["state"],
+            created_at=row["created_at"],
         )
 
     async def save(self, task: CloudTask) -> CloudTask:
         await self._db.conn.execute(
             "INSERT OR IGNORE INTO cloudtasks_tasks (queue_full_name, task_id, payload, state, created_at) VALUES (?,?,?,?,?)",
-            (task.queue_full_name, task.task_id, task.payload, task.state, task.created_at or _now()),
+            (
+                task.queue_full_name,
+                task.task_id,
+                task.payload,
+                task.state,
+                task.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return task
 
     async def get(self, queue_full_name: str, task_id: str) -> Optional[CloudTask]:
         async with self._db.conn.execute(
-            "SELECT * FROM cloudtasks_tasks WHERE queue_full_name = ? AND task_id = ?", (queue_full_name, task_id)
+            "SELECT * FROM cloudtasks_tasks WHERE queue_full_name = ? AND task_id = ?",
+            (queue_full_name, task_id),
         ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
 
-    async def list_pending(self, queue_full_name: str, limit: int = 10) -> list[CloudTask]:
+    async def list_pending(
+        self, queue_full_name: str, limit: int = 10
+    ) -> list[CloudTask]:
         async with self._db.conn.execute(
             "SELECT * FROM cloudtasks_tasks WHERE queue_full_name = ? AND state = 'pending' ORDER BY id LIMIT ?",
             (queue_full_name, limit),
@@ -112,5 +136,7 @@ class SqliteCloudTaskRepository(CloudTaskRepository):
         await self._db.conn.commit()
 
     async def delete(self, task_id: str) -> None:
-        await self._db.conn.execute("DELETE FROM cloudtasks_tasks WHERE task_id = ?", (task_id,))
+        await self._db.conn.execute(
+            "DELETE FROM cloudtasks_tasks WHERE task_id = ?", (task_id,)
+        )
         await self._db.conn.commit()

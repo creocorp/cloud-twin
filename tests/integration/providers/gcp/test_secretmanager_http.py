@@ -66,9 +66,7 @@ class TestSecretVersions:
             f"{_secret_path('sm-access-secret')}:addVersion",
             json={"payload": {"data": base64.b64encode(raw).decode()}},
         )
-        r = gcp_http.get(
-            f"{_secret_path('sm-access-secret')}/versions/latest:access"
-        )
+        r = gcp_http.get(f"{_secret_path('sm-access-secret')}/versions/latest:access")
         assert r.status_code == 200
         decoded = base64.b64decode(r.json()["payload"]["data"])
         assert decoded == raw

@@ -40,10 +40,14 @@ class SqliteSecretRepository(SecretRepository):
         self._db = db
 
     def _row(self, row) -> Secret:
-        return Secret(id=row["id"], name=row["name"], arn=row["arn"], created_at=row["created_at"])
+        return Secret(
+            id=row["id"], name=row["name"], arn=row["arn"], created_at=row["created_at"]
+        )
 
     async def get(self, name: str) -> Optional[Secret]:
-        async with self._db.conn.execute("SELECT * FROM sm_secrets WHERE name = ?", (name,)) as cur:
+        async with self._db.conn.execute(
+            "SELECT * FROM sm_secrets WHERE name = ?", (name,)
+        ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
 
@@ -81,25 +85,37 @@ class SqliteSecretVersionRepository(SecretVersionRepository):
     async def save(self, version: SecretVersion) -> SecretVersion:
         await self._db.conn.execute(
             "INSERT OR REPLACE INTO sm_secret_versions (secret_name, version_id, secret_string, secret_binary, created_at) VALUES (?, ?, ?, ?, ?)",
-            (version.secret_name, version.version_id, version.secret_string, version.secret_binary, version.created_at or _now()),
+            (
+                version.secret_name,
+                version.version_id,
+                version.secret_string,
+                version.secret_binary,
+                version.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return version
 
     async def get_latest(self, secret_name: str) -> Optional[SecretVersion]:
         async with self._db.conn.execute(
-            "SELECT * FROM sm_secret_versions WHERE secret_name = ? ORDER BY id DESC LIMIT 1", (secret_name,)
+            "SELECT * FROM sm_secret_versions WHERE secret_name = ? ORDER BY id DESC LIMIT 1",
+            (secret_name,),
         ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
 
-    async def get_by_version_id(self, secret_name: str, version_id: str) -> Optional[SecretVersion]:
+    async def get_by_version_id(
+        self, secret_name: str, version_id: str
+    ) -> Optional[SecretVersion]:
         async with self._db.conn.execute(
-            "SELECT * FROM sm_secret_versions WHERE secret_name = ? AND version_id = ?", (secret_name, version_id)
+            "SELECT * FROM sm_secret_versions WHERE secret_name = ? AND version_id = ?",
+            (secret_name, version_id),
         ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
 
     async def delete_all(self, secret_name: str) -> None:
-        await self._db.conn.execute("DELETE FROM sm_secret_versions WHERE secret_name = ?", (secret_name,))
+        await self._db.conn.execute(
+            "DELETE FROM sm_secret_versions WHERE secret_name = ?", (secret_name,)
+        )
         await self._db.conn.commit()

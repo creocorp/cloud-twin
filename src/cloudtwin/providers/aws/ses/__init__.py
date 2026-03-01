@@ -6,7 +6,10 @@ from fastapi import FastAPI, Request, Response
 
 from cloudtwin.config import Config
 from cloudtwin.core.telemetry import TelemetryEngine
-from cloudtwin.persistence.repositories import SesIdentityRepository, SesMessageRepository
+from cloudtwin.persistence.repositories import (
+    SesIdentityRepository,
+    SesMessageRepository,
+)
 from cloudtwin.providers.aws.protocols.query import QueryProtocolRouter
 from cloudtwin.providers.aws.ses.handlers import register_ses_handlers
 from cloudtwin.providers.aws.ses.handlers_v2 import make_sesv2_router

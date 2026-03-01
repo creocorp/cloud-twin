@@ -10,7 +10,8 @@ from __future__ import annotations
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from fastapi import APIRouter, Request, Response
-from fastapi.responses import Response as FR, StreamingResponse
+from fastapi.responses import Response as FR
+from fastapi.responses import StreamingResponse
 
 from cloudtwin.core.errors import CloudTwinError, NotFoundError
 from cloudtwin.providers.aws.s3.service import S3Service
@@ -19,7 +20,10 @@ S3_NS = "http://s3.amazonaws.com/doc/2006-03-01/"
 
 
 def _xml(root: Element) -> bytes:
-    return b'<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(root, encoding="unicode").encode()
+    return (
+        b'<?xml version="1.0" encoding="UTF-8"?>\n'
+        + tostring(root, encoding="unicode").encode()
+    )
 
 
 def _error_xml(code: str, message: str) -> bytes:
@@ -73,7 +77,9 @@ def make_s3_router(service: S3Service) -> APIRouter:
         prefix = request.query_params.get("prefix", "")
         max_keys = int(request.query_params.get("max-keys", 1000))
         try:
-            objects = await service.list_objects_v2(bucket, prefix=prefix, max_keys=max_keys)
+            objects = await service.list_objects_v2(
+                bucket, prefix=prefix, max_keys=max_keys
+            )
         except NotFoundError as exc:
             return FR(
                 content=_error_xml("NoSuchBucket", str(exc)),
@@ -110,6 +116,7 @@ def make_s3_router(service: S3Service) -> APIRouter:
                 media_type="application/xml",
             )
         import hashlib
+
         etag = hashlib.md5(data).hexdigest()
         return FR(content=b"", status_code=200, headers={"ETag": f'"{etag}"'})
 

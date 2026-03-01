@@ -33,12 +33,12 @@ class AsbSubscription:
 @dataclass
 class AsbMessage:
     message_id: str
-    entity_id: int            # queue_id OR subscription_id
-    entity_type: str          # "queue" | "subscription"
+    entity_id: int  # queue_id OR subscription_id
+    entity_type: str  # "queue" | "subscription"
     body: str
     content_type: Optional[str]
     lock_token: str
-    state: str                # "active" | "locked" | "deadletter" | "completed"
+    state: str  # "active" | "locked" | "deadletter" | "completed"
     delivery_count: int
     created_at: str
     id: Optional[int] = None

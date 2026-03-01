@@ -15,7 +15,10 @@ from cloudtwin.config import SesConfig
 from cloudtwin.core.errors import IdentityNotVerifiedError, NotFoundError
 from cloudtwin.core.telemetry import TelemetryEngine
 from cloudtwin.persistence.models import SesIdentity, SesMessage
-from cloudtwin.persistence.repositories import SesIdentityRepository, SesMessageRepository
+from cloudtwin.persistence.repositories import (
+    SesIdentityRepository,
+    SesMessageRepository,
+)
 
 
 def _now() -> str:
@@ -83,7 +86,10 @@ class SesService:
                     "VerificationToken": record.token or "",
                 }
             else:
-                result[ident] = {"VerificationStatus": "NotStarted", "VerificationToken": ""}
+                result[ident] = {
+                    "VerificationStatus": "NotStarted",
+                    "VerificationToken": "",
+                }
         return result
 
     async def get_identity(self, identity: str) -> SesIdentity | None:
@@ -100,7 +106,9 @@ class SesService:
 
     async def delete_identity(self, identity: str) -> None:
         await self._identity_repo.delete(identity)
-        await self._telemetry.emit("aws", "ses", "delete_identity", {"identity": identity})
+        await self._telemetry.emit(
+            "aws", "ses", "delete_identity", {"identity": identity}
+        )
 
     # -------------------------------------------------------------------
     # Email sending
@@ -142,9 +150,14 @@ class SesService:
             created_at=_now(),
         )
         await self._message_repo.save(message)
-        await self._telemetry.emit("aws", "ses", "send_email", {
-            "source": source,
-            "destinations": all_destinations,
-            "message_id": message_id,
-        })
+        await self._telemetry.emit(
+            "aws",
+            "ses",
+            "send_email",
+            {
+                "source": source,
+                "destinations": all_destinations,
+                "message_id": message_id,
+            },
+        )
         return message_id

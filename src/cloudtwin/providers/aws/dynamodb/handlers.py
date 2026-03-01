@@ -9,8 +9,8 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 
 from cloudtwin.core.errors import CloudTwinError, NotFoundError
-from cloudtwin.providers.aws.protocols.json_protocol import JsonProtocolRouter
 from cloudtwin.providers.aws.dynamodb.service import DynamoDBService
+from cloudtwin.providers.aws.protocols.json_protocol import JsonProtocolRouter
 
 log = logging.getLogger("cloudtwin.aws.dynamodb")
 
@@ -24,7 +24,9 @@ def _error(code: str, message: str, status: int = 400) -> JSONResponse:
     return JSONResponse({"__type": code, "message": message}, status_code=status)
 
 
-def register_dynamodb_handlers(router: JsonProtocolRouter, service: DynamoDBService) -> None:
+def register_dynamodb_handlers(
+    router: JsonProtocolRouter, service: DynamoDBService
+) -> None:
     """Register all DynamoDB JSON-protocol action handlers into the shared json_router."""
 
     async def create_table(request: Request, body: dict) -> Response:
@@ -36,14 +38,16 @@ def register_dynamodb_handlers(router: JsonProtocolRouter, service: DynamoDBServ
             )
         except CloudTwinError as exc:
             return _error(exc.code, exc.message, exc.http_status)
-        return JSONResponse({
-            "TableDescription": {
-                "TableName": table.name,
-                "TableArn": f"arn:aws:dynamodb:{_REGION}:{_ACCOUNT_ID}:table/{table.name}",
-                "TableStatus": "ACTIVE",
-                "CreationDateTime": table.created_at,
+        return JSONResponse(
+            {
+                "TableDescription": {
+                    "TableName": table.name,
+                    "TableArn": f"arn:aws:dynamodb:{_REGION}:{_ACCOUNT_ID}:table/{table.name}",
+                    "TableStatus": "ACTIVE",
+                    "CreationDateTime": table.created_at,
+                }
             }
-        })
+        )
 
     async def describe_table(request: Request, body: dict) -> Response:
         try:
@@ -52,16 +56,18 @@ def register_dynamodb_handlers(router: JsonProtocolRouter, service: DynamoDBServ
             return _error("ResourceNotFoundException", exc.message, 400)
         except CloudTwinError as exc:
             return _error(exc.code, exc.message, exc.http_status)
-        return JSONResponse({
-            "Table": {
-                "TableName": table.name,
-                "TableArn": f"arn:aws:dynamodb:{_REGION}:{_ACCOUNT_ID}:table/{table.name}",
-                "TableStatus": "ACTIVE",
-                "KeySchema": json.loads(table.key_schema),
-                "AttributeDefinitions": json.loads(table.attribute_definitions),
-                "CreationDateTime": table.created_at,
+        return JSONResponse(
+            {
+                "Table": {
+                    "TableName": table.name,
+                    "TableArn": f"arn:aws:dynamodb:{_REGION}:{_ACCOUNT_ID}:table/{table.name}",
+                    "TableStatus": "ACTIVE",
+                    "KeySchema": json.loads(table.key_schema),
+                    "AttributeDefinitions": json.loads(table.attribute_definitions),
+                    "CreationDateTime": table.created_at,
+                }
             }
-        })
+        )
 
     async def list_tables(request: Request, body: dict) -> Response:
         try:
@@ -154,7 +160,9 @@ def register_dynamodb_handlers(router: JsonProtocolRouter, service: DynamoDBServ
                     if "PutRequest" in op:
                         await service.put_item(table_name, op["PutRequest"]["Item"])
                     elif "DeleteRequest" in op:
-                        await service.delete_item(table_name, op["DeleteRequest"]["Key"])
+                        await service.delete_item(
+                            table_name, op["DeleteRequest"]["Key"]
+                        )
         except CloudTwinError as exc:
             return _error(exc.code, exc.message, exc.http_status)
         return JSONResponse({"UnprocessedItems": {}})

@@ -49,15 +49,21 @@ class SqliteSnsTopicRepository(SnsTopicRepository):
         self._db = db
 
     def _row(self, row) -> SnsTopic:
-        return SnsTopic(id=row["id"], name=row["name"], arn=row["arn"], created_at=row["created_at"])
+        return SnsTopic(
+            id=row["id"], name=row["name"], arn=row["arn"], created_at=row["created_at"]
+        )
 
     async def get(self, arn: str) -> Optional[SnsTopic]:
-        async with self._db.conn.execute("SELECT * FROM sns_topics WHERE arn = ?", (arn,)) as cur:
+        async with self._db.conn.execute(
+            "SELECT * FROM sns_topics WHERE arn = ?", (arn,)
+        ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
 
     async def get_by_name(self, name: str) -> Optional[SnsTopic]:
-        async with self._db.conn.execute("SELECT * FROM sns_topics WHERE name = ?", (name,)) as cur:
+        async with self._db.conn.execute(
+            "SELECT * FROM sns_topics WHERE name = ?", (name,)
+        ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
 
@@ -84,14 +90,18 @@ class SqliteSnsSubscriptionRepository(SnsSubscriptionRepository):
 
     def _row(self, row) -> SnsSubscription:
         return SnsSubscription(
-            id=row["id"], subscription_arn=row["subscription_arn"],
-            topic_arn=row["topic_arn"], protocol=row["protocol"],
-            endpoint=row["endpoint"], created_at=row["created_at"],
+            id=row["id"],
+            subscription_arn=row["subscription_arn"],
+            topic_arn=row["topic_arn"],
+            protocol=row["protocol"],
+            endpoint=row["endpoint"],
+            created_at=row["created_at"],
         )
 
     async def get(self, subscription_arn: str) -> Optional[SnsSubscription]:
         async with self._db.conn.execute(
-            "SELECT * FROM sns_subscriptions WHERE subscription_arn = ?", (subscription_arn,)
+            "SELECT * FROM sns_subscriptions WHERE subscription_arn = ?",
+            (subscription_arn,),
         ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
@@ -109,8 +119,13 @@ class SqliteSnsSubscriptionRepository(SnsSubscriptionRepository):
                 (subscription_arn, topic_arn, protocol, endpoint, created_at)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (sub.subscription_arn, sub.topic_arn, sub.protocol, sub.endpoint,
-             sub.created_at or _now()),
+            (
+                sub.subscription_arn,
+                sub.topic_arn,
+                sub.protocol,
+                sub.endpoint,
+                sub.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return await self.get(sub.subscription_arn)
@@ -121,7 +136,8 @@ class SqliteSnsSubscriptionRepository(SnsSubscriptionRepository):
 
     async def delete(self, subscription_arn: str) -> None:
         await self._db.conn.execute(
-            "DELETE FROM sns_subscriptions WHERE subscription_arn = ?", (subscription_arn,)
+            "DELETE FROM sns_subscriptions WHERE subscription_arn = ?",
+            (subscription_arn,),
         )
         await self._db.conn.commit()
 
@@ -132,22 +148,32 @@ class SqliteSnsMessageRepository(SnsMessageRepository):
 
     def _row(self, row) -> SnsMessage:
         return SnsMessage(
-            id=row["id"], message_id=row["message_id"], topic_arn=row["topic_arn"],
-            message=row["message"], subject=row["subject"], created_at=row["created_at"],
+            id=row["id"],
+            message_id=row["message_id"],
+            topic_arn=row["topic_arn"],
+            message=row["message"],
+            subject=row["subject"],
+            created_at=row["created_at"],
         )
 
     async def save(self, message: SnsMessage) -> SnsMessage:
         await self._db.conn.execute(
             "INSERT INTO sns_messages (message_id, topic_arn, message, subject, created_at)"
             " VALUES (?, ?, ?, ?, ?)",
-            (message.message_id, message.topic_arn, message.message,
-             message.subject, message.created_at or _now()),
+            (
+                message.message_id,
+                message.topic_arn,
+                message.message,
+                message.subject,
+                message.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return message
 
     async def list_by_topic(self, topic_arn: str) -> list[SnsMessage]:
         async with self._db.conn.execute(
-            "SELECT * FROM sns_messages WHERE topic_arn = ? ORDER BY id DESC", (topic_arn,)
+            "SELECT * FROM sns_messages WHERE topic_arn = ? ORDER BY id DESC",
+            (topic_arn,),
         ) as cur:
             return [self._row(r) for r in await cur.fetchall()]

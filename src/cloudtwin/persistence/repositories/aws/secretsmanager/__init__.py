@@ -16,7 +16,10 @@ from cloudtwin.persistence.repositories.aws.secretsmanager.sqlite import (
 )
 
 __all__ = [
-    "SecretRepository", "SecretVersionRepository",
-    "SqliteSecretRepository", "SqliteSecretVersionRepository",
-    "InMemorySecretRepository", "InMemorySecretVersionRepository",
+    "SecretRepository",
+    "SecretVersionRepository",
+    "SqliteSecretRepository",
+    "SqliteSecretVersionRepository",
+    "InMemorySecretRepository",
+    "InMemorySecretVersionRepository",
 ]

@@ -33,7 +33,9 @@ async def azure_servicebus(request: Request):
     topic_out = []
     for t in topics:
         subs = (
-            await repos["asb_subscription"].list_by_topic(t.id) if t.id is not None else []
+            await repos["asb_subscription"].list_by_topic(t.id)
+            if t.id is not None
+            else []
         )
         topic_out.append(
             {

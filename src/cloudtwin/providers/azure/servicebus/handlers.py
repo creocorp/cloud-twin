@@ -62,12 +62,21 @@ def make_router(service: ServiceBusService, namespace: str) -> APIRouter:
     @router.put(f"/{namespace}/queues/{{queue_name}}")
     async def create_queue(queue_name: str) -> JSONResponse:
         queue = await service.create_queue(queue_name)
-        return JSONResponse({"name": queue.name, "namespace": queue.namespace, "created_at": queue.created_at}, status_code=201)
+        return JSONResponse(
+            {
+                "name": queue.name,
+                "namespace": queue.namespace,
+                "created_at": queue.created_at,
+            },
+            status_code=201,
+        )
 
     @router.get(f"/{namespace}/queues")
     async def list_queues() -> JSONResponse:
         queues = await service.list_queues()
-        return JSONResponse({"queues": [{"name": q.name, "created_at": q.created_at} for q in queues]})
+        return JSONResponse(
+            {"queues": [{"name": q.name, "created_at": q.created_at} for q in queues]}
+        )
 
     @router.get(f"/{namespace}/queues/{{queue_name}}")
     async def get_queue(queue_name: str) -> JSONResponse:
@@ -75,7 +84,13 @@ def make_router(service: ServiceBusService, namespace: str) -> APIRouter:
             queue = await service.get_queue(queue_name)
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
-        return JSONResponse({"name": queue.name, "namespace": queue.namespace, "created_at": queue.created_at})
+        return JSONResponse(
+            {
+                "name": queue.name,
+                "namespace": queue.namespace,
+                "created_at": queue.created_at,
+            }
+        )
 
     @router.delete(f"/{namespace}/queues/{{queue_name}}")
     async def delete_queue(queue_name: str) -> JSONResponse:
@@ -90,13 +105,17 @@ def make_router(service: ServiceBusService, namespace: str) -> APIRouter:
         body_bytes = await request.body()
         content_type = request.headers.get("content-type", "text/plain")
         try:
-            msg = await service.send_to_queue(queue_name, body_bytes.decode(), content_type)
+            msg = await service.send_to_queue(
+                queue_name, body_bytes.decode(), content_type
+            )
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
         return JSONResponse(_msg_dict(msg), status_code=201)
 
     @router.get(f"/{namespace}/queues/{{queue_name}}/messages")
-    async def receive_queue_messages(queue_name: str, limit: int = Query(default=1)) -> JSONResponse:
+    async def receive_queue_messages(
+        queue_name: str, limit: int = Query(default=1)
+    ) -> JSONResponse:
         try:
             messages = await service.receive_from_queue(queue_name, limit=limit)
         except NotFoundError as exc:
@@ -119,8 +138,12 @@ def make_router(service: ServiceBusService, namespace: str) -> APIRouter:
             return JSONResponse({"error": exc.message}, status_code=404)
         return JSONResponse({})
 
-    @router.post(f"/{namespace}/queues/{{queue_name}}/messages/{{lock_token}}/deadletter")
-    async def deadletter_queue_message(queue_name: str, lock_token: str) -> JSONResponse:
+    @router.post(
+        f"/{namespace}/queues/{{queue_name}}/messages/{{lock_token}}/deadletter"
+    )
+    async def deadletter_queue_message(
+        queue_name: str, lock_token: str
+    ) -> JSONResponse:
         try:
             await service.deadletter_message(lock_token)
         except NotFoundError as exc:
@@ -134,12 +157,21 @@ def make_router(service: ServiceBusService, namespace: str) -> APIRouter:
     @router.put(f"/{namespace}/topics/{{topic_name}}")
     async def create_topic(topic_name: str) -> JSONResponse:
         topic = await service.create_topic(topic_name)
-        return JSONResponse({"name": topic.name, "namespace": topic.namespace, "created_at": topic.created_at}, status_code=201)
+        return JSONResponse(
+            {
+                "name": topic.name,
+                "namespace": topic.namespace,
+                "created_at": topic.created_at,
+            },
+            status_code=201,
+        )
 
     @router.get(f"/{namespace}/topics")
     async def list_topics() -> JSONResponse:
         topics = await service.list_topics()
-        return JSONResponse({"topics": [{"name": t.name, "created_at": t.created_at} for t in topics]})
+        return JSONResponse(
+            {"topics": [{"name": t.name, "created_at": t.created_at} for t in topics]}
+        )
 
     @router.delete(f"/{namespace}/topics/{{topic_name}}")
     async def delete_topic(topic_name: str) -> JSONResponse:
@@ -159,7 +191,10 @@ def make_router(service: ServiceBusService, namespace: str) -> APIRouter:
             sub = await service.create_subscription(topic_name, sub_name)
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
-        return JSONResponse({"name": sub.name, "topic_id": sub.topic_id, "created_at": sub.created_at}, status_code=201)
+        return JSONResponse(
+            {"name": sub.name, "topic_id": sub.topic_id, "created_at": sub.created_at},
+            status_code=201,
+        )
 
     @router.get(f"/{namespace}/topics/{{topic_name}}/subscriptions")
     async def list_subscriptions(topic_name: str) -> JSONResponse:
@@ -167,30 +202,46 @@ def make_router(service: ServiceBusService, namespace: str) -> APIRouter:
             subs = await service.list_subscriptions(topic_name)
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
-        return JSONResponse({"subscriptions": [{"name": s.name, "created_at": s.created_at} for s in subs]})
+        return JSONResponse(
+            {
+                "subscriptions": [
+                    {"name": s.name, "created_at": s.created_at} for s in subs
+                ]
+            }
+        )
 
     @router.post(f"/{namespace}/topics/{{topic_name}}/messages")
     async def publish_to_topic(topic_name: str, request: Request) -> JSONResponse:
         body_bytes = await request.body()
         content_type = request.headers.get("content-type", "text/plain")
         try:
-            msgs = await service.send_to_topic(topic_name, body_bytes.decode(), content_type)
+            msgs = await service.send_to_topic(
+                topic_name, body_bytes.decode(), content_type
+            )
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
         return JSONResponse({"fan_out": len(msgs)}, status_code=201)
 
-    @router.get(f"/{namespace}/topics/{{topic_name}}/subscriptions/{{sub_name}}/messages")
+    @router.get(
+        f"/{namespace}/topics/{{topic_name}}/subscriptions/{{sub_name}}/messages"
+    )
     async def receive_from_subscription(
         topic_name: str, sub_name: str, limit: int = Query(default=1)
     ) -> JSONResponse:
         try:
-            messages = await service.receive_from_subscription(topic_name, sub_name, limit=limit)
+            messages = await service.receive_from_subscription(
+                topic_name, sub_name, limit=limit
+            )
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
         return JSONResponse({"messages": [_msg_dict(m) for m in messages]})
 
-    @router.delete(f"/{namespace}/topics/{{topic_name}}/subscriptions/{{sub_name}}/messages/{{lock_token}}")
-    async def complete_sub_message(topic_name: str, sub_name: str, lock_token: str) -> JSONResponse:
+    @router.delete(
+        f"/{namespace}/topics/{{topic_name}}/subscriptions/{{sub_name}}/messages/{{lock_token}}"
+    )
+    async def complete_sub_message(
+        topic_name: str, sub_name: str, lock_token: str
+    ) -> JSONResponse:
         try:
             await service.complete_message(lock_token)
         except NotFoundError as exc:

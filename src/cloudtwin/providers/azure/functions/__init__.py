@@ -14,7 +14,9 @@ from cloudtwin.providers.azure.functions.service import AzureFunctionsService
 log = logging.getLogger("cloudtwin.azure.functions")
 
 
-def register(app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs) -> None:
+def register(
+    app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs
+) -> None:
     service = AzureFunctionsService(
         function_repo=repos["azure_function"],
         invocation_repo=repos["azure_function_invocation"],

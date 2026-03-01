@@ -14,7 +14,9 @@ from cloudtwin.providers.aws.lambda_.service import LambdaService
 log = logging.getLogger("cloudtwin.aws.lambda_")
 
 
-def register(app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs) -> None:
+def register(
+    app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs
+) -> None:
     service = LambdaService(
         function_repo=repos["lambda_function"],
         invocation_repo=repos["lambda_invocation"],

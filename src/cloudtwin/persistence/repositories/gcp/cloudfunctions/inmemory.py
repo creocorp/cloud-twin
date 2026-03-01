@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from cloudtwin.persistence.models.gcp.cloudfunctions import CloudFunction, CloudFunctionInvocation
+from cloudtwin.persistence.models.gcp.cloudfunctions import (
+    CloudFunction,
+    CloudFunctionInvocation,
+)
 from cloudtwin.persistence.repositories.gcp.cloudfunctions.repository import (
     CloudFunctionInvocationRepository,
     CloudFunctionRepository,

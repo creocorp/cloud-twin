@@ -11,6 +11,6 @@ class FirestoreDocument:
     project: str
     collection: str
     document_id: str
-    fields: str      # JSON blob
+    fields: str  # JSON blob
     created_at: str
     id: Optional[int] = None

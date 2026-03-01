@@ -35,12 +35,18 @@ class TestCreateFunction:
     def test_create_idempotent(self, lambda_client):
         name = _name()
         r1 = lambda_client.create_function(
-            FunctionName=name, Runtime=_RUNTIME, Role=_ROLE,
-            Handler=_HANDLER, Code=_FAKE_CODE,
+            FunctionName=name,
+            Runtime=_RUNTIME,
+            Role=_ROLE,
+            Handler=_HANDLER,
+            Code=_FAKE_CODE,
         )
         r2 = lambda_client.create_function(
-            FunctionName=name, Runtime=_RUNTIME, Role=_ROLE,
-            Handler=_HANDLER, Code=_FAKE_CODE,
+            FunctionName=name,
+            Runtime=_RUNTIME,
+            Role=_ROLE,
+            Handler=_HANDLER,
+            Code=_FAKE_CODE,
         )
         assert r1["FunctionArn"] == r2["FunctionArn"]
 
@@ -49,8 +55,11 @@ class TestListAndGetFunction:
     def test_list_functions_includes_created(self, lambda_client):
         name = _name()
         lambda_client.create_function(
-            FunctionName=name, Runtime=_RUNTIME, Role=_ROLE,
-            Handler=_HANDLER, Code=_FAKE_CODE,
+            FunctionName=name,
+            Runtime=_RUNTIME,
+            Role=_ROLE,
+            Handler=_HANDLER,
+            Code=_FAKE_CODE,
         )
         resp = lambda_client.list_functions()
         names = [f["FunctionName"] for f in resp["Functions"]]
@@ -59,8 +68,11 @@ class TestListAndGetFunction:
     def test_get_function_returns_config(self, lambda_client):
         name = _name()
         lambda_client.create_function(
-            FunctionName=name, Runtime=_RUNTIME, Role=_ROLE,
-            Handler=_HANDLER, Code=_FAKE_CODE,
+            FunctionName=name,
+            Runtime=_RUNTIME,
+            Role=_ROLE,
+            Handler=_HANDLER,
+            Code=_FAKE_CODE,
         )
         resp = lambda_client.get_function(FunctionName=name)
         assert resp["Configuration"]["FunctionName"] == name
@@ -75,19 +87,23 @@ class TestUpdateAndInvoke:
     def test_update_function_code(self, lambda_client):
         name = _name()
         lambda_client.create_function(
-            FunctionName=name, Runtime=_RUNTIME, Role=_ROLE,
-            Handler=_HANDLER, Code=_FAKE_CODE,
+            FunctionName=name,
+            Runtime=_RUNTIME,
+            Role=_ROLE,
+            Handler=_HANDLER,
+            Code=_FAKE_CODE,
         )
-        resp = lambda_client.update_function_code(
-            FunctionName=name, ZipFile=b"newcode"
-        )
+        resp = lambda_client.update_function_code(FunctionName=name, ZipFile=b"newcode")
         assert resp["FunctionName"] == name
 
     def test_invoke_returns_200_and_echoes_payload(self, lambda_client):
         name = _name()
         lambda_client.create_function(
-            FunctionName=name, Runtime=_RUNTIME, Role=_ROLE,
-            Handler=_HANDLER, Code=_FAKE_CODE,
+            FunctionName=name,
+            Runtime=_RUNTIME,
+            Role=_ROLE,
+            Handler=_HANDLER,
+            Code=_FAKE_CODE,
         )
         payload = json.dumps({"key": "value"})
         resp = lambda_client.invoke(FunctionName=name, Payload=payload)
@@ -100,8 +116,11 @@ class TestDeleteFunction:
     def test_delete_then_get_raises(self, lambda_client):
         name = _name()
         lambda_client.create_function(
-            FunctionName=name, Runtime=_RUNTIME, Role=_ROLE,
-            Handler=_HANDLER, Code=_FAKE_CODE,
+            FunctionName=name,
+            Runtime=_RUNTIME,
+            Role=_ROLE,
+            Handler=_HANDLER,
+            Code=_FAKE_CODE,
         )
         lambda_client.delete_function(FunctionName=name)
         with pytest.raises(lambda_client.exceptions.ResourceNotFoundException):

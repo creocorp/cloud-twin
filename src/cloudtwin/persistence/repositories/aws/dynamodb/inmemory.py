@@ -59,7 +59,11 @@ class InMemoryDynamoItemRepository(DynamoItemRepository):
         return [v for v in self._store.values() if v.table_name == table_name]
 
     async def query(self, table_name: str, pk: str) -> list[DynamoItem]:
-        return [v for v in self._store.values() if v.table_name == table_name and v.pk == pk]
+        return [
+            v for v in self._store.values() if v.table_name == table_name and v.pk == pk
+        ]
 
     async def delete_all(self, table_name: str) -> None:
-        self._store = {k: v for k, v in self._store.items() if v.table_name != table_name}
+        self._store = {
+            k: v for k, v in self._store.items() if v.table_name != table_name
+        }

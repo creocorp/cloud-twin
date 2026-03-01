@@ -17,13 +17,17 @@ def make_router(service: AzureFunctionsService) -> APIRouter:
     router = APIRouter()
 
     @router.put("/azure/functions/{app}/functions/{function_name}")
-    async def create_function(app: str, function_name: str, request: Request) -> JSONResponse:
+    async def create_function(
+        app: str, function_name: str, request: Request
+    ) -> JSONResponse:
         try:
             body = await request.json()
         except Exception:
             body = {}
         try:
-            fn = await service.create_function(app, function_name, code=str(body.get("code", "")))
+            fn = await service.create_function(
+                app, function_name, code=str(body.get("code", ""))
+            )
             return JSONResponse({"app": fn.app, "name": fn.name}, status_code=201)
         except CloudTwinError as exc:
             return JSONResponse({"error": exc.message}, status_code=exc.http_status)

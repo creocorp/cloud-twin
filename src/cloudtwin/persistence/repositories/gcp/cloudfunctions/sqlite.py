@@ -5,7 +5,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from cloudtwin.persistence.models.gcp.cloudfunctions import CloudFunction, CloudFunctionInvocation
+from cloudtwin.persistence.models.gcp.cloudfunctions import (
+    CloudFunction,
+    CloudFunctionInvocation,
+)
 from cloudtwin.persistence.repositories.gcp.cloudfunctions.repository import (
     CloudFunctionInvocationRepository,
     CloudFunctionRepository,
@@ -44,9 +47,13 @@ class SqliteCloudFunctionRepository(CloudFunctionRepository):
 
     def _row(self, row) -> CloudFunction:
         return CloudFunction(
-            id=row["id"], project=row["project"], name=row["name"],
-            full_name=row["full_name"], runtime=row["runtime"],
-            entry_point=row["entry_point"], source_code=row["source_code"],
+            id=row["id"],
+            project=row["project"],
+            name=row["name"],
+            full_name=row["full_name"],
+            runtime=row["runtime"],
+            entry_point=row["entry_point"],
+            source_code=row["source_code"],
             created_at=row["created_at"],
         )
 
@@ -66,13 +73,23 @@ class SqliteCloudFunctionRepository(CloudFunctionRepository):
     async def save(self, fn: CloudFunction) -> CloudFunction:
         await self._db.conn.execute(
             "INSERT OR REPLACE INTO gcp_functions (project, name, full_name, runtime, entry_point, source_code, created_at) VALUES (?,?,?,?,?,?,?)",
-            (fn.project, fn.name, fn.full_name, fn.runtime, fn.entry_point, fn.source_code, fn.created_at or _now()),
+            (
+                fn.project,
+                fn.name,
+                fn.full_name,
+                fn.runtime,
+                fn.entry_point,
+                fn.source_code,
+                fn.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return await self.get(fn.full_name)
 
     async def delete(self, full_name: str) -> None:
-        await self._db.conn.execute("DELETE FROM gcp_functions WHERE full_name = ?", (full_name,))
+        await self._db.conn.execute(
+            "DELETE FROM gcp_functions WHERE full_name = ?", (full_name,)
+        )
         await self._db.conn.commit()
 
 
@@ -83,7 +100,13 @@ class SqliteCloudFunctionInvocationRepository(CloudFunctionInvocationRepository)
     async def save(self, inv: CloudFunctionInvocation) -> CloudFunctionInvocation:
         await self._db.conn.execute(
             "INSERT INTO gcp_function_invocations (function_full_name, invocation_id, payload, response, created_at) VALUES (?,?,?,?,?)",
-            (inv.function_full_name, inv.invocation_id, inv.payload, inv.response, inv.created_at or _now()),
+            (
+                inv.function_full_name,
+                inv.invocation_id,
+                inv.payload,
+                inv.response,
+                inv.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return inv

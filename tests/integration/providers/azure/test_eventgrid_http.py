@@ -43,8 +43,18 @@ class TestEvents:
     def test_publish_returns_published_count(self, azure_http):
         azure_http.put("/azure/eventgrid/topics/eg-pub-topic", json={})
         events = [
-            {"id": "e1", "eventType": "TestEvent", "subject": "sub/1", "data": {"key": "v1"}},
-            {"id": "e2", "eventType": "TestEvent", "subject": "sub/2", "data": {"key": "v2"}},
+            {
+                "id": "e1",
+                "eventType": "TestEvent",
+                "subject": "sub/1",
+                "data": {"key": "v1"},
+            },
+            {
+                "id": "e2",
+                "eventType": "TestEvent",
+                "subject": "sub/2",
+                "data": {"key": "v2"},
+            },
         ]
         r = azure_http.post("/azure/eventgrid/topics/eg-pub-topic/events", json=events)
         assert r.status_code == 200

@@ -51,9 +51,12 @@ class LambdaService:
         if existing:
             return existing
         fn = LambdaFunction(
-            name=name, arn=_arn(name),
-            runtime=runtime, handler=handler,
-            code=code, created_at=_now(),
+            name=name,
+            arn=_arn(name),
+            runtime=runtime,
+            handler=handler,
+            code=code,
+            created_at=_now(),
         )
         saved = await self._functions.save(fn)
         await self._telemetry.emit("aws", "lambda", "create_function", {"name": name})
@@ -65,7 +68,9 @@ class LambdaService:
             raise NotFoundError(f"Function not found: {name}")
         fn.code = code
         saved = await self._functions.save(fn)
-        await self._telemetry.emit("aws", "lambda", "update_function_code", {"name": name})
+        await self._telemetry.emit(
+            "aws", "lambda", "update_function_code", {"name": name}
+        )
         return saved
 
     async def get_function(self, name: str) -> LambdaFunction:

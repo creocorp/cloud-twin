@@ -41,4 +41,3 @@ class TelemetryEngine:
                 created_at=datetime.now(timezone.utc).isoformat(),
             )
             await self._repo.save(event)
-

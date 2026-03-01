@@ -40,10 +40,17 @@ class SqliteEventGridTopicRepository(EventGridTopicRepository):
         self._db = db
 
     def _row(self, row) -> EventGridTopic:
-        return EventGridTopic(id=row["id"], name=row["name"], endpoint=row["endpoint"], created_at=row["created_at"])
+        return EventGridTopic(
+            id=row["id"],
+            name=row["name"],
+            endpoint=row["endpoint"],
+            created_at=row["created_at"],
+        )
 
     async def get(self, name: str) -> Optional[EventGridTopic]:
-        async with self._db.conn.execute("SELECT * FROM eg_topics WHERE name = ?", (name,)) as cur:
+        async with self._db.conn.execute(
+            "SELECT * FROM eg_topics WHERE name = ?", (name,)
+        ) as cur:
             row = await cur.fetchone()
             return self._row(row) if row else None
 
@@ -70,21 +77,33 @@ class SqliteEventGridEventRepository(EventGridEventRepository):
 
     def _row(self, row) -> EventGridEvent:
         return EventGridEvent(
-            id=row["id"], topic_name=row["topic_name"], event_id=row["event_id"],
-            event_type=row["event_type"], subject=row["subject"],
-            data=row["data"], created_at=row["created_at"],
+            id=row["id"],
+            topic_name=row["topic_name"],
+            event_id=row["event_id"],
+            event_type=row["event_type"],
+            subject=row["subject"],
+            data=row["data"],
+            created_at=row["created_at"],
         )
 
     async def save(self, event: EventGridEvent) -> EventGridEvent:
         await self._db.conn.execute(
             "INSERT INTO eg_events (topic_name, event_id, event_type, subject, data, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (event.topic_name, event.event_id, event.event_type, event.subject, event.data, event.created_at or _now()),
+            (
+                event.topic_name,
+                event.event_id,
+                event.event_type,
+                event.subject,
+                event.data,
+                event.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return event
 
     async def list_by_topic(self, topic_name: str) -> list[EventGridEvent]:
         async with self._db.conn.execute(
-            "SELECT * FROM eg_events WHERE topic_name = ? ORDER BY id DESC", (topic_name,)
+            "SELECT * FROM eg_events WHERE topic_name = ? ORDER BY id DESC",
+            (topic_name,),
         ) as cur:
             return [self._row(r) for r in await cur.fetchall()]

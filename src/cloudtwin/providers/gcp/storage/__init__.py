@@ -10,7 +10,9 @@ from cloudtwin.providers.gcp.storage.handlers import make_router
 from cloudtwin.providers.gcp.storage.service import StorageService
 
 
-def register(app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine) -> None:
+def register(
+    app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine
+) -> None:
     service = StorageService(
         project=config.providers.gcp.project,
         bucket_repo=repos["gcs_bucket"],

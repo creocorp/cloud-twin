@@ -61,7 +61,9 @@ class SnsService:
         arn = _topic_arn(name)
         topic = SnsTopic(id=None, name=name, arn=arn, created_at=_now())
         await self._topic_repo.save(topic)
-        await self._telemetry.emit("aws", "sns", "create_topic", {"name": name, "arn": arn})
+        await self._telemetry.emit(
+            "aws", "sns", "create_topic", {"name": name, "arn": arn}
+        )
         return arn
 
     async def list_topics(self) -> list[str]:
@@ -110,7 +112,9 @@ class SnsService:
         )
         await self._subscription_repo.save(subscription)
         await self._telemetry.emit(
-            "aws", "sns", "subscribe",
+            "aws",
+            "sns",
+            "subscribe",
             {"topic_arn": topic_arn, "protocol": protocol, "endpoint": endpoint},
         )
         return sub_arn
@@ -122,7 +126,9 @@ class SnsService:
             raise NotFoundError(f"Subscription not found: {subscription_arn}")
 
         await self._subscription_repo.delete(subscription_arn)
-        await self._telemetry.emit("aws", "sns", "unsubscribe", {"subscription_arn": subscription_arn})
+        await self._telemetry.emit(
+            "aws", "sns", "unsubscribe", {"subscription_arn": subscription_arn}
+        )
 
     async def list_subscriptions(self) -> list[str]:
         """Return all subscription ARNs."""
@@ -164,7 +170,9 @@ class SnsService:
         )
         await self._message_repo.save(msg)
         await self._telemetry.emit(
-            "aws", "sns", "publish",
+            "aws",
+            "sns",
+            "publish",
             {"topic_arn": topic_arn, "message_id": message_id},
         )
         return message_id

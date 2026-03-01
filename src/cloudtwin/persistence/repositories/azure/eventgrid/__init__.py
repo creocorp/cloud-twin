@@ -16,7 +16,10 @@ from cloudtwin.persistence.repositories.azure.eventgrid.sqlite import (
 )
 
 __all__ = [
-    "EventGridTopicRepository", "EventGridEventRepository",
-    "SqliteEventGridTopicRepository", "SqliteEventGridEventRepository",
-    "InMemoryEventGridTopicRepository", "InMemoryEventGridEventRepository",
+    "EventGridTopicRepository",
+    "EventGridEventRepository",
+    "SqliteEventGridTopicRepository",
+    "SqliteEventGridEventRepository",
+    "InMemoryEventGridTopicRepository",
+    "InMemoryEventGridEventRepository",
 ]

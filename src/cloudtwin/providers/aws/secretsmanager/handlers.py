@@ -21,7 +21,9 @@ def _error(code: str, message: str, status: int = 400) -> JSONResponse:
     return JSONResponse({"__type": code, "message": message}, status_code=status)
 
 
-def register_secretsmanager_handlers(router: JsonProtocolRouter, service: SecretsManagerService) -> None:
+def register_secretsmanager_handlers(
+    router: JsonProtocolRouter, service: SecretsManagerService
+) -> None:
     """Register all Secrets Manager JSON-protocol action handlers into the shared json_router."""
 
     async def create_secret(request: Request, body: dict) -> Response:
@@ -29,7 +31,11 @@ def register_secretsmanager_handlers(router: JsonProtocolRouter, service: Secret
             secret = await service.create_secret(
                 name=body["Name"],
                 secret_string=body.get("SecretString"),
-                secret_binary=base64.b64decode(body["SecretBinary"]) if body.get("SecretBinary") else None,
+                secret_binary=(
+                    base64.b64decode(body["SecretBinary"])
+                    if body.get("SecretBinary")
+                    else None
+                ),
             )
         except CloudTwinError as exc:
             return _error(exc.code, exc.message, exc.http_status)
@@ -57,13 +63,19 @@ def register_secretsmanager_handlers(router: JsonProtocolRouter, service: Secret
             version = await service.put_secret_value(
                 name=body["SecretId"],
                 secret_string=body.get("SecretString"),
-                secret_binary=base64.b64decode(body["SecretBinary"]) if body.get("SecretBinary") else None,
+                secret_binary=(
+                    base64.b64decode(body["SecretBinary"])
+                    if body.get("SecretBinary")
+                    else None
+                ),
             )
         except NotFoundError as exc:
             return _error("ResourceNotFoundException", exc.message, 404)
         except CloudTwinError as exc:
             return _error(exc.code, exc.message, exc.http_status)
-        return JSONResponse({"ARN": version.secret_name, "VersionId": version.version_id})
+        return JSONResponse(
+            {"ARN": version.secret_name, "VersionId": version.version_id}
+        )
 
     async def describe_secret(request: Request, body: dict) -> Response:
         try:
@@ -72,14 +84,18 @@ def register_secretsmanager_handlers(router: JsonProtocolRouter, service: Secret
             return _error("ResourceNotFoundException", exc.message, 404)
         except CloudTwinError as exc:
             return _error(exc.code, exc.message, exc.http_status)
-        return JSONResponse({"ARN": secret.arn, "Name": secret.name, "CreatedDate": secret.created_at})
+        return JSONResponse(
+            {"ARN": secret.arn, "Name": secret.name, "CreatedDate": secret.created_at}
+        )
 
     async def list_secrets(request: Request, body: dict) -> Response:
         try:
             secrets = await service.list_secrets()
         except CloudTwinError as exc:
             return _error(exc.code, exc.message, exc.http_status)
-        return JSONResponse({"SecretList": [{"ARN": s.arn, "Name": s.name} for s in secrets]})
+        return JSONResponse(
+            {"SecretList": [{"ARN": s.arn, "Name": s.name} for s in secrets]}
+        )
 
     async def delete_secret(request: Request, body: dict) -> Response:
         try:
@@ -98,7 +114,11 @@ def register_secretsmanager_handlers(router: JsonProtocolRouter, service: Secret
                 await service.put_secret_value(
                     name=secret.name,
                     secret_string=body.get("SecretString"),
-                    secret_binary=base64.b64decode(body["SecretBinary"]) if body.get("SecretBinary") else None,
+                    secret_binary=(
+                        base64.b64decode(body["SecretBinary"])
+                        if body.get("SecretBinary")
+                        else None
+                    ),
                 )
         except NotFoundError as exc:
             return _error("ResourceNotFoundException", exc.message, 404)

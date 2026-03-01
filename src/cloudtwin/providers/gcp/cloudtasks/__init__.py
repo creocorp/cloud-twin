@@ -14,7 +14,9 @@ from cloudtwin.providers.gcp.cloudtasks.service import CloudTasksService
 log = logging.getLogger("cloudtwin.gcp.cloudtasks")
 
 
-def register(app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs) -> None:
+def register(
+    app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs
+) -> None:
     service = CloudTasksService(
         queue_repo=repos["ct_queue"],
         task_repo=repos["ct_task"],

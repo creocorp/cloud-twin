@@ -39,14 +39,18 @@ class TestCreateQueue:
 class TestMessages:
     def test_send_message_returns_201(self, azure_http):
         azure_http.put(f"/azure/queue/{_ACCOUNT}/msg-queue")
-        r = azure_http.post(f"/azure/queue/{_ACCOUNT}/msg-queue/messages", content=b"hello")
+        r = azure_http.post(
+            f"/azure/queue/{_ACCOUNT}/msg-queue/messages", content=b"hello"
+        )
         assert r.status_code == 201
         body = r.json()
         assert "MessageId" in body
 
     def test_receive_message(self, azure_http):
         azure_http.put(f"/azure/queue/{_ACCOUNT}/recv-queue")
-        azure_http.post(f"/azure/queue/{_ACCOUNT}/recv-queue/messages", content=b"world")
+        azure_http.post(
+            f"/azure/queue/{_ACCOUNT}/recv-queue/messages", content=b"world"
+        )
         r = azure_http.get(f"/azure/queue/{_ACCOUNT}/recv-queue/messages")
         assert r.status_code == 200
         msgs = r.json()["QueueMessagesList"]
@@ -55,7 +59,9 @@ class TestMessages:
 
     def test_peek_message(self, azure_http):
         azure_http.put(f"/azure/queue/{_ACCOUNT}/peek-queue")
-        azure_http.post(f"/azure/queue/{_ACCOUNT}/peek-queue/messages", content=b"peek-me")
+        azure_http.post(
+            f"/azure/queue/{_ACCOUNT}/peek-queue/messages", content=b"peek-me"
+        )
         r = azure_http.get(f"/azure/queue/{_ACCOUNT}/peek-queue/messages/peek")
         assert r.status_code == 200
         msgs = r.json()["QueueMessagesList"]
@@ -63,7 +69,9 @@ class TestMessages:
 
     def test_delete_message(self, azure_http):
         azure_http.put(f"/azure/queue/{_ACCOUNT}/delmsg-queue")
-        send_r = azure_http.post(f"/azure/queue/{_ACCOUNT}/delmsg-queue/messages", content=b"bye")
+        send_r = azure_http.post(
+            f"/azure/queue/{_ACCOUNT}/delmsg-queue/messages", content=b"bye"
+        )
         mid = send_r.json()["MessageId"]
         r = azure_http.delete(f"/azure/queue/{_ACCOUNT}/delmsg-queue/messages/{mid}")
         assert r.status_code == 204

@@ -60,7 +60,9 @@ class SqsService:
         url = self._queue_url(name)
         queue = SqsQueue(id=None, name=name, url=url, created_at=_now())
         await self._queue_repo.save(queue)
-        await self._telemetry.emit("aws", "sqs", "create_queue", {"name": name, "url": url})
+        await self._telemetry.emit(
+            "aws", "sqs", "create_queue", {"name": name, "url": url}
+        )
         return url
 
     async def list_queues(self, prefix: str = "") -> list[str]:
@@ -103,7 +105,9 @@ class SqsService:
             created_at=_now(),
         )
         await self._message_repo.save(msg)
-        await self._telemetry.emit("aws", "sqs", "send_message", {"queue": name, "message_id": message_id})
+        await self._telemetry.emit(
+            "aws", "sqs", "send_message", {"queue": name, "message_id": message_id}
+        )
         return {"MessageId": message_id, "MD5OfMessageBody": _md5(message_body)}
 
     async def receive_messages(self, queue_url: str, max_number: int = 1) -> list[dict]:
@@ -122,13 +126,17 @@ class SqsService:
         result = []
         for msg in messages:
             await self._message_repo.mark_invisible(msg.receipt_handle)
-            result.append({
-                "MessageId": msg.message_id,
-                "ReceiptHandle": msg.receipt_handle,
-                "MD5OfBody": _md5(msg.body),
-                "Body": msg.body,
-            })
-        await self._telemetry.emit("aws", "sqs", "receive_message", {"queue": name, "count": len(result)})
+            result.append(
+                {
+                    "MessageId": msg.message_id,
+                    "ReceiptHandle": msg.receipt_handle,
+                    "MD5OfBody": _md5(msg.body),
+                    "Body": msg.body,
+                }
+            )
+        await self._telemetry.emit(
+            "aws", "sqs", "receive_message", {"queue": name, "count": len(result)}
+        )
         return result
 
     async def delete_message(self, queue_url: str, receipt_handle: str) -> None:
@@ -137,7 +145,9 @@ class SqsService:
         name = self._name_from_url(queue_url)
         await self._telemetry.emit("aws", "sqs", "delete_message", {"queue": name})
 
-    async def change_message_visibility(self, queue_url: str, receipt_handle: str, visibility_timeout: int) -> None:
+    async def change_message_visibility(
+        self, queue_url: str, receipt_handle: str, visibility_timeout: int
+    ) -> None:
         """Make a message visible again (timeout=0) or invisible. Idempotent."""
         name = self._name_from_url(queue_url)
         queue = await self._queue_repo.get(name)
@@ -147,7 +157,9 @@ class SqsService:
             await self._message_repo.make_visible(receipt_handle)
         else:
             await self._message_repo.mark_invisible(receipt_handle)
-        await self._telemetry.emit("aws", "sqs", "change_message_visibility", {"queue": name})
+        await self._telemetry.emit(
+            "aws", "sqs", "change_message_visibility", {"queue": name}
+        )
 
     async def get_queue_attributes(self, queue_url: str) -> dict:
         """Return basic queue attributes."""

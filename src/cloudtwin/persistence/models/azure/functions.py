@@ -10,7 +10,7 @@ from typing import Optional
 class AzureFunction:
     app: str
     name: str
-    code: str        # inline source or base64 zip
+    code: str  # inline source or base64 zip
     created_at: str
     id: Optional[int] = None
 

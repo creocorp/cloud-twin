@@ -14,7 +14,9 @@ from cloudtwin.providers.azure.eventgrid.service import EventGridService
 log = logging.getLogger("cloudtwin.azure.eventgrid")
 
 
-def register(app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs) -> None:
+def register(
+    app: FastAPI, config: Config, repos: dict, telemetry: TelemetryEngine, **kwargs
+) -> None:
     service = EventGridService(
         topic_repo=repos["eg_topic"],
         event_repo=repos["eg_event"],

@@ -81,7 +81,15 @@ def server_url():
         storage=_storage_config(),
         providers=ProvidersConfig(
             aws=AwsConfig(
-                services=["ses", "sns", "sqs", "lambda", "dynamodb", "secretsmanager", "s3"],
+                services=[
+                    "ses",
+                    "sns",
+                    "sqs",
+                    "lambda",
+                    "dynamodb",
+                    "secretsmanager",
+                    "s3",
+                ],
                 ses=SesConfig(strict_verification=False, smtp=SmtpConfig()),
             )
         ),

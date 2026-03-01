@@ -64,7 +64,10 @@ def make_router(service: PubsubService) -> APIRouter:
         try:
             t = await service.get_topic(full_name)
         except NotFoundError:
-            return JSONResponse({"error": {"code": 404, "message": f"Topic {full_name!r} not found"}}, status_code=404)
+            return JSONResponse(
+                {"error": {"code": 404, "message": f"Topic {full_name!r} not found"}},
+                status_code=404,
+            )
         return JSONResponse(_topic_json(t))
 
     @router.get("/v1/projects/{project}/topics")
@@ -78,7 +81,10 @@ def make_router(service: PubsubService) -> APIRouter:
         try:
             await service.delete_topic(full_name)
         except NotFoundError:
-            return JSONResponse({"error": {"code": 404, "message": f"Topic {full_name!r} not found"}}, status_code=404)
+            return JSONResponse(
+                {"error": {"code": 404, "message": f"Topic {full_name!r} not found"}},
+                status_code=404,
+            )
         return JSONResponse({})
 
     @router.post("/v1/projects/{project}/topics/{topic}:publish")
@@ -89,7 +95,10 @@ def make_router(service: PubsubService) -> APIRouter:
         try:
             message_ids = await service.publish(full_name, messages)
         except NotFoundError:
-            return JSONResponse({"error": {"code": 404, "message": f"Topic {full_name!r} not found"}}, status_code=404)
+            return JSONResponse(
+                {"error": {"code": 404, "message": f"Topic {full_name!r} not found"}},
+                status_code=404,
+            )
         return JSONResponse({"messageIds": message_ids})
 
     # ------------------------------------------------------------------
@@ -97,15 +106,21 @@ def make_router(service: PubsubService) -> APIRouter:
     # ------------------------------------------------------------------
 
     @router.put("/v1/projects/{project}/subscriptions/{sub}")
-    async def create_subscription(project: str, sub: str, request: Request) -> JSONResponse:
+    async def create_subscription(
+        project: str, sub: str, request: Request
+    ) -> JSONResponse:
         full_name = f"projects/{project}/subscriptions/{sub}"
         body = await request.json()
         topic_full_name = body.get("topic", "")
         ack_deadline = body.get("ackDeadlineSeconds", 10)
         try:
-            s = await service.create_subscription(full_name, topic_full_name, ack_deadline_seconds=ack_deadline)
+            s = await service.create_subscription(
+                full_name, topic_full_name, ack_deadline_seconds=ack_deadline
+            )
         except NotFoundError as exc:
-            return JSONResponse({"error": {"code": 404, "message": exc.message}}, status_code=404)
+            return JSONResponse(
+                {"error": {"code": 404, "message": exc.message}}, status_code=404
+            )
         return JSONResponse(_sub_json(s), status_code=200)
 
     @router.get("/v1/projects/{project}/subscriptions/{sub}")
@@ -114,7 +129,15 @@ def make_router(service: PubsubService) -> APIRouter:
         try:
             s = await service.get_subscription(full_name)
         except NotFoundError:
-            return JSONResponse({"error": {"code": 404, "message": f"Subscription {full_name!r} not found"}}, status_code=404)
+            return JSONResponse(
+                {
+                    "error": {
+                        "code": 404,
+                        "message": f"Subscription {full_name!r} not found",
+                    }
+                },
+                status_code=404,
+            )
         return JSONResponse(_sub_json(s))
 
     @router.get("/v1/projects/{project}/subscriptions")
@@ -128,7 +151,15 @@ def make_router(service: PubsubService) -> APIRouter:
         try:
             await service.delete_subscription(full_name)
         except NotFoundError:
-            return JSONResponse({"error": {"code": 404, "message": f"Subscription {full_name!r} not found"}}, status_code=404)
+            return JSONResponse(
+                {
+                    "error": {
+                        "code": 404,
+                        "message": f"Subscription {full_name!r} not found",
+                    }
+                },
+                status_code=404,
+            )
         return JSONResponse({})
 
     @router.post("/v1/projects/{project}/subscriptions/{sub}:pull")
@@ -139,7 +170,15 @@ def make_router(service: PubsubService) -> APIRouter:
         try:
             received = await service.pull(full_name, max_messages=max_messages)
         except NotFoundError:
-            return JSONResponse({"error": {"code": 404, "message": f"Subscription {full_name!r} not found"}}, status_code=404)
+            return JSONResponse(
+                {
+                    "error": {
+                        "code": 404,
+                        "message": f"Subscription {full_name!r} not found",
+                    }
+                },
+                status_code=404,
+            )
         return JSONResponse({"receivedMessages": received})
 
     @router.post("/v1/projects/{project}/subscriptions/{sub}:acknowledge")

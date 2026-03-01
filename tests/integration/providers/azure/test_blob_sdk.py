@@ -48,10 +48,12 @@ class TestBlobs:
         container = _name()
         blob_client.get_container_client(container).create_container()
         for i in range(3):
-            blob_client.get_blob_client(container=container, blob=f"file-{i}.txt").upload_blob(
-                f"content {i}".encode(), overwrite=True
-            )
-        names = [b["name"] for b in blob_client.get_container_client(container).list_blobs()]
+            blob_client.get_blob_client(
+                container=container, blob=f"file-{i}.txt"
+            ).upload_blob(f"content {i}".encode(), overwrite=True)
+        names = [
+            b["name"] for b in blob_client.get_container_client(container).list_blobs()
+        ]
         assert "file-0.txt" in names
         assert "file-1.txt" in names
         assert "file-2.txt" in names
@@ -71,6 +73,7 @@ class TestBlobs:
         bc.upload_blob(b"bye", overwrite=True)
         bc.delete_blob()
         from azure.core.exceptions import ResourceNotFoundError
+
         try:
             bc.download_blob().readall()
             assert False, "Expected ResourceNotFoundError"

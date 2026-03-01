@@ -61,7 +61,9 @@ class SecretsManagerService:
                 created_at=_now(),
             )
             await self._versions.save(version)
-        await self._telemetry.emit("aws", "secretsmanager", "create_secret", {"name": name})
+        await self._telemetry.emit(
+            "aws", "secretsmanager", "create_secret", {"name": name}
+        )
         return saved
 
     async def get_secret_value(
@@ -97,7 +99,9 @@ class SecretsManagerService:
             created_at=_now(),
         )
         saved = await self._versions.save(version)
-        await self._telemetry.emit("aws", "secretsmanager", "put_secret_value", {"name": name})
+        await self._telemetry.emit(
+            "aws", "secretsmanager", "put_secret_value", {"name": name}
+        )
         return saved
 
     async def describe_secret(self, name: str) -> Secret:
@@ -115,4 +119,6 @@ class SecretsManagerService:
             raise NotFoundError(f"Secret not found: {name}")
         await self._versions.delete_all(name)
         await self._secrets.delete(name)
-        await self._telemetry.emit("aws", "secretsmanager", "delete_secret", {"name": name})
+        await self._telemetry.emit(
+            "aws", "secretsmanager", "delete_secret", {"name": name}
+        )

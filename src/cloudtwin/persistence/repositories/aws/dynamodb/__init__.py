@@ -16,7 +16,10 @@ from cloudtwin.persistence.repositories.aws.dynamodb.sqlite import (
 )
 
 __all__ = [
-    "DynamoTableRepository", "DynamoItemRepository",
-    "SqliteDynamoTableRepository", "SqliteDynamoItemRepository",
-    "InMemoryDynamoTableRepository", "InMemoryDynamoItemRepository",
+    "DynamoTableRepository",
+    "DynamoItemRepository",
+    "SqliteDynamoTableRepository",
+    "SqliteDynamoItemRepository",
+    "InMemoryDynamoTableRepository",
+    "InMemoryDynamoItemRepository",
 ]

@@ -12,14 +12,18 @@ def _doc_path(doc_id: str) -> str:
 
 class TestDocuments:
     def test_set_document_returns_document(self, gcp_http):
-        r = gcp_http.patch(_doc_path("doc-1"), json={"fields": {"name": {"stringValue": "Alice"}}})
+        r = gcp_http.patch(
+            _doc_path("doc-1"), json={"fields": {"name": {"stringValue": "Alice"}}}
+        )
         assert r.status_code == 200
         body = r.json()
         assert "doc-1" in body["name"]
         assert "name" in body["fields"]
 
     def test_get_document(self, gcp_http):
-        gcp_http.patch(_doc_path("doc-get"), json={"fields": {"x": {"integerValue": "7"}}})
+        gcp_http.patch(
+            _doc_path("doc-get"), json={"fields": {"x": {"integerValue": "7"}}}
+        )
         r = gcp_http.get(_doc_path("doc-get"))
         assert r.status_code == 200
         assert "doc-get" in r.json()["name"]

@@ -11,7 +11,9 @@ class CloudTwinError(Exception):
     http_status: int = 500
     code: str = "InternalError"
 
-    def __init__(self, message: str, code: str | None = None, http_status: int | None = None):
+    def __init__(
+        self, message: str, code: str | None = None, http_status: int | None = None
+    ):
         super().__init__(message)
         self.message = message
         if code is not None:

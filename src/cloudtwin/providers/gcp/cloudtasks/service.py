@@ -37,18 +37,29 @@ class CloudTasksService:
         self._tasks = task_repo
         self._telemetry = telemetry
 
-    async def create_queue(self, project: str, location: str, name: str) -> CloudTasksQueue:
+    async def create_queue(
+        self, project: str, location: str, name: str
+    ) -> CloudTasksQueue:
         full_name = _full_name(project, location, name)
         existing = await self._queues.get(full_name)
         if existing:
             return existing
-        queue = CloudTasksQueue(project=project, location=location, name=name,
-                                full_name=full_name, created_at=_now())
+        queue = CloudTasksQueue(
+            project=project,
+            location=location,
+            name=name,
+            full_name=full_name,
+            created_at=_now(),
+        )
         saved = await self._queues.save(queue)
-        await self._telemetry.emit("gcp", "cloudtasks", "create_queue", {"project": project, "name": name})
+        await self._telemetry.emit(
+            "gcp", "cloudtasks", "create_queue", {"project": project, "name": name}
+        )
         return saved
 
-    async def get_queue(self, project: str, location: str, name: str) -> CloudTasksQueue:
+    async def get_queue(
+        self, project: str, location: str, name: str
+    ) -> CloudTasksQueue:
         queue = await self._queues.get(_full_name(project, location, name))
         if not queue:
             raise NotFoundError(f"Queue not found: {name}")
@@ -62,9 +73,13 @@ class CloudTasksService:
         if not queue:
             raise NotFoundError(f"Queue not found: {name}")
         await self._queues.delete(_full_name(project, location, name))
-        await self._telemetry.emit("gcp", "cloudtasks", "delete_queue", {"project": project, "name": name})
+        await self._telemetry.emit(
+            "gcp", "cloudtasks", "delete_queue", {"project": project, "name": name}
+        )
 
-    async def create_task(self, project: str, location: str, queue_name: str, payload: dict) -> CloudTask:
+    async def create_task(
+        self, project: str, location: str, queue_name: str, payload: dict
+    ) -> CloudTask:
         queue = await self.get_queue(project, location, queue_name)
         task = CloudTask(
             queue_full_name=queue.full_name,
@@ -74,10 +89,14 @@ class CloudTasksService:
             created_at=_now(),
         )
         saved = await self._tasks.save(task)
-        await self._telemetry.emit("gcp", "cloudtasks", "create_task", {"queue": queue_name})
+        await self._telemetry.emit(
+            "gcp", "cloudtasks", "create_task", {"queue": queue_name}
+        )
         return saved
 
-    async def list_tasks(self, project: str, location: str, queue_name: str) -> list[CloudTask]:
+    async def list_tasks(
+        self, project: str, location: str, queue_name: str
+    ) -> list[CloudTask]:
         queue = await self.get_queue(project, location, queue_name)
         return await self._tasks.list_pending(queue.full_name)
 

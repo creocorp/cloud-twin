@@ -20,7 +20,7 @@ class CloudTasksQueue:
 class CloudTask:
     queue_full_name: str
     task_id: str
-    payload: str     # JSON blob
-    state: str       # "pending" | "leased" | "done"
+    payload: str  # JSON blob
+    state: str  # "pending" | "leased" | "done"
     created_at: str
     id: Optional[int] = None

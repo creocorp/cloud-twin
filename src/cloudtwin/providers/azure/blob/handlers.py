@@ -33,7 +33,10 @@ def _to_rfc1123(iso: str) -> str:
 
 
 def _xml(root: Element) -> Response:
-    body = b'<?xml version="1.0" encoding="UTF-8"?>' + tostring(root, encoding="unicode").encode()
+    body = (
+        b'<?xml version="1.0" encoding="UTF-8"?>'
+        + tostring(root, encoding="unicode").encode()
+    )
     return Response(content=body, media_type="application/xml")
 
 
@@ -41,7 +44,10 @@ def _error_xml(code: str, message: str, status: int = 400) -> Response:
     root = Element("Error")
     SubElement(root, "Code").text = code
     SubElement(root, "Message").text = message
-    body = b'<?xml version="1.0" encoding="UTF-8"?>' + tostring(root, encoding="unicode").encode()
+    body = (
+        b'<?xml version="1.0" encoding="UTF-8"?>'
+        + tostring(root, encoding="unicode").encode()
+    )
     return Response(content=body, media_type="application/xml", status_code=status)
 
 
@@ -108,7 +114,9 @@ def make_router(service: BlobService) -> APIRouter:
         try:
             await service.delete_container(container)
         except NotFoundError:
-            return _error_xml("ContainerNotFound", f"Container {container!r} does not exist.", 404)
+            return _error_xml(
+                "ContainerNotFound", f"Container {container!r} does not exist.", 404
+            )
         return Response(status_code=202)
 
     @router.get("/{container}")
@@ -121,8 +129,14 @@ def make_router(service: BlobService) -> APIRouter:
             try:
                 blobs = await service.list_blobs(container, prefix=prefix)
             except NotFoundError:
-                return _error_xml("ContainerNotFound", f"Container {container!r} does not exist.", 404)
-            root = Element("EnumerationResults", ContainerName=container, ServiceEndpoint=str(request.base_url))
+                return _error_xml(
+                    "ContainerNotFound", f"Container {container!r} does not exist.", 404
+                )
+            root = Element(
+                "EnumerationResults",
+                ContainerName=container,
+                ServiceEndpoint=str(request.base_url),
+            )
             SubElement(root, "Prefix").text = prefix
             SubElement(root, "Marker")
             SubElement(root, "MaxResults").text = "5000"
@@ -134,7 +148,9 @@ def make_router(service: BlobService) -> APIRouter:
                 SubElement(props, "Last-Modified").text = _to_rfc1123(b.created_at)
                 SubElement(props, "Etag").text = f'"{b.created_at}"'
                 SubElement(props, "Content-Length").text = str(b.content_length or 0)
-                SubElement(props, "Content-Type").text = b.content_type or "application/octet-stream"
+                SubElement(props, "Content-Type").text = (
+                    b.content_type or "application/octet-stream"
+                )
                 SubElement(props, "BlobType").text = "BlockBlob"
                 SubElement(props, "LeaseStatus").text = "unlocked"
                 SubElement(props, "LeaseState").text = "available"
@@ -146,11 +162,16 @@ def make_router(service: BlobService) -> APIRouter:
             try:
                 c = await service.get_container(container)
             except NotFoundError:
-                return _error_xml("ContainerNotFound", f"Container {container!r} does not exist.", 404)
-            return Response(status_code=200, headers={
-                "ETag": f'"{c.created_at}"',
-                "Last-Modified": _to_rfc1123(c.created_at),
-            })
+                return _error_xml(
+                    "ContainerNotFound", f"Container {container!r} does not exist.", 404
+                )
+            return Response(
+                status_code=200,
+                headers={
+                    "ETag": f'"{c.created_at}"',
+                    "Last-Modified": _to_rfc1123(c.created_at),
+                },
+            )
         return Response(status_code=400)
 
     @router.head("/{container}")
@@ -161,10 +182,13 @@ def make_router(service: BlobService) -> APIRouter:
                 c = await service.get_container(container)
             except NotFoundError:
                 return Response(status_code=404)
-            return Response(status_code=200, headers={
-                "ETag": f'"{c.created_at}"',
-                "Last-Modified": _to_rfc1123(c.created_at),
-            })
+            return Response(
+                status_code=200,
+                headers={
+                    "ETag": f'"{c.created_at}"',
+                    "Last-Modified": _to_rfc1123(c.created_at),
+                },
+            )
         return Response(status_code=400)
 
     # ------------------------------------------------------------------
@@ -176,20 +200,27 @@ def make_router(service: BlobService) -> APIRouter:
         data = await request.body()
         content_type = request.headers.get("content-type", "application/octet-stream")
         try:
-            blob = await service.put_blob(container, blob_name, data, content_type=content_type)
+            blob = await service.put_blob(
+                container, blob_name, data, content_type=content_type
+            )
         except NotFoundError as exc:
             return _error_xml("ContainerNotFound", exc.message, 404)
-        return Response(status_code=201, headers={
-            "ETag": f'"{blob.created_at}"',
-            "Last-Modified": _to_rfc1123(blob.created_at),
-        })
+        return Response(
+            status_code=201,
+            headers={
+                "ETag": f'"{blob.created_at}"',
+                "Last-Modified": _to_rfc1123(blob.created_at),
+            },
+        )
 
     @router.get("/{container}/{blob_name:path}")
     async def get_blob(container: str, blob_name: str, request: Request) -> Response:
         try:
             blob = await service.get_blob(container, blob_name)
         except NotFoundError:
-            return _error_xml("BlobNotFound", f"{container}/{blob_name} does not exist.", 404)
+            return _error_xml(
+                "BlobNotFound", f"{container}/{blob_name} does not exist.", 404
+            )
 
         data = bytes(blob.data) if blob.data else b""
         total = len(data)
@@ -252,7 +283,9 @@ def make_router(service: BlobService) -> APIRouter:
         try:
             await service.delete_blob(container, blob_name)
         except NotFoundError:
-            return _error_xml("BlobNotFound", f"{container}/{blob_name} does not exist.", 404)
+            return _error_xml(
+                "BlobNotFound", f"{container}/{blob_name} does not exist.", 404
+            )
         return Response(status_code=202)
 
     return router

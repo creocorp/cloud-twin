@@ -49,9 +49,14 @@ class InMemoryCloudTaskRepository(CloudTaskRepository):
         t = self._store.get(task_id)
         return t if t and t.queue_full_name == queue_full_name else None
 
-    async def list_pending(self, queue_full_name: str, limit: int = 10) -> list[CloudTask]:
-        results = [t for t in self._store.values()
-                   if t.queue_full_name == queue_full_name and t.state == "pending"]
+    async def list_pending(
+        self, queue_full_name: str, limit: int = 10
+    ) -> list[CloudTask]:
+        results = [
+            t
+            for t in self._store.values()
+            if t.queue_full_name == queue_full_name and t.state == "pending"
+        ]
         return sorted(results, key=lambda t: t.id or 0)[:limit]
 
     async def update_state(self, task_id: str, state: str) -> None:

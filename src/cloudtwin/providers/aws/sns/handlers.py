@@ -37,9 +37,12 @@ def register_sns_handlers(router: QueryProtocolRouter, service: SnsService) -> N
 
         def build(result):
             from xml.etree.ElementTree import SubElement
+
             SubElement(result, "TopicArn").text = arn
 
-        return Response(content=sns_response("CreateTopic", build), media_type="text/xml")
+        return Response(
+            content=sns_response("CreateTopic", build), media_type="text/xml"
+        )
 
     async def delete_topic(request: Request, params: dict) -> Response:
         topic_arn = params.get("TopicArn", "")
@@ -57,7 +60,9 @@ def register_sns_handlers(router: QueryProtocolRouter, service: SnsService) -> N
                 status_code=exc.http_status,
                 media_type="text/xml",
             )
-        return Response(content=sns_response("DeleteTopic", lambda r: None), media_type="text/xml")
+        return Response(
+            content=sns_response("DeleteTopic", lambda r: None), media_type="text/xml"
+        )
 
     async def list_topics(request: Request, params: dict) -> Response:
         try:
@@ -71,13 +76,16 @@ def register_sns_handlers(router: QueryProtocolRouter, service: SnsService) -> N
 
         def build(result):
             from xml.etree.ElementTree import SubElement
+
             topics_el = SubElement(result, "Topics")
             for arn in arns:
                 member = SubElement(topics_el, "member")
                 SubElement(member, "TopicArn").text = arn
             SubElement(result, "NextToken")
 
-        return Response(content=sns_response("ListTopics", build), media_type="text/xml")
+        return Response(
+            content=sns_response("ListTopics", build), media_type="text/xml"
+        )
 
     async def subscribe(request: Request, params: dict) -> Response:
         topic_arn = params.get("TopicArn", "")
@@ -85,7 +93,9 @@ def register_sns_handlers(router: QueryProtocolRouter, service: SnsService) -> N
         endpoint = params.get("Endpoint", "")
         if not topic_arn or not protocol:
             return Response(
-                content=sns_error_response("InvalidParameter", "TopicArn and Protocol are required"),
+                content=sns_error_response(
+                    "InvalidParameter", "TopicArn and Protocol are required"
+                ),
                 status_code=400,
                 media_type="text/xml",
             )
@@ -100,6 +110,7 @@ def register_sns_handlers(router: QueryProtocolRouter, service: SnsService) -> N
 
         def build(result):
             from xml.etree.ElementTree import SubElement
+
             SubElement(result, "SubscriptionArn").text = sub_arn
 
         return Response(content=sns_response("Subscribe", build), media_type="text/xml")
@@ -108,7 +119,9 @@ def register_sns_handlers(router: QueryProtocolRouter, service: SnsService) -> N
         subscription_arn = params.get("SubscriptionArn", "")
         if not subscription_arn:
             return Response(
-                content=sns_error_response("InvalidParameter", "SubscriptionArn is required"),
+                content=sns_error_response(
+                    "InvalidParameter", "SubscriptionArn is required"
+                ),
                 status_code=400,
                 media_type="text/xml",
             )
@@ -120,7 +133,9 @@ def register_sns_handlers(router: QueryProtocolRouter, service: SnsService) -> N
                 status_code=exc.http_status,
                 media_type="text/xml",
             )
-        return Response(content=sns_response("Unsubscribe", lambda r: None), media_type="text/xml")
+        return Response(
+            content=sns_response("Unsubscribe", lambda r: None), media_type="text/xml"
+        )
 
     async def list_subscriptions(request: Request, params: dict) -> Response:
         try:
@@ -134,13 +149,16 @@ def register_sns_handlers(router: QueryProtocolRouter, service: SnsService) -> N
 
         def build(result):
             from xml.etree.ElementTree import SubElement
+
             subs_el = SubElement(result, "Subscriptions")
             for arn in arns:
                 member = SubElement(subs_el, "member")
                 SubElement(member, "SubscriptionArn").text = arn
             SubElement(result, "NextToken")
 
-        return Response(content=sns_response("ListSubscriptions", build), media_type="text/xml")
+        return Response(
+            content=sns_response("ListSubscriptions", build), media_type="text/xml"
+        )
 
     async def publish(request: Request, params: dict) -> Response:
         topic_arn = params.get("TopicArn", "")
@@ -148,7 +166,9 @@ def register_sns_handlers(router: QueryProtocolRouter, service: SnsService) -> N
         subject = params.get("Subject") or None
         if not topic_arn or not message:
             return Response(
-                content=sns_error_response("InvalidParameter", "TopicArn and Message are required"),
+                content=sns_error_response(
+                    "InvalidParameter", "TopicArn and Message are required"
+                ),
                 status_code=400,
                 media_type="text/xml",
             )
@@ -163,6 +183,7 @@ def register_sns_handlers(router: QueryProtocolRouter, service: SnsService) -> N
 
         def build(result):
             from xml.etree.ElementTree import SubElement
+
             SubElement(result, "MessageId").text = message_id
 
         return Response(content=sns_response("Publish", build), media_type="text/xml")

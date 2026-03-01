@@ -45,19 +45,25 @@ def create_app(config: Config | None = None) -> FastAPI:
 
         azure = AzureProvider(config, db, repos=repos)
         azure.register(app)
-        log.info("Azure provider registered (services: %s)", config.providers.azure.services)
+        log.info(
+            "Azure provider registered (services: %s)", config.providers.azure.services
+        )
 
         from cloudtwin.providers.gcp.provider import GcpProvider
 
         gcp = GcpProvider(config, db, repos=repos)
         gcp.register(app)
-        log.info("GCP provider registered (services: %s)", config.providers.gcp.services)
+        log.info(
+            "GCP provider registered (services: %s)", config.providers.gcp.services
+        )
 
         from cloudtwin.providers.aws.provider import AwsProvider
 
         aws = AwsProvider(config, db, repos=repos)
         aws.register(app)
-        log.info("AWS provider registered (services: %s)", config.providers.aws.services)
+        log.info(
+            "AWS provider registered (services: %s)", config.providers.aws.services
+        )
 
         log.info("CloudTwin ready on port %s", config.api_port)
         yield
@@ -107,11 +113,16 @@ def _mount_dashboard(app: FastAPI, config) -> None:
     log = logging.getLogger("cloudtwin")
     dist = Path(__file__).parent.parent.parent / "dashboard" / "dist"
     if not dist.is_dir():
-        log.warning("Dashboard enabled but dist/ not found at %s — run: cd dashboard && npm run build", dist)
+        log.warning(
+            "Dashboard enabled but dist/ not found at %s — run: cd dashboard && npm run build",
+            dist,
+        )
         return
 
     # Serve /assets/* as static files
-    app.mount("/assets", StaticFiles(directory=dist / "assets"), name="dashboard-assets")
+    app.mount(
+        "/assets", StaticFiles(directory=dist / "assets"), name="dashboard-assets"
+    )
 
     # Catch-all: serve index.html for all non-API paths (SPA routing)
     @app.get("/dashboard", include_in_schema=False)

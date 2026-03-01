@@ -21,8 +21,8 @@ import uvicorn
 from cloudtwin.app import create_app
 from cloudtwin.config import (
     AwsConfig,
-    AzureConfig,
     AzureBlobConfig,
+    AzureConfig,
     AzureServiceBusConfig,
     Config,
     DashboardConfig,
@@ -73,8 +73,17 @@ def azure_server_url():
         providers=ProvidersConfig(
             aws=AwsConfig(services=[]),
             azure=AzureConfig(
-                services=["blob", "servicebus", "queue", "eventgrid", "keyvault", "functions"],
-                blob=AzureBlobConfig(account_name=_ACCOUNT_NAME, account_key=_ACCOUNT_KEY),
+                services=[
+                    "blob",
+                    "servicebus",
+                    "queue",
+                    "eventgrid",
+                    "keyvault",
+                    "functions",
+                ],
+                blob=AzureBlobConfig(
+                    account_name=_ACCOUNT_NAME, account_key=_ACCOUNT_KEY
+                ),
                 servicebus=AzureServiceBusConfig(namespace=_NAMESPACE),
             ),
             gcp=GcpConfig(services=[]),

@@ -61,7 +61,9 @@ def register_sqs_handlers(router: JsonProtocolRouter, service: SqsService) -> No
         queue_url = body.get("QueueUrl", "")
         message_body = body.get("MessageBody", "")
         if not queue_url or not message_body:
-            return _error("InvalidParameterValue", "QueueUrl and MessageBody are required")
+            return _error(
+                "InvalidParameterValue", "QueueUrl and MessageBody are required"
+            )
         try:
             result = await service.send_message(queue_url, message_body)
         except NotFoundError:
@@ -95,7 +97,9 @@ def register_sqs_handlers(router: JsonProtocolRouter, service: SqsService) -> No
         queue_url = body.get("QueueUrl", "")
         receipt_handle = body.get("ReceiptHandle", "")
         if not queue_url or not receipt_handle:
-            return _error("InvalidParameterValue", "QueueUrl and ReceiptHandle are required")
+            return _error(
+                "InvalidParameterValue", "QueueUrl and ReceiptHandle are required"
+            )
         try:
             await service.delete_message(queue_url, receipt_handle)
         except CloudTwinError as exc:
@@ -117,9 +121,13 @@ def register_sqs_handlers(router: JsonProtocolRouter, service: SqsService) -> No
         receipt_handle = body.get("ReceiptHandle", "")
         visibility_timeout = int(body.get("VisibilityTimeout", 0))
         if not queue_url or not receipt_handle:
-            return _error("InvalidParameterValue", "QueueUrl and ReceiptHandle are required")
+            return _error(
+                "InvalidParameterValue", "QueueUrl and ReceiptHandle are required"
+            )
         try:
-            await service.change_message_visibility(queue_url, receipt_handle, visibility_timeout)
+            await service.change_message_visibility(
+                queue_url, receipt_handle, visibility_timeout
+            )
         except CloudTwinError as exc:
             return _error(exc.code, exc.message, exc.http_status)
         return JSONResponse({})
@@ -131,7 +139,11 @@ def register_sqs_handlers(router: JsonProtocolRouter, service: SqsService) -> No
         try:
             attrs = await service.get_queue_attributes(queue_url)
         except NotFoundError:
-            return _error("AWS.SimpleQueueService.NonExistentQueue", "The specified queue does not exist.", 404)
+            return _error(
+                "AWS.SimpleQueueService.NonExistentQueue",
+                "The specified queue does not exist.",
+                404,
+            )
         except CloudTwinError as exc:
             return _error(exc.code, exc.message, exc.http_status)
         return JSONResponse({"Attributes": attrs})

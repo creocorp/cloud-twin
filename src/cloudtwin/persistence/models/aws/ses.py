@@ -9,7 +9,7 @@ from typing import Optional
 @dataclass
 class SesIdentity:
     identity: str
-    type: str          # "domain" | "email"
+    type: str  # "domain" | "email"
     verified: bool
     token: Optional[str]
     created_at: str
@@ -25,7 +25,7 @@ class SesMessage:
     text_body: Optional[str]
     html_body: Optional[str]
     raw_mime: Optional[bytes]
-    status: str               # "sent" | "failed"
+    status: str  # "sent" | "failed"
     error_message: Optional[str]
     created_at: str
     id: Optional[int] = None

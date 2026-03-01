@@ -10,10 +10,10 @@ from xml.etree.ElementTree import SubElement
 
 from fastapi import Request, Response
 
+from cloudtwin.config import SesConfig
 from cloudtwin.core.xml import ses_error_response, ses_response
 from cloudtwin.providers.aws.ses.service import SesService
 from cloudtwin.providers.aws.ses.smtp import relay_email
-from cloudtwin.config import SesConfig
 
 
 def register_ses_handlers(router, config: SesConfig, service: SesService):
@@ -47,7 +47,9 @@ def register_ses_handlers(router, config: SesConfig, service: SesService):
         email = params.get("EmailAddress")
         if not email:
             return Response(
-                content=ses_error_response("MissingParameter", "EmailAddress is required"),
+                content=ses_error_response(
+                    "MissingParameter", "EmailAddress is required"
+                ),
                 status_code=400,
                 media_type="text/xml",
             )
@@ -78,7 +80,9 @@ def register_ses_handlers(router, config: SesConfig, service: SesService):
                 val = SubElement(entry, "value")
                 SubElement(val, "VerificationStatus").text = attr["VerificationStatus"]
                 if attr["VerificationToken"]:
-                    SubElement(val, "VerificationToken").text = attr["VerificationToken"]
+                    SubElement(val, "VerificationToken").text = attr[
+                        "VerificationToken"
+                    ]
 
         return Response(
             content=ses_response("GetIdentityVerificationAttributes", build),
@@ -112,9 +116,21 @@ def register_ses_handlers(router, config: SesConfig, service: SesService):
         html_body = params.get("Message.Body.Html.Data")
 
         # Collect To/CC/BCC
-        to_addresses = [v for k, v in params.items() if k.startswith("Destination.ToAddresses.member.")]
-        cc_addresses = [v for k, v in params.items() if k.startswith("Destination.CcAddresses.member.")]
-        bcc_addresses = [v for k, v in params.items() if k.startswith("Destination.BccAddresses.member.")]
+        to_addresses = [
+            v
+            for k, v in params.items()
+            if k.startswith("Destination.ToAddresses.member.")
+        ]
+        cc_addresses = [
+            v
+            for k, v in params.items()
+            if k.startswith("Destination.CcAddresses.member.")
+        ]
+        bcc_addresses = [
+            v
+            for k, v in params.items()
+            if k.startswith("Destination.BccAddresses.member.")
+        ]
 
         if not source:
             return Response(
@@ -124,7 +140,9 @@ def register_ses_handlers(router, config: SesConfig, service: SesService):
             )
         if not to_addresses:
             return Response(
-                content=ses_error_response("MissingParameter", "At least one ToAddress is required"),
+                content=ses_error_response(
+                    "MissingParameter", "At least one ToAddress is required"
+                ),
                 status_code=400,
                 media_type="text/xml",
             )
@@ -174,6 +192,8 @@ def register_ses_handlers(router, config: SesConfig, service: SesService):
     # ------------------------------------------------------------------
     router.register("VerifyDomainIdentity", handle_verify_domain_identity)
     router.register("VerifyEmailIdentity", handle_verify_email_identity)
-    router.register("GetIdentityVerificationAttributes", handle_get_identity_verification_attributes)
+    router.register(
+        "GetIdentityVerificationAttributes", handle_get_identity_verification_attributes
+    )
     router.register("ListIdentities", handle_list_identities)
     router.register("SendEmail", handle_send_email)

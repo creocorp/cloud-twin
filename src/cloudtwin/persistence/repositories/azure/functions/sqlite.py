@@ -5,7 +5,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from cloudtwin.persistence.models.azure.functions import AzureFunction, AzureFunctionInvocation
+from cloudtwin.persistence.models.azure.functions import (
+    AzureFunction,
+    AzureFunctionInvocation,
+)
 from cloudtwin.persistence.repositories.azure.functions.repository import (
     AzureFunctionInvocationRepository,
     AzureFunctionRepository,
@@ -42,8 +45,13 @@ class SqliteAzureFunctionRepository(AzureFunctionRepository):
         self._db = db
 
     def _row(self, row) -> AzureFunction:
-        return AzureFunction(id=row["id"], app=row["app"], name=row["name"],
-                             code=row["code"], created_at=row["created_at"])
+        return AzureFunction(
+            id=row["id"],
+            app=row["app"],
+            name=row["name"],
+            code=row["code"],
+            created_at=row["created_at"],
+        )
 
     async def get(self, app: str, name: str) -> Optional[AzureFunction]:
         async with self._db.conn.execute(
@@ -80,7 +88,14 @@ class SqliteAzureFunctionInvocationRepository(AzureFunctionInvocationRepository)
     async def save(self, inv: AzureFunctionInvocation) -> AzureFunctionInvocation:
         await self._db.conn.execute(
             "INSERT INTO azure_function_invocations (app, function_name, invocation_id, payload, response, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (inv.app, inv.function_name, inv.invocation_id, inv.payload, inv.response, inv.created_at or _now()),
+            (
+                inv.app,
+                inv.function_name,
+                inv.invocation_id,
+                inv.payload,
+                inv.response,
+                inv.created_at or _now(),
+            ),
         )
         await self._db.conn.commit()
         return inv

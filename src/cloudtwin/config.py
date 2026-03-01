@@ -42,7 +42,17 @@ class SesConfig:
 
 @dataclass
 class AwsConfig:
-    services: list[str] = field(default_factory=lambda: ["ses", "sns", "sqs", "lambda", "dynamodb", "secretsmanager", "s3"])
+    services: list[str] = field(
+        default_factory=lambda: [
+            "ses",
+            "sns",
+            "sqs",
+            "lambda",
+            "dynamodb",
+            "secretsmanager",
+            "s3",
+        ]
+    )
     ses: SesConfig = field(default_factory=SesConfig)
 
 
@@ -60,7 +70,16 @@ class AzureServiceBusConfig:
 
 @dataclass
 class AzureConfig:
-    services: list[str] = field(default_factory=lambda: ["blob", "servicebus", "queue", "eventgrid", "keyvault", "functions"])
+    services: list[str] = field(
+        default_factory=lambda: [
+            "blob",
+            "servicebus",
+            "queue",
+            "eventgrid",
+            "keyvault",
+            "functions",
+        ]
+    )
     blob: AzureBlobConfig = field(default_factory=AzureBlobConfig)
     servicebus: AzureServiceBusConfig = field(default_factory=AzureServiceBusConfig)
 
@@ -78,7 +97,16 @@ class GcpPubsubConfig:
 @dataclass
 class GcpConfig:
     project: str = "cloudtwin-local"
-    services: list[str] = field(default_factory=lambda: ["storage", "pubsub", "firestore", "cloudtasks", "secretmanager", "cloudfunctions"])
+    services: list[str] = field(
+        default_factory=lambda: [
+            "storage",
+            "pubsub",
+            "firestore",
+            "cloudtasks",
+            "secretmanager",
+            "cloudfunctions",
+        ]
+    )
     storage: GcpStorageConfig = field(default_factory=GcpStorageConfig)
     pubsub: GcpPubsubConfig = field(default_factory=GcpPubsubConfig)
 
@@ -134,26 +162,30 @@ def _env(key: str, default=None):
 
 
 def load_config() -> Config:
-    config_path = Path(
-        _env("CLOUDTWIN_CONFIG_PATH", "/config/cloudtwin.yml")
-    )
+    config_path = Path(_env("CLOUDTWIN_CONFIG_PATH", "/config/cloudtwin.yml"))
     yaml_data = _load_yaml(config_path)
 
     # --- storage ---
     storage_section = yaml_data.get("storage", {})
     storage = StorageConfig(
         mode=_env("CLOUDTWIN_STORAGE_MODE", storage_section.get("mode", "sqlite")),
-        path=_env("CLOUDTWIN_STORAGE_PATH", storage_section.get("path", "./data/cloudtwin.db")),
+        path=_env(
+            "CLOUDTWIN_STORAGE_PATH", storage_section.get("path", "./data/cloudtwin.db")
+        ),
     )
 
     # --- smtp ---
-    smtp_section = yaml_data.get("providers", {}).get("aws", {}).get("ses", {}).get("smtp", {})
+    smtp_section = (
+        yaml_data.get("providers", {}).get("aws", {}).get("ses", {}).get("smtp", {})
+    )
     smtp = SmtpConfig(
         host=_env("CLOUDTWIN_SMTP_HOST", smtp_section.get("host")),
         port=int(_env("CLOUDTWIN_SMTP_PORT", smtp_section.get("port", 1025))),
         username=_env("CLOUDTWIN_SMTP_USERNAME", smtp_section.get("username")),
         password=_env("CLOUDTWIN_SMTP_PASSWORD", smtp_section.get("password")),
-        use_tls=_env("CLOUDTWIN_SMTP_USE_TLS", str(smtp_section.get("use_tls", False))).lower()
+        use_tls=_env(
+            "CLOUDTWIN_SMTP_USE_TLS", str(smtp_section.get("use_tls", False))
+        ).lower()
         in ("1", "true", "yes"),
     )
 
@@ -169,7 +201,10 @@ def load_config() -> Config:
     # --- aws ---
     aws_section = yaml_data.get("providers", {}).get("aws", {})
     aws = AwsConfig(
-        services=aws_section.get("services", ["ses", "sns", "sqs", "lambda", "dynamodb", "secretsmanager", "s3"]),
+        services=aws_section.get(
+            "services",
+            ["ses", "sns", "sqs", "lambda", "dynamodb", "secretsmanager", "s3"],
+        ),
         ses=ses,
     )
 

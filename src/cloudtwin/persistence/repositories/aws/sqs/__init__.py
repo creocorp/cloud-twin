@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.aws.sqs.repository import (
-    SqsQueueRepository,
-    SqsMessageRepository,
-)
 from cloudtwin.persistence.repositories.aws.sqs.inmemory import (
-    InMemorySqsQueueRepository,
     InMemorySqsMessageRepository,
+    InMemorySqsQueueRepository,
+)
+from cloudtwin.persistence.repositories.aws.sqs.repository import (
+    SqsMessageRepository,
+    SqsQueueRepository,
 )
 from cloudtwin.persistence.repositories.aws.sqs.sqlite import (
-    SqliteSqsQueueRepository,
     SqliteSqsMessageRepository,
+    SqliteSqsQueueRepository,
 )
 
 __all__ = [

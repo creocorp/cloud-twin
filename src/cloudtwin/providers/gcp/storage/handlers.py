@@ -86,7 +86,9 @@ def _object_json(o, bucket_name: str, base_url: str = "") -> dict:
     if base_url:
         base = base_url.rstrip("/")
         result["selfLink"] = f"{base}/storage/v1/b/{bucket_name}/o/{o.name}"
-        result["mediaLink"] = f"{base}/download/storage/v1/b/{bucket_name}/o/{o.name}?alt=media"
+        result["mediaLink"] = (
+            f"{base}/download/storage/v1/b/{bucket_name}/o/{o.name}?alt=media"
+        )
     return result
 
 
@@ -98,29 +100,39 @@ def make_router(service: StorageService) -> APIRouter:
     # ------------------------------------------------------------------
 
     @router.post("/storage/v1/b")
-    async def create_bucket(request: Request, project: str = Query(default="")) -> JSONResponse:
+    async def create_bucket(
+        request: Request, project: str = Query(default="")
+    ) -> JSONResponse:
         body = await request.json()
         name = body.get("name", "")
         location = body.get("location", "US")
         if not name:
-            return JSONResponse({"error": {"code": 400, "message": "Bucket name required"}}, status_code=400)
+            return JSONResponse(
+                {"error": {"code": 400, "message": "Bucket name required"}},
+                status_code=400,
+            )
         bucket = await service.create_bucket(name, location=location)
         return JSONResponse(_bucket_json(bucket), status_code=200)
 
     @router.get("/storage/v1/b")
     async def list_buckets(project: str = Query(default="")) -> JSONResponse:
         buckets = await service.list_buckets()
-        return JSONResponse({
-            "kind": "storage#buckets",
-            "items": [_bucket_json(b) for b in buckets],
-        })
+        return JSONResponse(
+            {
+                "kind": "storage#buckets",
+                "items": [_bucket_json(b) for b in buckets],
+            }
+        )
 
     @router.get("/storage/v1/b/{bucket}")
     async def get_bucket(bucket: str) -> JSONResponse:
         try:
             b = await service.get_bucket(bucket)
         except NotFoundError:
-            return JSONResponse({"error": {"code": 404, "message": f"Bucket {bucket!r} not found"}}, status_code=404)
+            return JSONResponse(
+                {"error": {"code": 404, "message": f"Bucket {bucket!r} not found"}},
+                status_code=404,
+            )
         return JSONResponse(_bucket_json(b))
 
     @router.delete("/storage/v1/b/{bucket}")
@@ -128,7 +140,10 @@ def make_router(service: StorageService) -> APIRouter:
         try:
             await service.delete_bucket(bucket)
         except NotFoundError:
-            return JSONResponse({"error": {"code": 404, "message": f"Bucket {bucket!r} not found"}}, status_code=404)
+            return JSONResponse(
+                {"error": {"code": 404, "message": f"Bucket {bucket!r} not found"}},
+                status_code=404,
+            )
         return Response(status_code=204)
 
     # ------------------------------------------------------------------
@@ -153,8 +168,16 @@ def make_router(service: StorageService) -> APIRouter:
                     pass
             object_name = unquote(metadata.get("name", name) or name)
             if not object_name:
-                return JSONResponse({"error": {"code": 400, "message": "Object name required"}}, status_code=400)
-            content_type = metadata.get("contentType", request.headers.get("x-upload-content-type", "application/octet-stream"))
+                return JSONResponse(
+                    {"error": {"code": 400, "message": "Object name required"}},
+                    status_code=400,
+                )
+            content_type = metadata.get(
+                "contentType",
+                request.headers.get(
+                    "x-upload-content-type", "application/octet-stream"
+                ),
+            )
             upload_id = uuid.uuid4().hex
             _pending_resumable[upload_id] = {
                 "bucket": bucket,
@@ -167,7 +190,9 @@ def make_router(service: StorageService) -> APIRouter:
 
         if uploadType == "media":
             data = await request.body()
-            content_type = request.headers.get("content-type", "application/octet-stream")
+            content_type = request.headers.get(
+                "content-type", "application/octet-stream"
+            )
             object_name = unquote(name)
         elif uploadType == "multipart":
             # Parse multipart/related body.
@@ -178,9 +203,12 @@ def make_router(service: StorageService) -> APIRouter:
             for part in content_type_header.split(";"):
                 p = part.strip()
                 if p.startswith("boundary="):
-                    boundary = p[len("boundary="):].strip('"')
+                    boundary = p[len("boundary=") :].strip('"')
             if not boundary:
-                return JSONResponse({"error": {"code": 400, "message": "Missing multipart boundary"}}, status_code=400)
+                return JSONResponse(
+                    {"error": {"code": 400, "message": "Missing multipart boundary"}},
+                    status_code=400,
+                )
 
             raw = await request.body()
             # Split on boundaries; skip preamble
@@ -220,16 +248,35 @@ def make_router(service: StorageService) -> APIRouter:
             object_name = unquote(meta.get("name", name))
             content_type = meta.get("contentType", content_type) or content_type
         else:
-            return JSONResponse({"error": {"code": 400, "message": f"Unknown uploadType: {uploadType}"}}, status_code=400)
+            return JSONResponse(
+                {
+                    "error": {
+                        "code": 400,
+                        "message": f"Unknown uploadType: {uploadType}",
+                    }
+                },
+                status_code=400,
+            )
 
         if not object_name:
-            return JSONResponse({"error": {"code": 400, "message": "Object name required"}}, status_code=400)
+            return JSONResponse(
+                {"error": {"code": 400, "message": "Object name required"}},
+                status_code=400,
+            )
 
         try:
-            obj = await service.upload_object(bucket, object_name, data, content_type=content_type)
+            obj = await service.upload_object(
+                bucket, object_name, data, content_type=content_type
+            )
         except NotFoundError:
-            return JSONResponse({"error": {"code": 404, "message": f"Bucket {bucket!r} not found"}}, status_code=404)
-        return JSONResponse(_object_json(obj, bucket, str(request.base_url).rstrip("/")), status_code=200)
+            return JSONResponse(
+                {"error": {"code": 404, "message": f"Bucket {bucket!r} not found"}},
+                status_code=404,
+            )
+        return JSONResponse(
+            _object_json(obj, bucket, str(request.base_url).rstrip("/")),
+            status_code=200,
+        )
 
     # ------------------------------------------------------------------
     # Resumable upload session (PUT to the session URL returned by POST)
@@ -243,50 +290,86 @@ def make_router(service: StorageService) -> APIRouter:
     ) -> JSONResponse:
         pending = _pending_resumable.pop(upload_id, None)
         if not pending:
-            return JSONResponse({"error": {"code": 404, "message": "Upload session not found"}}, status_code=404)
+            return JSONResponse(
+                {"error": {"code": 404, "message": "Upload session not found"}},
+                status_code=404,
+            )
         data = await request.body()
-        content_type = request.headers.get("content-type", pending.get("content_type", "application/octet-stream"))
+        content_type = request.headers.get(
+            "content-type", pending.get("content_type", "application/octet-stream")
+        )
         object_name = pending["name"]
         bucket_name = pending["bucket"]
         try:
-            obj = await service.upload_object(bucket_name, object_name, data, content_type=content_type)
+            obj = await service.upload_object(
+                bucket_name, object_name, data, content_type=content_type
+            )
         except NotFoundError:
-            return JSONResponse({"error": {"code": 404, "message": f"Bucket {bucket_name!r} not found"}}, status_code=404)
-        return JSONResponse(_object_json(obj, bucket_name, str(request.base_url).rstrip("/")), status_code=200)
+            return JSONResponse(
+                {
+                    "error": {
+                        "code": 404,
+                        "message": f"Bucket {bucket_name!r} not found",
+                    }
+                },
+                status_code=404,
+            )
+        return JSONResponse(
+            _object_json(obj, bucket_name, str(request.base_url).rstrip("/")),
+            status_code=200,
+        )
 
     # ------------------------------------------------------------------
     # Object read/delete
     # ------------------------------------------------------------------
 
     @router.get("/storage/v1/b/{bucket}/o")
-    async def list_objects(bucket: str, request: Request, prefix: str = Query(default="")) -> JSONResponse:
+    async def list_objects(
+        bucket: str, request: Request, prefix: str = Query(default="")
+    ) -> JSONResponse:
         try:
             objects = await service.list_objects(bucket, prefix=prefix)
         except NotFoundError:
-            return JSONResponse({"error": {"code": 404, "message": f"Bucket {bucket!r} not found"}}, status_code=404)
+            return JSONResponse(
+                {"error": {"code": 404, "message": f"Bucket {bucket!r} not found"}},
+                status_code=404,
+            )
         base = str(request.base_url).rstrip("/")
-        return JSONResponse({
-            "kind": "storage#objects",
-            "items": [_object_json(o, bucket, base) for o in objects],
-        })
+        return JSONResponse(
+            {
+                "kind": "storage#objects",
+                "items": [_object_json(o, bucket, base) for o in objects],
+            }
+        )
 
     @router.get("/storage/v1/b/{bucket}/o/{object_name:path}")
     async def get_or_download_object(
-        bucket: str, object_name: str, request: Request, alt: str = Query(default="json")
+        bucket: str,
+        object_name: str,
+        request: Request,
+        alt: str = Query(default="json"),
     ) -> Response:
         decoded_name = unquote(object_name)
         try:
             obj = await service.get_object(bucket, decoded_name)
         except NotFoundError:
             return JSONResponse(
-                {"error": {"code": 404, "message": f"{bucket}/{decoded_name} not found"}}, status_code=404
+                {
+                    "error": {
+                        "code": 404,
+                        "message": f"{bucket}/{decoded_name} not found",
+                    }
+                },
+                status_code=404,
             )
         if alt == "media":
             return Response(
                 content=bytes(obj.data) if obj.data else b"",
                 media_type=obj.content_type or "application/octet-stream",
             )
-        return JSONResponse(_object_json(obj, bucket, str(request.base_url).rstrip("/")))
+        return JSONResponse(
+            _object_json(obj, bucket, str(request.base_url).rstrip("/"))
+        )
 
     @router.delete("/storage/v1/b/{bucket}/o/{object_name:path}")
     async def delete_object(bucket: str, object_name: str) -> Response:
@@ -295,7 +378,13 @@ def make_router(service: StorageService) -> APIRouter:
             await service.delete_object(bucket, decoded_name)
         except NotFoundError:
             return JSONResponse(
-                {"error": {"code": 404, "message": f"{bucket}/{decoded_name} not found"}}, status_code=404
+                {
+                    "error": {
+                        "code": 404,
+                        "message": f"{bucket}/{decoded_name} not found",
+                    }
+                },
+                status_code=404,
             )
         return Response(status_code=204)
 
@@ -307,7 +396,13 @@ def make_router(service: StorageService) -> APIRouter:
             obj = await service.get_object(bucket, decoded_name)
         except NotFoundError:
             return JSONResponse(
-                {"error": {"code": 404, "message": f"{bucket}/{decoded_name} not found"}}, status_code=404
+                {
+                    "error": {
+                        "code": 404,
+                        "message": f"{bucket}/{decoded_name} not found",
+                    }
+                },
+                status_code=404,
             )
         return Response(
             content=bytes(obj.data) if obj.data else b"",

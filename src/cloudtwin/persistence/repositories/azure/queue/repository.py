@@ -5,7 +5,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from cloudtwin.persistence.models.azure.queue import AzureQueueMessage, AzureStorageQueue
+from cloudtwin.persistence.models.azure.queue import (
+    AzureQueueMessage,
+    AzureStorageQueue,
+)
 
 
 class AzureStorageQueueRepository(ABC):
@@ -23,7 +26,9 @@ class AzureQueueMessageRepository(ABC):
     @abstractmethod
     async def save(self, message: AzureQueueMessage) -> AzureQueueMessage: ...
     @abstractmethod
-    async def get_visible(self, queue_id: int, limit: int = 1) -> list[AzureQueueMessage]: ...
+    async def get_visible(
+        self, queue_id: int, limit: int = 1
+    ) -> list[AzureQueueMessage]: ...
     @abstractmethod
     async def peek(self, queue_id: int, limit: int = 1) -> list[AzureQueueMessage]: ...
     @abstractmethod

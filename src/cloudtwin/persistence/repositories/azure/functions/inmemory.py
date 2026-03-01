@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from cloudtwin.persistence.models.azure.functions import AzureFunction, AzureFunctionInvocation
+from cloudtwin.persistence.models.azure.functions import (
+    AzureFunction,
+    AzureFunctionInvocation,
+)
 from cloudtwin.persistence.repositories.azure.functions.repository import (
     AzureFunctionInvocationRepository,
     AzureFunctionRepository,
