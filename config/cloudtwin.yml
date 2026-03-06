@@ -16,8 +16,7 @@ cloudtwin:
           use_tls: false
 
   dashboard:
-    enabled: false
-    port: 8793
+    enabled: true
 
   logging:
     level: info

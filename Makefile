@@ -25,12 +25,12 @@ install-dev: $(VENV)/bin/activate  ## Install all dependencies (runtime + dev) i
 .PHONY: run
 run: install  ## Start the CloudTwin server (port 4793)
 	mkdir -p data
-	$(UVICORN) cloudtwin.app:create_app --factory --host 0.0.0.0 --port 4793 --reload
+	CLOUDTWIN_CONFIG_PATH=config/cloudtwin.yml CLOUDTWIN_STORAGE_PATH=data/cloudtwin.db $(UVICORN) cloudtwin.app:create_app --factory --host 0.0.0.0 --port 4793 --reload
 
 .PHONY: run-with-dashboard
 run-with-dashboard: install  ## Start CloudTwin with the dashboard enabled (http://localhost:4793/dashboard)
 	mkdir -p data
-	CLOUDTWIN_DASHBOARD_ENABLED=true $(UVICORN) cloudtwin.app:create_app --factory --host 0.0.0.0 --port 4793 --reload
+	CLOUDTWIN_CONFIG_PATH=config/cloudtwin.yml CLOUDTWIN_STORAGE_PATH=data/cloudtwin.db CLOUDTWIN_DASHBOARD_ENABLED=true $(UVICORN) cloudtwin.app:create_app --factory --host 0.0.0.0 --port 4793 --reload
 
 .PHONY: dashboard-dev
 dashboard-dev:  ## Start the Vite dashboard dev server (proxies /api/* to port 4793)
@@ -70,13 +70,20 @@ format: install-dev  ## Auto-format source with ruff
 
 # ── Docker ─────────────────────────────────────────────────────────────────────
 
+DOCKER_IMAGE ?= cloudtwin
+DOCKER_TAG   ?= dev
+
 .PHONY: docker-build
-docker-build:  ## Build the Docker image
-	docker build -t cloudtwin:dev -f docker/Dockerfile .
+docker-build:  ## Build the Docker image (DOCKER_IMAGE=x DOCKER_TAG=y)
+	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f docker/Dockerfile .
 
 .PHONY: docker-run
 docker-run:  ## Run the Docker container (ephemeral)
-	docker run --rm -p 4793:4793 cloudtwin:dev
+	docker run --rm -p 4793:4793 $(DOCKER_IMAGE):$(DOCKER_TAG)
+
+.PHONY: docker-push
+docker-push:  ## Push image to Docker Hub (DOCKER_IMAGE=user/cloudtwin DOCKER_TAG=x)
+	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)
 
 # ── Cleanup ────────────────────────────────────────────────────────────────────
 

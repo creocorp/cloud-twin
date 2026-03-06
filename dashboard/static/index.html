@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CloudTwin Dashboard</title>
+
+  <!-- Tailwind CSS Play CDN (local copy: tailwind-3.4.17.js) -->
+  <script src="./tailwind-3.4.17.js"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { gray: { 950: '#030712' } } } }
+    };
+  </script>
+
+  <!-- Lucide Icons UMD build (local copy: lucide-0.577.0.js) -->
+  <script src="./lucide-0.577.0.js"></script>
+
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .nav-link {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 6px; font-size: 14px;
+      color: #9ca3af; text-decoration: none; margin-bottom: 2px;
+      transition: color 0.15s, background-color 0.15s;
+      white-space: nowrap;
+    }
+    .nav-link:hover { color: #fff; background-color: #1f2937; }
+    .nav-link.active { color: #fff; background-color: #374151; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 0.7s linear infinite; }
+  </style>
+</head>
+
+<body style="background:#030712;color:#f9fafb;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;margin:0">
+<div style="display:flex;min-height:100vh">
+
+  <!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+  <aside style="width:224px;min-height:100vh;background:#111827;border-right:1px solid #1f2937;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh">
+    <div style="padding:16px 20px;border-bottom:1px solid #1f2937">
+      <a href="#/" style="display:flex;align-items:center;gap:8px;text-decoration:none">
+        <span style="color:#fff;font-weight:600;font-size:14px;letter-spacing:0.025em">☁ CloudTwin</span>
+      </a>
+      <p style="color:#6b7280;font-size:12px;margin-top:2px">local runtime</p>
+    </div>
+    <nav style="flex:1;padding:16px 12px 8px;overflow-y:auto">
+      <a href="#/" class="nav-link" data-route="/"><i data-lucide="layout-dashboard" style="width:16px;height:16px;flex-shrink:0"></i>Overview</a>
+      <a href="#/events" class="nav-link" data-route="/events"><i data-lucide="activity" style="width:16px;height:16px;flex-shrink:0"></i>Event Log</a>
+
+      <div style="margin-top:16px">
+        <div style="display:flex;align-items:center;gap:6px;padding:0 12px;margin-bottom:6px">
+          <span style="width:8px;height:8px;border-radius:50%;background:#fb923c;flex-shrink:0"></span>
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#fb923c">AWS</span>
+        </div>
+        <a href="#/aws/ses" class="nav-link" data-route="/aws/ses"><i data-lucide="mail" style="width:16px;height:16px;flex-shrink:0"></i>SES</a>
+        <a href="#/aws/s3" class="nav-link" data-route="/aws/s3"><i data-lucide="database" style="width:16px;height:16px;flex-shrink:0"></i>S3</a>
+        <a href="#/aws/sns" class="nav-link" data-route="/aws/sns"><i data-lucide="bell" style="width:16px;height:16px;flex-shrink:0"></i>SNS</a>
+        <a href="#/aws/sqs" class="nav-link" data-route="/aws/sqs"><i data-lucide="layers" style="width:16px;height:16px;flex-shrink:0"></i>SQS</a>
+      </div>
+
+      <div style="margin-top:16px">
+        <div style="display:flex;align-items:center;gap:6px;padding:0 12px;margin-bottom:6px">
+          <span style="width:8px;height:8px;border-radius:50%;background:#60a5fa;flex-shrink:0"></span>
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#60a5fa">Azure</span>
+        </div>
+        <a href="#/azure/blob" class="nav-link" data-route="/azure/blob"><i data-lucide="archive" style="width:16px;height:16px;flex-shrink:0"></i>Blob Storage</a>
+        <a href="#/azure/servicebus" class="nav-link" data-route="/azure/servicebus"><i data-lucide="send" style="width:16px;height:16px;flex-shrink:0"></i>Service Bus</a>
+      </div>
+
+      <div style="margin-top:16px">
+        <div style="display:flex;align-items:center;gap:6px;padding:0 12px;margin-bottom:6px">
+          <span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;flex-shrink:0"></span>
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#38bdf8">GCP</span>
+        </div>
+        <a href="#/gcp/storage" class="nav-link" data-route="/gcp/storage"><i data-lucide="hard-drive" style="width:16px;height:16px;flex-shrink:0"></i>Cloud Storage</a>
+        <a href="#/gcp/pubsub" class="nav-link" data-route="/gcp/pubsub"><i data-lucide="radio" style="width:16px;height:16px;flex-shrink:0"></i>Pub/Sub</a>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ═══════════════════════ MAIN ═══════════════════════ -->
+  <main style="flex:1;overflow:auto;min-width:0">
+    <div class="page" id="page-overview"></div>
+    <div class="page" id="page-events"></div>
+    <div class="page" id="page-aws-ses"></div>
+    <div class="page" id="page-aws-s3"></div>
+    <div class="page" id="page-aws-sns"></div>
+    <div class="page" id="page-aws-sqs"></div>
+    <div class="page" id="page-azure-blob"></div>
+    <div class="page" id="page-azure-servicebus"></div>
+    <div class="page" id="page-gcp-storage"></div>
+    <div class="page" id="page-gcp-pubsub"></div>
+  </main>
+
+</div>
+
+  <!-- Core (load order matters: utils → api → components) -->
+  <script src="./js/utils.js"></script>
+  <script src="./js/api.js"></script>
+  <script src="./js/components.js"></script>
+
+  <!-- Provider pages (must be before router.js) -->
+  <script src="./js/pages/overview.js"></script>
+  <script src="./js/pages/events.js"></script>
+  <script src="./js/pages/aws-ses.js"></script>
+  <script src="./js/pages/aws-s3.js"></script>
+  <script src="./js/pages/aws-sns.js"></script>
+  <script src="./js/pages/aws-sqs.js"></script>
+  <script src="./js/pages/azure-blob.js"></script>
+  <script src="./js/pages/azure-servicebus.js"></script>
+  <script src="./js/pages/gcp-storage.js"></script>
+  <script src="./js/pages/gcp-pubsub.js"></script>
+
+  <!-- Router + bootstrap (must be last) -->
+  <script src="./js/router.js"></script>
+  <script src="./js/main.js"></script>
+</body>
+</html>

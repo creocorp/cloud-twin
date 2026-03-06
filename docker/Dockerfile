@@ -17,6 +17,5 @@ VOLUME ["/data"]
 VOLUME ["/config"]
 
 EXPOSE 4793
-EXPOSE 8793
 
 CMD ["cloudtwin"]

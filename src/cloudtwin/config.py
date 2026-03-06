@@ -126,8 +126,7 @@ class StorageConfig:
 
 @dataclass
 class DashboardConfig:
-    enabled: bool = False
-    port: int = 8793
+    enabled: bool = True
 
 
 @dataclass
@@ -211,13 +210,13 @@ def load_config() -> Config:
     # --- dashboard ---
     dash_section = yaml_data.get("dashboard", {})
     dash_enabled_env = _env("CLOUDTWIN_DASHBOARD_ENABLED")
+
     if dash_enabled_env is not None:
         dash_enabled = dash_enabled_env.lower() in ("1", "true", "yes")
     else:
-        dash_enabled = dash_section.get("enabled", False)
+        dash_enabled = dash_section.get("enabled", True)
     dashboard = DashboardConfig(
         enabled=dash_enabled,
-        port=int(_env("CLOUDTWIN_DASHBOARD_PORT", dash_section.get("port", 8793))),
     )
 
     # --- logging ---

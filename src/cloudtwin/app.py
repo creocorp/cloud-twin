@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from cloudtwin.config import Config, load_config
@@ -36,6 +36,11 @@ def create_app(config: Config | None = None) -> FastAPI:
         # API read from the same in-memory stores (critical in "memory" mode).
         repos = make_repositories(db, mode=config.storage.mode)
         app.state.repos = repos
+
+        # Mount the dashboard BEFORE providers so its routes take priority
+        # over S3's wildcard /{bucket}/... routes.
+        if config.dashboard.enabled:
+            _mount_dashboard(app, config)
 
         # Register Azure and GCP BEFORE AWS so that their fixed-prefix routes
         # (e.g. /devstoreaccount1/..., /storage/v1/...) take precedence over
@@ -98,36 +103,34 @@ def create_app(config: Config | None = None) -> FastAPI:
     async def health():
         return {"status": "ok", "service": "cloudtwin"}
 
-    # -----------------------------------------------------------------------
-    # Dashboard (opt-in)
-    # -----------------------------------------------------------------------
-
-    if config.dashboard.enabled:
-        _mount_dashboard(app, config)
-
     return app
 
 
 def _mount_dashboard(app: FastAPI, config) -> None:
-    """Serve the pre-built Vite dashboard as a SPA."""
+    """Serve the static dashboard."""
     log = logging.getLogger("cloudtwin")
-    dist = Path(__file__).parent.parent.parent / "dashboard" / "dist"
-    if not dist.is_dir():
+    root = Path(__file__).parent.parent.parent
+
+    static_index = root / "dashboard" / "static" / "index.html"
+    if not static_index.is_file():
         log.warning(
-            "Dashboard enabled but dist/ not found at %s — run: cd dashboard && npm run build",
-            dist,
+            "Dashboard enabled but dashboard/static/index.html not found."
         )
         return
 
-    # Serve /assets/* as static files
     app.mount(
-        "/assets", StaticFiles(directory=dist / "assets"), name="dashboard-assets"
+        "/dashboard/static",
+        StaticFiles(directory=static_index.parent),
+        name="dashboard-static",
     )
 
-    # Catch-all: serve index.html for all non-API paths (SPA routing)
     @app.get("/dashboard", include_in_schema=False)
-    @app.get("/dashboard/{path:path}", include_in_schema=False)
-    async def dashboard_spa(path: str = ""):
-        return FileResponse(dist / "index.html")
+    @app.get("/dashboard/", include_in_schema=False)
+    async def dashboard_redirect():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse("/dashboard/static/index.html")
 
-    log.info("Dashboard enabled — open http://localhost:%s/dashboard", config.api_port)
+    log.info(
+        "Dashboard enabled — open http://localhost:%s/dashboard",
+        config.api_port,
+    )

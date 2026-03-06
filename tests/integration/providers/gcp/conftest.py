@@ -62,6 +62,14 @@ def _storage_config() -> StorageConfig:
 
 @pytest.fixture(scope="session")
 def gcp_server_url():
+    # Allow running tests against an external backend.
+    # Set CLOUDTWIN_TEST_URL=http://host:port to skip spawning the Python server.
+    external_url = os.getenv("CLOUDTWIN_TEST_URL")
+    if external_url:
+        _wait_ready(external_url)
+        yield external_url
+        return
+
     port = _free_port()
 
     config = Config(

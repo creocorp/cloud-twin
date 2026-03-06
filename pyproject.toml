@@ -16,6 +16,7 @@ dependencies = [
     "pyyaml>=6.0.3",
     "aiosmtplib>=5.1.0",
     "python-multipart>=0.0.22",
+    "typer>=0.12",
 ]
 
 [project.optional-dependencies]
@@ -36,10 +37,11 @@ dev = [
 ]
 
 [project.scripts]
-cloudtwin = "cloudtwin.__main__:main"
+cloudtwin     = "cloudtwin.__main__:main"
+cloudtwin-cli = "cli.main:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cloudtwin"]
+packages = ["src/cloudtwin", "cli"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

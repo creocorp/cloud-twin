@@ -1,0 +1,45 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage 1 – Build
+# ─────────────────────────────────────────────────────────────────────────────
+FROM rust:1.76-slim AS builder
+
+WORKDIR /build
+
+# Install build dependencies (needed for linking even with bundled SQLite)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Cache dependency compilation separately from source compilation.
+# Copy only the manifest first, build a dummy binary, then replace with real src.
+COPY rust/cloudtwin-lite/Cargo.toml ./
+RUN mkdir src && echo "fn main(){}" > src/main.rs
+RUN cargo build --release 2>&1 | tail -5
+RUN rm -f src/main.rs
+
+# Now copy real source and rebuild (only the app crate recompiles)
+COPY rust/cloudtwin-lite/src ./src
+RUN touch src/main.rs && cargo build --release
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage 2 – Runtime
+# ─────────────────────────────────────────────────────────────────────────────
+FROM debian:bookworm-slim
+
+WORKDIR /app
+
+# ca-certificates needed if the binary ever makes outbound TLS calls
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /build/target/release/cloudtwin-lite /app/cloudtwin-lite
+
+VOLUME ["/data"]
+EXPOSE 4793
+
+# CLOUDTWIN_PORT and CLOUDTWIN_DB_PATH are the two runtime env vars.
+# Defaults: port=4793, db=/data/cloudtwin-lite.db
+ENV CLOUDTWIN_DB_PATH=/data/cloudtwin-lite.db
+
+CMD ["/app/cloudtwin-lite"]
