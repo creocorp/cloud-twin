@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import base64
 import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from cloudtwin.core.errors import NotFoundError, ValidationError
+from cloudtwin.core.errors import NotFoundError
 from cloudtwin.core.telemetry import TelemetryEngine
 from cloudtwin.persistence.models.gcp import (
     PubsubAckable,

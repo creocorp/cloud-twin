@@ -113,9 +113,7 @@ def _mount_dashboard(app: FastAPI, config) -> None:
 
     static_index = root / "dashboard" / "static" / "index.html"
     if not static_index.is_file():
-        log.warning(
-            "Dashboard enabled but dashboard/static/index.html not found."
-        )
+        log.warning("Dashboard enabled but dashboard/static/index.html not found.")
         return
 
     app.mount(
@@ -128,6 +126,7 @@ def _mount_dashboard(app: FastAPI, config) -> None:
     @app.get("/dashboard/", include_in_schema=False)
     async def dashboard_redirect():
         from fastapi.responses import RedirectResponse
+
         return RedirectResponse("/dashboard/static/index.html")
 
     log.info(

@@ -27,7 +27,6 @@ def start(
     ),
 ) -> None:
     """Start the CloudTwin API server."""
-    import os
 
     env = {
         **__import__("os").environ,

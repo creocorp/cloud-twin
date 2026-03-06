@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 
 class TestTopics:
     def test_create_topic_returns_201(self, azure_http):

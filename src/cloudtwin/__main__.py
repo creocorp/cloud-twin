@@ -11,7 +11,6 @@ from cloudtwin.config import load_config
 
 def main():
     config = load_config()
-    app_import = "cloudtwin.app:create_app"
 
     uvicorn.run(
         "cloudtwin.app:create_app",

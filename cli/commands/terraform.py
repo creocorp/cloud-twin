@@ -41,9 +41,9 @@ def _cloudtwin_env(base_url: str) -> dict[str, str]:
         # AWS SDK & Terraform AWS provider endpoint override
         "AWS_ENDPOINT_URL": base_url,
         # Terraform AWS provider uses these for STS/auth; any non-empty value works
-        "AWS_ACCESS_KEY_ID":     "cloudtwin",
+        "AWS_ACCESS_KEY_ID": "cloudtwin",
         "AWS_SECRET_ACCESS_KEY": "cloudtwin",
-        "AWS_DEFAULT_REGION":    "us-east-1",
+        "AWS_DEFAULT_REGION": "us-east-1",
         # Skip TLS verification when hitting a plain HTTP local server
         "AWS_EC2_METADATA_DISABLED": "true",
         # Surface the endpoint as a TF variable so .tf files can reference it

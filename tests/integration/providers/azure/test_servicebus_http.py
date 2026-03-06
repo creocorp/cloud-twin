@@ -56,7 +56,6 @@ class TestQueues:
         body = b"Hello from test!"
         r = asb_http.post(f"/{_NS}/queues/{q}/messages", content=body)
         assert r.status_code == 201
-        msg_body = r.json()["body"]
 
         r2 = asb_http.get(f"/{_NS}/queues/{q}/messages")
         assert r2.status_code == 200

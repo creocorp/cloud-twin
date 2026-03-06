@@ -17,9 +17,8 @@ import sys
 from typing import Annotated
 
 import typer
-
-from cli.commands import terraform as tf_mod
 from cli.commands import server as server_mod
+from cli.commands import terraform as tf_mod
 
 app = typer.Typer(
     name="cloudtwin",
@@ -29,7 +28,7 @@ app = typer.Typer(
 )
 
 # Sub-command groups
-app.add_typer(tf_mod.app,     name="terraform")
+app.add_typer(tf_mod.app, name="terraform")
 app.add_typer(server_mod.app, name="server")
 
 _DEFAULT_URL = "http://localhost:4793"
@@ -65,9 +64,9 @@ def aws_cmd(
 
     env = {
         **os.environ,
-        "AWS_ACCESS_KEY_ID":     "cloudtwin",
+        "AWS_ACCESS_KEY_ID": "cloudtwin",
         "AWS_SECRET_ACCESS_KEY": "cloudtwin",
-        "AWS_DEFAULT_REGION":    "us-east-1",
+        "AWS_DEFAULT_REGION": "us-east-1",
     }
     typer.echo(f"[cloudtwin] Running aws CLI with endpoint \u2192 {url}", err=True)
     result = subprocess.run(

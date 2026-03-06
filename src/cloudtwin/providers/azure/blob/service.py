@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from cloudtwin.core.errors import ConflictError, NotFoundError
+from cloudtwin.core.errors import NotFoundError
 from cloudtwin.core.telemetry import TelemetryEngine
 from cloudtwin.persistence.models.azure import AzureBlob, AzureContainer
 from cloudtwin.persistence.repositories.azure import (

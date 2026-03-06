@@ -11,7 +11,7 @@ import hashlib
 import uuid
 from datetime import datetime, timezone
 
-from cloudtwin.core.errors import NotFoundError, ValidationError
+from cloudtwin.core.errors import NotFoundError
 from cloudtwin.core.telemetry import TelemetryEngine
 from cloudtwin.persistence.models import SqsMessage, SqsQueue
 from cloudtwin.persistence.repositories import SqsMessageRepository, SqsQueueRepository

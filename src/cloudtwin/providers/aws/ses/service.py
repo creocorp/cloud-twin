@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime, timezone
 
 from cloudtwin.config import SesConfig
-from cloudtwin.core.errors import IdentityNotVerifiedError, NotFoundError
+from cloudtwin.core.errors import IdentityNotVerifiedError
 from cloudtwin.core.telemetry import TelemetryEngine
 from cloudtwin.persistence.models import SesIdentity, SesMessage
 from cloudtwin.persistence.repositories import (

@@ -7,9 +7,6 @@ exactly as application code would – no mocks, no monkeypatching.
 
 from __future__ import annotations
 
-import pytest
-from botocore.exceptions import ClientError
-
 # ---------------------------------------------------------------------------
 # VerifyDomainIdentity
 # ---------------------------------------------------------------------------

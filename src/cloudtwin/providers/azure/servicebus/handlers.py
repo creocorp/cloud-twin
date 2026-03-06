@@ -27,9 +27,7 @@ this implements a custom JSON REST API that can be tested directly with httpx:
 
 from __future__ import annotations
 
-import dataclasses
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse

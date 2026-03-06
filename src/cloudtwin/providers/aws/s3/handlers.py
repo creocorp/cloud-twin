@@ -9,9 +9,8 @@ from __future__ import annotations
 
 from xml.etree.ElementTree import Element, SubElement, tostring
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Request
 from fastapi.responses import Response as FR
-from fastapi.responses import StreamingResponse
 
 from cloudtwin.core.errors import CloudTwinError, NotFoundError
 from cloudtwin.providers.aws.s3.service import S3Service
@@ -108,7 +107,7 @@ def make_s3_router(service: S3Service) -> APIRouter:
         data = await request.body()
         content_type = request.headers.get("content-type", "application/octet-stream")
         try:
-            obj = await service.put_object(bucket, key, data, content_type)
+            await service.put_object(bucket, key, data, content_type)
         except CloudTwinError as exc:
             return FR(
                 content=_error_xml(exc.code, exc.message),

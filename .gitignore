@@ -31,3 +31,4 @@ htmlcov/
 # Frontend (dashboard/)
 node_modules/
 .env
+.ruff_cache/

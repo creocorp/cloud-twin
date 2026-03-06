@@ -65,3 +65,8 @@ profile = "black"
 line_length = 88
 known_first_party = ["cloudtwin"]
 src_paths = ["src"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+exclude = ["**/.venv/**", "build", "dist", ".ruff_cache"]
