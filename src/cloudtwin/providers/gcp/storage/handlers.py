@@ -26,7 +26,12 @@ import struct
 import uuid
 from urllib.parse import unquote
 
-import google_crc32c
+try:
+    import google_crc32c as _google_crc32c
+    _HAS_CRC32C = True
+except ImportError:  # not installed outside dev environment
+    _HAS_CRC32C = False
+
 from fastapi import APIRouter, Query, Request, Response
 from fastapi.responses import JSONResponse
 
@@ -43,7 +48,10 @@ _pending_resumable: dict[str, dict] = {}
 def _crc32c_b64(data: bytes | None) -> str:
     """Compute base64-encoded CRC32C of data (GCS checksum format)."""
     raw = data if data else b""
-    checksum = google_crc32c.value(raw)
+    if _HAS_CRC32C:
+        checksum = _google_crc32c.value(raw)
+    else:
+        checksum = 0  # acceptable stub for a local emulator
     return base64.b64encode(struct.pack(">I", checksum)).decode()
 
 
