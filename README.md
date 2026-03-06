@@ -1,122 +1,88 @@
 # CloudTwin
 
 CloudTwin is a lightweight, self-contained local runtime for multi-cloud services.
-It runs AWS, Azure, and GCP service emulators inside a single process with no
-external dependencies — no Docker, no MinIO, no real cloud accounts needed.
+It emulates AWS, Azure, and GCP service APIs inside a single process with no
+external dependencies — no MinIO, no RabbitMQ, no real cloud accounts required.
 
-Point your existing SDK code at `http://localhost:4793` and everything just works.
-State is stored in SQLite (or kept in-memory for CI/testing).
+State is persisted in SQLite by default, or kept entirely in-memory for CI and
+ephemeral test sessions. CloudTwin is designed to be a drop-in local replacement
+for cloud services during development.
+
+**Ports:** `4793` → Cloud API · `8793` → Dashboard (opt-in)
 
 ---
 
 ## Supported Services
 
-| Provider | Service | SDK compatibility |
-|---|---|---|
-| AWS | SES (v1 + v2) | boto3 `ses` / `sesv2` |
-| AWS | S3 | boto3 `s3` |
-| AWS | SNS | boto3 `sns` |
-| AWS | SQS | boto3 `sqs` |
-| AWS | Lambda | boto3 `lambda` |
-| AWS | DynamoDB | boto3 `dynamodb` |
-| AWS | Secrets Manager | boto3 `secretsmanager` |
-| Azure | Blob Storage | `azure-storage-blob` |
-| Azure | Service Bus | `azure-servicebus` |
-| Azure | Queue Storage | REST (`/azure/queue/...`) |
-| Azure | Event Grid | REST (`/azure/eventgrid/...`) |
-| Azure | Key Vault | REST (`/azure/keyvault/...`) |
-| Azure | Functions | REST (`/azure/functions/...`) |
-| GCP | Cloud Storage | `google-cloud-storage` |
-| GCP | Pub/Sub | `google-cloud-pubsub` |
-| GCP | Firestore | REST (`/v1/projects/.../documents/...`) |
-| GCP | Cloud Tasks | REST (`/v2/projects/.../queues/...`) |
-| GCP | Secret Manager | REST (`/v1/projects/.../secrets/...`) |
-| GCP | Cloud Functions | REST (`/v2/projects/.../functions/...`) |
+| Provider | Service |
+|---|---|
+| AWS | SES (v1 + v2) |
+| AWS | S3 |
+| AWS | SNS |
+| AWS | SQS |
+| AWS | Lambda |
+| AWS | DynamoDB |
+| AWS | Secrets Manager |
+| Azure | Blob Storage |
+| Azure | Service Bus |
+| Azure | Queue Storage |
+| Azure | Event Grid |
+| Azure | Key Vault |
+| Azure | Functions |
+| GCP | Cloud Storage |
+| GCP | Pub/Sub |
+| GCP | Firestore |
+| GCP | Cloud Tasks |
+| GCP | Secret Manager |
+| GCP | Cloud Functions |
+
+For the full list of supported operations per service, see
+[docs/developer-guide.md](docs/developer-guide.md#supported-operations).
 
 ---
 
-## Installation
+## Running with Docker
 
-**From source (recommended for now):**
+The easiest way to get started is with the pre-built image from Docker Hub:
 
 ```bash
-git clone https://github.com/your-org/cloud-twin.git
+docker pull creogroup/cloudtwin:latest
+docker run -p 4793:4793 creogroup/cloudtwin
+```
+
+To persist data across restarts, mount a volume at `/data`:
+
+```bash
+docker run -p 4793:4793 -v cloudtwin-data:/data creogroup/cloudtwin
+```
+
+To use an optional config file, mount it at `/config/cloudtwin.yml`:
+
+```bash
+docker run -p 4793:4793 \
+  -v cloudtwin-data:/data \
+  -v $(pwd)/config/cloudtwin.yml:/config/cloudtwin.yml \
+  creogroup/cloudtwin
+```
+
+---
+
+## Running from Source
+
+```bash
+git clone https://github.com/creocorp/cloud-twin.git
 cd cloud-twin
 pip install -e ".[dev]"
-```
-
-**Docker:**
-
-```bash
-docker build -f docker/Dockerfile -t cloudtwin .
-docker run -p 4793:4793 cloudtwin
-```
-
----
-
-## Quick Start
-
-Start the server:
-
-```bash
 python -m cloudtwin
 # Listening on http://0.0.0.0:4793
-```
-
-Override your SDK's endpoint URL and supply any dummy credentials:
-
-**AWS (boto3)**
-
-```python
-import boto3
-
-s3 = boto3.client(
-    "s3",
-    endpoint_url="http://localhost:4793",
-    aws_access_key_id="local",
-    aws_secret_access_key="local",
-    region_name="us-east-1",
-)
-
-s3.create_bucket(Bucket="my-bucket")
-s3.put_object(Bucket="my-bucket", Key="hello.txt", Body=b"Hello, world!")
-```
-
-**Azure Blob Storage**
-
-```python
-from azure.storage.blob import BlobServiceClient
-
-client = BlobServiceClient(
-    account_url="http://localhost:4793/devstoreaccount1",
-    credential="devstorekey",
-)
-
-client.create_container("my-container")
-client.get_blob_client("my-container", "hello.txt").upload_blob(b"Hello, world!")
-```
-
-**GCP Cloud Storage**
-
-```python
-from google.cloud import storage
-from google.auth.credentials import AnonymousCredentials
-
-client = storage.Client(
-    project="local-project",
-    credentials=AnonymousCredentials(),
-    client_options={"api_endpoint": "http://localhost:4793"},
-)
-
-bucket = client.create_bucket("my-bucket")
-bucket.blob("hello.txt").upload_from_string(b"Hello, world!")
 ```
 
 ---
 
 ## Configuration
 
-CloudTwin is configured via environment variables or a YAML file. Environment
+CloudTwin is configured via environment variables or a YAML file at
+`CLOUDTWIN_CONFIG_PATH` (default `/config/cloudtwin.yml`). Environment
 variables take precedence.
 
 | Variable | Default | Description |
@@ -124,11 +90,9 @@ variables take precedence.
 | `CLOUDTWIN_HOST` | `0.0.0.0` | Bind address |
 | `CLOUDTWIN_PORT` | `4793` | API port |
 | `CLOUDTWIN_STORAGE_MODE` | `sqlite` | `sqlite` or `memory` |
-| `CLOUDTWIN_STORAGE_PATH` | `./data/cloudtwin.db` | SQLite database path (sqlite mode only) |
-| `CLOUDTWIN_CONFIG_PATH` | `/config/cloudtwin.yml` | Path to optional YAML config file |
-
-To use a config file, set `CLOUDTWIN_CONFIG_PATH` or place a file at the default
-path. Any key not set falls back to the built-in default.
+| `CLOUDTWIN_STORAGE_PATH` | `./data/cloudtwin.db` | SQLite database path |
+| `CLOUDTWIN_CONFIG_PATH` | `/config/cloudtwin.yml` | Path to YAML config file |
+| `CLOUDTWIN_DASHBOARD_ENABLED` | `false` | Enable the web dashboard |
 
 **Example `cloudtwin.yml`:**
 
@@ -138,6 +102,9 @@ port: 4793
 storage:
   mode: sqlite
   db_path: /data/cloudtwin.db
+dashboard:
+  enabled: true
+  port: 8793
 ```
 
 ---
@@ -153,70 +120,60 @@ storage:
 
 ## Dashboard
 
-CloudTwin ships with an optional web dashboard at `http://localhost:8793`
-that shows live status, resources, and event logs for all services.
+An optional web dashboard is available at `http://localhost:8793`. It shows
+live resource status and event logs across all services.
 
-The dashboard is **disabled by default**. Enable it in your config:
-
-```yaml
-cloudtwin:
-  dashboard:
-    enabled: true
-    port: 8793
-```
-
-Or via environment variable:
+Enable it via config or environment variable:
 
 ```bash
 CLOUDTWIN_DASHBOARD_ENABLED=true python -m cloudtwin
 ```
 
-**Running the dashboard in development:**
-
-```bash
-# In one terminal — start the API
-python -m cloudtwin
-
-# In another terminal — start the dashboard dev server
-cd dashboard
-npm install
-npm run dev
-# Open http://localhost:8793
-```
-
-The Vite dev server proxies `/api/*` requests to the CloudTwin API on port 4793.
-
 ---
 
 ## Testing
 
-Run the full test suite:
-
 ```bash
-make test
-```
-
-Integration tests spin up a real in-process CloudTwin server. By default they use
-in-memory storage. To run them against a real SQLite database instead:
-
-```bash
-# In-memory (default — fast, no files)
+# All integration tests (in-memory, no external services required)
 make test-integration
 
-# SQLite — exercises the full persistence layer
-make test-integration-sqlite
+# Directly
+python -m pytest tests/integration/ -q
 ```
 
-Or directly via the env var:
+---
+
+## CloudTwin Lite (Rust)
+
+A Rust rewrite of CloudTwin is in active development under [`rust/cloudtwin-lite/`](rust/cloudtwin-lite/).
+The goal is a single statically-linked binary with no Python runtime dependency,
+suitable for embedding in CI pipelines or resource-constrained environments.
+
+> **Status:** Early — not at feature parity with the Python version.
+> Currently only S3 is implemented.
+
+**Build and run:**
 
 ```bash
-CLOUDTWIN_STORAGE_MODE=sqlite python -m pytest tests/integration/
+cd rust/cloudtwin-lite
+cargo build --release
+./target/release/cloudtwin-lite
+# Listening on http://0.0.0.0:4793
 ```
+
+**Configuration (environment variables):**
+
+| Variable | Default | Description |
+|---|---|---|
+| `CLOUDTWIN_PORT` | `4793` | Port to listen on |
+| `CLOUDTWIN_DB_PATH` | `/data/cloudtwin-lite.db` | SQLite database path (use `:memory:` for in-memory) |
+
+See [docs/developer-guide.md#cloudtwin-lite-rust](docs/developer-guide.md#cloudtwin-lite-rust) for architecture and contribution notes.
 
 ---
 
 ## Contributing
 
 See [docs/developer-guide.md](docs/developer-guide.md) for architecture,
-design patterns, and instructions for adding new services, providers, or
-dashboard features.
+design patterns, and instructions for adding new services or providers.
+

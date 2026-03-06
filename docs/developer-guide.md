@@ -15,12 +15,14 @@ modify the CloudTwin codebase.
   - [Handler pattern](#handler-pattern)
   - [Repository pattern](#repository-pattern)
   - [Error handling](#error-handling)
+- [Supported operations](#supported-operations)
 - [Adding a new AWS service](#adding-a-new-aws-service)
 - [Adding a new cloud provider](#adding-a-new-cloud-provider)
 - [AWS protocol reference](#aws-protocol-reference)
 - [Configuration internals](#configuration-internals)
 - [Dashboard](#dashboard)
 - [Running tests](#running-tests)
+- [CloudTwin Lite (Rust)](#cloudtwin-lite-rust)
 
 ---
 
@@ -249,6 +251,250 @@ raise IdentityNotVerifiedError("sender@example.com")    # → HTTP 400 (code Mes
 
 ---
 
+## Supported Operations
+
+The tables below list every operation currently implemented per service.
+
+### AWS SES (v1 — Query protocol, `POST /`)
+
+| Action | Description |
+|---|---|
+| `VerifyEmailIdentity` | Register an email address as a verified sender |
+| `VerifyDomainIdentity` | Register a domain as a verified sender |
+| `VerifyEmailAddress` | Alias for `VerifyEmailIdentity` (legacy) |
+| `ListIdentities` | List all verified identities |
+| `SendEmail` | Send an email from a verified identity |
+
+### AWS SES v2 (REST/JSON, `POST /v2/...`)
+
+| Endpoint | Description |
+|---|---|
+| `POST /v2/email/identities` | Create an email identity |
+| `GET /v2/email/identities` | List all email identities |
+| `GET /v2/email/identities/{identity}` | Get a single identity |
+| `DELETE /v2/email/identities/{identity}` | Delete an identity |
+| `POST /v2/email/outbound-emails` | Send an email |
+
+### AWS S3 (REST, `/{bucket}/...`)
+
+| Method + Path | Description |
+|---|---|
+| `GET /` | List all buckets |
+| `PUT /{bucket}` | Create a bucket |
+| `GET /{bucket}` | List objects in a bucket |
+| `DELETE /{bucket}` | Delete a bucket |
+| `PUT /{bucket}/{key}` | Upload an object |
+| `GET /{bucket}/{key}` | Download an object |
+| `DELETE /{bucket}/{key}` | Delete an object |
+
+### AWS SNS (Query protocol, `POST /`)
+
+| Action | Description |
+|---|---|
+| `CreateTopic` | Create an SNS topic |
+| `DeleteTopic` | Delete a topic |
+| `ListTopics` | List all topics |
+| `Subscribe` | Subscribe an endpoint to a topic |
+| `Unsubscribe` | Remove a subscription |
+| `ListSubscriptions` | List all subscriptions |
+| `Publish` | Publish a message to a topic |
+
+### AWS SQS (JSON protocol, `POST /`)
+
+| Action | Description |
+|---|---|
+| `CreateQueue` | Create a queue |
+| `ListQueues` | List all queues |
+| `GetQueueUrl` | Get the URL for a named queue |
+| `SendMessage` | Send a message to a queue |
+| `ReceiveMessage` | Poll and receive messages |
+| `DeleteMessage` | Delete a received message by receipt handle |
+| `DeleteQueue` | Delete a queue |
+| `ChangeMessageVisibility` | Change the visibility timeout of a message |
+| `GetQueueAttributes` | Get queue attributes |
+
+### AWS DynamoDB (JSON protocol, `POST /`)
+
+| Action | Description |
+|---|---|
+| `CreateTable` | Create a table |
+| `DescribeTable` | Get table details |
+| `ListTables` | List all tables |
+| `DeleteTable` | Delete a table |
+| `PutItem` | Create or replace an item |
+| `GetItem` | Get an item by primary key |
+| `DeleteItem` | Delete an item |
+| `UpdateItem` | Update attributes on an existing item |
+| `Scan` | Return all items, with optional filter |
+| `Query` | Query items by key condition |
+| `BatchWriteItem` | Batch put or delete items |
+| `BatchGetItem` | Batch get items |
+
+### AWS Secrets Manager (JSON protocol, `POST /`)
+
+| Action | Description |
+|---|---|
+| `CreateSecret` | Create a new secret |
+| `GetSecretValue` | Retrieve the current secret value |
+| `PutSecretValue` | Store a new version of a secret |
+| `DescribeSecret` | Get secret metadata |
+| `ListSecrets` | List all secrets |
+| `DeleteSecret` | Delete a secret |
+| `UpdateSecret` | Update a secret's description or KMS key ID |
+
+### AWS Lambda (REST, `/2015-03-31/functions/...`)
+
+| Method + Path | Description |
+|---|---|
+| `POST /2015-03-31/functions` | Create a function |
+| `GET /2015-03-31/functions` | List all functions |
+| `GET /2015-03-31/functions/{name}` | Get function configuration |
+| `PUT /2015-03-31/functions/{name}/code` | Update function code |
+| `DELETE /2015-03-31/functions/{name}` | Delete a function |
+| `POST /2015-03-31/functions/{name}/invocations` | Invoke a function |
+
+### Azure Blob Storage (REST, `/{container}/...`)
+
+| Method + Path | Description |
+|---|---|
+| `PUT /{container}` | Create a container |
+| `GET /{container}` | List blobs in a container |
+| `DELETE /{container}` | Delete a container |
+| `PUT /{container}/{blob}` | Upload a blob |
+| `GET /{container}/{blob}` | Download a blob |
+| `DELETE /{container}/{blob}` | Delete a blob |
+
+### Azure Service Bus (REST, `/{namespace}/...`)
+
+| Method + Path | Description |
+|---|---|
+| `PUT /{ns}/queues/{queue}` | Create a queue |
+| `GET /{ns}/queues` | List queues |
+| `GET /{ns}/queues/{queue}` | Get queue details |
+| `DELETE /{ns}/queues/{queue}` | Delete a queue |
+| `POST /{ns}/queues/{queue}/messages` | Send a message |
+| `GET /{ns}/queues/{queue}/messages` | Receive (lock) messages |
+| `DELETE /{ns}/queues/{queue}/messages/{lock_token}` | Complete a message |
+| `POST /{ns}/queues/{queue}/messages/{lock_token}/abandon` | Abandon a message |
+| `PUT /{ns}/topics/{topic}` | Create a topic |
+| `GET /{ns}/topics` | List topics |
+| `DELETE /{ns}/topics/{topic}` | Delete a topic |
+| `PUT /{ns}/topics/{topic}/subscriptions/{sub}` | Create a subscription |
+| `GET /{ns}/topics/{topic}/subscriptions` | List subscriptions |
+| `POST /{ns}/topics/{topic}/messages` | Publish to a topic (fan-out) |
+| `GET /{ns}/topics/{topic}/subscriptions/{sub}/messages` | Receive from a subscription |
+| `DELETE /{ns}/topics/{topic}/subscriptions/{sub}/messages/{lock_token}` | Complete a subscription message |
+
+### Azure Queue Storage (REST, `/azure/queue/...`)
+
+| Method + Path | Description |
+|---|---|
+| `PUT /azure/queue/{account}/{queue}` | Create a queue |
+| `GET /azure/queue/{account}` | List queues |
+| `POST /azure/queue/{account}/{queue}/messages` | Enqueue a message |
+| `GET /azure/queue/{account}/{queue}/messages` | Dequeue messages |
+| `GET /azure/queue/{account}/{queue}/messages/peek` | Peek at messages |
+| `DELETE /azure/queue/{account}/{queue}/messages/{id}` | Delete a message |
+| `DELETE /azure/queue/{account}/{queue}` | Delete a queue |
+
+### Azure Event Grid (REST, `/azure/eventgrid/...`)
+
+| Method + Path | Description |
+|---|---|
+| `PUT /azure/eventgrid/topics/{topic}` | Create a topic |
+| `GET /azure/eventgrid/topics` | List topics |
+| `DELETE /azure/eventgrid/topics/{topic}` | Delete a topic |
+| `POST /azure/eventgrid/topics/{topic}/events` | Publish events to a topic |
+| `GET /azure/eventgrid/topics/{topic}/events` | Get published events |
+
+### Azure Key Vault (REST, `/azure/keyvault/...`)
+
+| Method + Path | Description |
+|---|---|
+| `PUT /azure/keyvault/{vault}/secrets/{name}` | Set a secret |
+| `GET /azure/keyvault/{vault}/secrets` | List secrets |
+| `GET /azure/keyvault/{vault}/secrets/{name}` | Get a secret |
+| `GET /azure/keyvault/{vault}/secrets/{name}/{version}` | Get a specific version |
+| `DELETE /azure/keyvault/{vault}/secrets/{name}` | Delete a secret |
+
+### Azure Functions (REST, `/azure/functions/...`)
+
+| Method + Path | Description |
+|---|---|
+| `PUT /azure/functions/{app}/functions/{name}` | Register a function |
+| `GET /azure/functions/{app}/functions` | List functions |
+| `GET /azure/functions/{app}/functions/{name}` | Get function details |
+| `POST /azure/functions/{app}/functions/{name}/invoke` | Invoke a function |
+| `DELETE /azure/functions/{app}/functions/{name}` | Delete a function |
+
+### GCP Cloud Storage (REST, `/storage/v1/b/...`)
+
+| Method + Path | Description |
+|---|---|
+| `POST /storage/v1/b` | Create a bucket |
+| `GET /storage/v1/b` | List buckets |
+| `GET /storage/v1/b/{bucket}` | Get bucket metadata |
+| `DELETE /storage/v1/b/{bucket}` | Delete a bucket |
+| `POST /upload/storage/v1/b/{bucket}/o` | Upload an object |
+| `PUT /upload/storage/v1/b/{bucket}/o` | Upload an object (resumable) |
+| `GET /storage/v1/b/{bucket}/o` | List objects |
+| `GET /storage/v1/b/{bucket}/o/{object}` | Get object metadata |
+| `GET /download/storage/v1/b/{bucket}/o/{object}` | Download an object |
+| `DELETE /storage/v1/b/{bucket}/o/{object}` | Delete an object |
+
+### GCP Pub/Sub (REST, `/v1/projects/...`)
+
+| Method + Path | Description |
+|---|---|
+| `PUT /v1/projects/{project}/topics/{topic}` | Create a topic |
+| `GET /v1/projects/{project}/topics` | List topics |
+| `GET /v1/projects/{project}/topics/{topic}` | Get topic details |
+| `DELETE /v1/projects/{project}/topics/{topic}` | Delete a topic |
+| `POST /v1/projects/{project}/topics/{topic}:publish` | Publish messages |
+| `PUT /v1/projects/{project}/subscriptions/{sub}` | Create a subscription |
+| `GET /v1/projects/{project}/subscriptions` | List subscriptions |
+| `GET /v1/projects/{project}/subscriptions/{sub}` | Get subscription details |
+| `DELETE /v1/projects/{project}/subscriptions/{sub}` | Delete a subscription |
+| `POST /v1/projects/{project}/subscriptions/{sub}:pull` | Pull messages |
+| `POST /v1/projects/{project}/subscriptions/{sub}:acknowledge` | Acknowledge messages |
+
+### GCP Firestore (REST, `/v1/projects/.../documents/...`)
+
+| Method + Path | Description |
+|---|---|
+| `POST /v1/projects/{project}/databases/(default)/documents/{collection}` | Create a document |
+| `GET /v1/projects/{project}/databases/(default)/documents/{collection}` | List documents |
+
+### GCP Cloud Tasks (REST, `/v2/projects/.../queues/...`)
+
+| Method + Path | Description |
+|---|---|
+| `POST /v2/projects/{project}/locations/{loc}/queues` | Create a queue |
+| `GET /v2/projects/{project}/locations/{loc}/queues` | List queues |
+| `GET /v2/projects/{project}/locations/{loc}/queues/{queue}` | Get queue details |
+| `DELETE /v2/projects/{project}/locations/{loc}/queues/{queue}` | Delete a queue |
+| `GET /v2/projects/{project}/locations/{loc}/queues/{queue}/tasks` | List tasks in a queue |
+
+### GCP Secret Manager (REST, `/v1/projects/.../secrets/...`)
+
+| Method + Path | Description |
+|---|---|
+| `POST /v1/projects/{project}/secrets` | Create a secret |
+| `GET /v1/projects/{project}/secrets` | List secrets |
+| `POST /v1/projects/{project}/secrets/{name}:addVersion` | Add a new version |
+| `DELETE /v1/projects/{project}/secrets/{name}` | Delete a secret |
+
+### GCP Cloud Functions (REST, `/v2/projects/.../functions/...`)
+
+| Method + Path | Description |
+|---|---|
+| `POST /v2/projects/{project}/locations/{loc}/functions` | Create a function |
+| `GET /v2/projects/{project}/locations/{loc}/functions` | List functions |
+| `GET /v2/projects/{project}/locations/{loc}/functions/{name}` | Get function details |
+| `DELETE /v2/projects/{project}/locations/{loc}/functions/{name}` | Delete a function |
+
+---
+
 ## Adding a New AWS Service
 
 Example: adding Kinesis.
@@ -366,6 +612,99 @@ def kinesis(server_url):
 Also add the service name to the `services=[...]` list in the `server_url` fixture.
 
 ### Coding conventions
+
+---
+
+## CloudTwin Lite (Rust)
+
+The `rust/cloudtwin-lite/` directory contains a Rust reimplementation of CloudTwin.
+The goal is a single statically-linked binary with no Python runtime dependency —
+smaller, faster cold-starts, and easier to embed in CI containers.
+
+> **Status:** Early development. Currently only S3 is implemented. Not at feature
+> parity with the Python version. The Python build remains the primary runtime until
+> parity is reached.
+
+### Directory layout
+
+```
+rust/cloudtwin-lite/
+  Cargo.toml          # Package manifest and dependencies
+  src/
+    main.rs           # Entry point — config, DB init, Axum router setup
+    config.rs         # Config struct populated from environment variables
+    db.rs             # SQLite connection pool (tokio-rusqlite) + migrations
+    s3/
+      mod.rs          # Re-exports router()
+      handlers.rs     # Axum HTTP handlers — S3 REST endpoints
+      service.rs      # S3 business logic (pure Rust, no HTTP)
+      models.rs       # S3Bucket, S3Object structs
+```
+
+### Stack
+
+| Concern | Crate |
+|---|---|
+| HTTP server | `axum` 0.7 |
+| Async runtime | `tokio` |
+| SQLite | `rusqlite` (bundled) + `tokio-rusqlite` |
+| Serialisation | `serde` + `serde_json` |
+| Logging | `tracing` + `tracing-subscriber` |
+
+### Architecture
+
+The Lite binary follows the same service/handler separation as the Python version:
+
+- `handlers.rs` — HTTP only. Parses request, calls service, formats XML response.
+- `service.rs` — Business logic only. No HTTP, no XML. Calls the DB directly.
+- `db.rs` — Connection pool and DDL migrations. Each service module owns its own
+  `migrate()` call that runs `CREATE TABLE IF NOT EXISTS` statements.
+
+Shared application state (`AppState`) is wrapped in `Arc` and injected into every
+handler via Axum's `State` extractor.
+
+### Configuration
+
+Configuration is resolved from environment variables at startup — no YAML file
+support yet.
+
+| Variable | Default | Description |
+|---|---|---|
+| `CLOUDTWIN_PORT` | `4793` | TCP port |
+| `CLOUDTWIN_DB_PATH` | `/data/cloudtwin-lite.db` | SQLite file path; use `:memory:` for ephemeral |
+
+### Building
+
+```bash
+cd rust/cloudtwin-lite
+
+# Debug
+cargo build
+
+# Release (optimised, ~8 MB binary)
+cargo build --release
+
+# Run
+./target/release/cloudtwin-lite
+```
+
+### Adding a new service to Lite
+
+1. Create `src/<service>/` with `mod.rs`, `handlers.rs`, `service.rs`, `models.rs`.
+2. Add the migration SQL to a `migrate()` async fn in `service.rs` (or `db.rs`) and
+   call it from `main.rs` after `db.migrate()`.
+3. Expose a `pub fn router(state: Arc<AppState>) -> Router` from `mod.rs`.
+4. Merge the router in `main.rs`: `app = app.merge(<service>::router(Arc::clone(&state)))`.
+5. Add the module declaration in `main.rs`: `mod <service>;`.
+
+### Known gaps vs Python version
+
+- Only S3 is implemented (no SES, SNS, SQS, DynamoDB, Azure, or GCP services)
+- No dashboard support
+- No YAML config file — env vars only
+- No telemetry / event log
+- No Docker image published yet
+- No integration test suite
 
 - `from __future__ import annotations` at the top of every file
 - Async throughout — all repository methods and service methods are `async`
