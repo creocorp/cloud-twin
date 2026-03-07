@@ -37,11 +37,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: creogroup/cloudtwin-lite
-          # Strip "lite-" prefix so tags become v1.0.0 / 1.0 / latest
+          # Strip "lite-" prefix so tags become 0.2.2 / 0.2 / latest
           tags: |
-            type=match,pattern=lite-(v.*),group=1
-            type=match,pattern=lite-(v\d+\.\d+),group=1
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=match,pattern=lite-(.*),group=1
+            type=match,pattern=lite-(\d+\.\d+),group=1
+            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v6
