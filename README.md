@@ -8,7 +8,7 @@ State is persisted in SQLite by default, or kept entirely in-memory for CI and
 ephemeral test sessions. CloudTwin is designed to be a drop-in local replacement
 for cloud services during development.
 
-**Ports:** `4793` → Cloud API · `8793` → Dashboard (opt-in)
+**Port:** `4793` → Cloud API and dashboard UI (`/dashboard` when enabled)
 
 ---
 
@@ -88,11 +88,11 @@ variables take precedence.
 | Variable | Default | Description |
 |---|---|---|
 | `CLOUDTWIN_HOST` | `0.0.0.0` | Bind address |
-| `CLOUDTWIN_PORT` | `4793` | API port |
+| `CLOUDTWIN_API_PORT` | `4793` | API port used for both cloud endpoints and the dashboard UI |
 | `CLOUDTWIN_STORAGE_MODE` | `sqlite` | `sqlite` or `memory` |
 | `CLOUDTWIN_STORAGE_PATH` | `./data/cloudtwin.db` | SQLite database path |
 | `CLOUDTWIN_CONFIG_PATH` | `/config/cloudtwin.yml` | Path to YAML config file |
-| `CLOUDTWIN_DASHBOARD_ENABLED` | `false` | Enable the web dashboard |
+| `CLOUDTWIN_DASHBOARD_ENABLED` | `true` | Mount the dashboard UI at `/dashboard` |
 
 **Example `cloudtwin.yml`:**
 
@@ -104,7 +104,6 @@ storage:
   db_path: /data/cloudtwin.db
 dashboard:
   enabled: true
-  port: 8793
 ```
 
 ---
@@ -120,8 +119,16 @@ dashboard:
 
 ## Dashboard
 
-An optional web dashboard is available at `http://localhost:8793`. Enable it
-via environment variable or config:
+The dashboard is served by the same FastAPI process and API port as CloudTwin.
+When enabled, open `http://localhost:4793/dashboard`.
+
+The UI route and backing endpoints are:
+
+- UI entry: `/dashboard`
+- Static assets: `/dashboard/static/...`
+- JSON API: `/api/dashboard/*`
+
+Enable or disable the UI mount via environment variable or config:
 
 ```bash
 CLOUDTWIN_DASHBOARD_ENABLED=true python -m cloudtwin
@@ -132,7 +139,6 @@ Or in `cloudtwin.yml`:
 ```yaml
 dashboard:
   enabled: true
-  port: 8793
 ```
 
 The dashboard provides:
@@ -144,8 +150,9 @@ The dashboard provides:
    buckets, GCP Pub/Sub topics and subscriptions)
 - **Event log** — filterable stream of all actions emitted by the telemetry engine
 
-The dashboard auto-polls the `/api/dashboard/*` endpoints and requires no
-additional setup beyond enabling it in config.
+The dashboard auto-polls the `/api/dashboard/*` endpoints. The backend router
+for those endpoints is part of the main app; enabling the dashboard controls
+whether the browser UI is mounted at `/dashboard`.
 
 ---
 

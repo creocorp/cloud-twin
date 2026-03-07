@@ -1,3 +1,8 @@
+//! DynamoDB business logic and SQLite persistence.
+//!
+//! This file is the service layer. In C# terms, think application service. In
+//! Python terms, this is the domain logic that should stay independent of HTTP.
+
 use anyhow::{bail, Result};
 use chrono::Utc;
 use rusqlite::OptionalExtension;
@@ -8,6 +13,7 @@ use super::models::{DynamoItem, DynamoTable};
 const ACCOUNT_ID: &str = "000000000000";
 const REGION:     &str = "us-east-1";
 
+/// Encapsulates DynamoDB behavior over the shared SQLite store.
 pub struct DynamoDBService {
     db: Database,
 }

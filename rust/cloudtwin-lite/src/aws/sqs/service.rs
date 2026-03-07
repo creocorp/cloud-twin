@@ -1,3 +1,8 @@
+//! SQS business logic.
+//!
+//! This is where queue/message semantics live. The handlers only translate AWS
+//! JSON protocol details and call into this service.
+
 use anyhow::{bail, Result};
 use chrono::Utc;
 use md5::{Digest, Md5};
@@ -9,6 +14,7 @@ use super::models::{SqsMessage, SqsQueue};
 
 const ACCOUNT_ID: &str = "000000000000";
 
+/// Implements queue and message operations on top of SQLite.
 pub struct SqsService {
     db:       Database,
     base_url: String,

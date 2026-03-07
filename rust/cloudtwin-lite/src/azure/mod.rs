@@ -1,3 +1,8 @@
+//! Azure provider namespace and mount point.
+//!
+//! This module is intentionally thin: it just groups Azure services and returns
+//! a single router mounted at `/azure` by `main.rs`.
+
 pub mod blob;
 pub mod servicebus;
 

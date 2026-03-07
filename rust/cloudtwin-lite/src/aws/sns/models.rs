@@ -1,3 +1,5 @@
+//! SNS topic, subscription, and message models.
+
 #[derive(Debug, Clone)]
 pub struct SnsTopic {
     pub arn:        String,

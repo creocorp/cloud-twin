@@ -1,3 +1,8 @@
+//! Azure Service Bus business logic.
+//!
+//! This is the provider-specific service layer for queues, topics,
+//! subscriptions, and queue messages.
+
 use anyhow::{bail, Result};
 use chrono::Utc;
 use rusqlite::OptionalExtension;
@@ -6,6 +11,7 @@ use uuid::Uuid;
 use crate::db::Database;
 use super::models::{AsbMessage, AsbQueue, AsbSubscription, AsbTopic};
 
+/// Implements a simplified Service Bus over SQLite.
 pub struct ServiceBusService {
     db:        Database,
     namespace: String,

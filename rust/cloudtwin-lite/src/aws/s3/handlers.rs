@@ -1,3 +1,8 @@
+//! S3 REST handlers.
+//!
+//! S3 is the AWS service here that behaves most like a normal REST API, so this
+//! file looks more like an Axum router than the AWS Query/JSON handler files.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

@@ -1,3 +1,8 @@
+//! GCP provider namespace and mount point.
+//!
+//! Like `azure::mod`, this is mostly composition glue: each service builds its
+//! own router and this module merges them into one `/gcp` subtree.
+
 pub mod pubsub;
 pub mod storage;
 

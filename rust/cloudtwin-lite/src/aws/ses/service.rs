@@ -1,3 +1,8 @@
+//! SES business logic shared by both SES v1 and SES v2 handlers.
+//!
+//! Multiple protocol adapters feed one service so identity/message state stays
+//! unified regardless of which client API is used.
+
 use anyhow::Result;
 use chrono::Utc;
 use rusqlite::OptionalExtension;
@@ -6,6 +11,7 @@ use uuid::Uuid;
 use crate::db::Database;
 use super::models::{SesIdentity, SesMessage};
 
+/// Implements SES identity and outbound-email behavior.
 pub struct SesService {
     db: Database,
 }

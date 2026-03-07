@@ -1,3 +1,5 @@
+//! Legacy top-level S3 handlers.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

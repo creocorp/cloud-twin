@@ -1,3 +1,7 @@
+//! SQS queue and message models.
+//!
+//! These are lightweight records that map closely to rows in SQLite.
+
 #[derive(Debug, Clone)]
 pub struct SqsQueue {
     pub id:         i64,

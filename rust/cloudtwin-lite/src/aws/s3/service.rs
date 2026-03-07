@@ -1,3 +1,8 @@
+//! S3 domain logic backed by SQLite.
+//!
+//! The service owns bucket/object behavior and leaves HTTP concerns to
+//! `handlers.rs`.
+
 use anyhow::{bail, Result};
 use chrono::Utc;
 use hex::encode as hex_encode;
@@ -6,6 +11,7 @@ use md5::{Digest, Md5};
 use crate::db::Database;
 use super::models::{Bucket, Object};
 
+/// Implements S3 bucket and object semantics on top of SQLite.
 pub struct S3Service {
     db: Database,
 }

@@ -1,3 +1,8 @@
+//! DynamoDB data shapes used inside the Lite runtime.
+//!
+//! These are plain structs, closer to Python dataclasses or small C# DTOs than
+//! to a full ORM entity model.
+
 #[derive(Debug, Clone)]
 pub struct DynamoTable {
     pub name:                  String,

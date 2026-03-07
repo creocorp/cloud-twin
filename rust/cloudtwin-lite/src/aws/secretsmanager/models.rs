@@ -1,3 +1,5 @@
+//! Secrets Manager persistence models.
+
 #[derive(Debug, Clone)]
 pub struct Secret {
     pub name:          String,

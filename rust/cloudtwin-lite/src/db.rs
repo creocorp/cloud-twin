@@ -1,13 +1,24 @@
+//! Shared database bootstrapping and schema creation.
+//!
+//! This file is the closest thing the Lite binary has to an infrastructure
+//! composition root for persistence. Each service talks to SQLite through simple
+//! SQL statements, and this module owns the one connection plus the global DDL.
+
 use anyhow::Result;
 use tokio_rusqlite::Connection;
 
 /// Thin async wrapper around an SQLite connection.
+///
+/// `tokio_rusqlite` lets us keep a synchronous SQLite driver while exposing an
+/// async API to the rest of the app. You can think of this like a tiny async
+/// repository host that serializes DB work onto the connection thread.
 #[derive(Clone)]
 pub struct Database {
     pub conn: Connection,
 }
 
 impl Database {
+    /// Open either an in-memory database or a file-backed database.
     pub async fn open(path: &str) -> Result<Self> {
         let conn = if path == ":memory:" {
             Connection::open_in_memory().await?
@@ -21,12 +32,20 @@ impl Database {
     }
 
     /// Run all DDL migrations.
+    ///
+    /// This is deliberately simplistic: the Lite binary is optimized for local
+    /// development and CI, so we use idempotent `CREATE TABLE IF NOT EXISTS`
+    /// statements rather than a versioned migration framework.
     pub async fn migrate(&self) -> Result<()> {
         self.conn.call(|conn| { conn.execute_batch(DDL)?; Ok(()) }).await?;
         Ok(())
     }
 }
 
+/// Entire schema bootstrapped on startup.
+///
+/// Keeping the DDL in one place makes the binary easy to reason about: every
+/// supported service is visible in a single schema block.
 const DDL: &str = "
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;

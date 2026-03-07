@@ -1,3 +1,7 @@
+//! Azure Blob Storage models.
+//!
+//! These map closely to persisted rows and are intentionally lightweight.
+
 #[derive(Debug, Clone)]
 pub struct AzureContainer {
     pub name:       String,

@@ -1,3 +1,8 @@
+//! GCP Cloud Storage business logic.
+//!
+//! Conceptually this mirrors the S3 service: buckets and objects are persisted
+//! in SQLite, while HTTP and JSON concerns stay in the handler layer.
+
 use anyhow::{bail, Result};
 use chrono::Utc;
 use hex::encode as hex_encode;
@@ -7,6 +12,7 @@ use rusqlite::OptionalExtension;
 use crate::db::Database;
 use super::models::{GcsBucket, GcsObject};
 
+/// Implements Cloud Storage bucket and object behavior.
 pub struct StorageService {
     db:      Database,
     project: String,

@@ -1,3 +1,8 @@
+//! GCP Pub/Sub HTTP handlers.
+//!
+//! These map Google-style REST endpoints onto the provider service methods and
+//! keep the request/response JSON glue out of `service.rs`.
+
 use std::sync::Arc;
 
 use axum::{

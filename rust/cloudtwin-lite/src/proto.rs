@@ -1,4 +1,9 @@
-//! AWS protocol helpers shared by all AWS service dispatchers.
+//! AWS wire-format helpers shared by all AWS service dispatchers.
+//!
+//! This module is the small translation layer between raw HTTP and the service
+//! routers. In ASP.NET terms this is somewhere between custom middleware and a
+//! model binder. In FastAPI terms it is a manual request parser for AWS's older
+//! protocol conventions.
 
 use std::collections::HashMap;
 
@@ -16,6 +21,8 @@ pub enum AwsPayload {
 }
 
 impl AwsPayload {
+    /// Decode an incoming AWS request into either query-protocol parameters or
+    /// a JSON payload with its `X-Amz-Target` operation name.
     pub fn parse(headers: &HeaderMap, raw: &Bytes) -> Self {
         let ct = headers
             .get(header::CONTENT_TYPE)
@@ -40,6 +47,7 @@ impl AwsPayload {
 }
 
 pub fn xml_error_response(status: StatusCode, code: &str, message: &str) -> Response {
+    // AWS query APIs expect XML envelopes even for errors.
     let body = format!(
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
 <ErrorResponse>\
@@ -53,6 +61,8 @@ pub fn xml_error_response(status: StatusCode, code: &str, message: &str) -> Resp
 }
 
 pub fn json_error_response(status: StatusCode, code: &str, message: &str) -> Response {
+    // AWS JSON APIs expect the error type in `__type` rather than a more RESTy
+    // `{ code, message }` shape.
     (
         status,
         [(header::CONTENT_TYPE, "application/x-amz-json-1.0")],
@@ -62,6 +72,7 @@ pub fn json_error_response(status: StatusCode, code: &str, message: &str) -> Res
 }
 
 pub fn xml_escape(s: &str) -> String {
+    // Keep escaping local and obvious instead of pulling in a heavier XML lib.
     s.replace('&', "&amp;")
      .replace('<', "&lt;")
      .replace('>', "&gt;")

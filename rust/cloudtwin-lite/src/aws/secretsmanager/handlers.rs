@@ -1,3 +1,5 @@
+//! Secrets Manager AWS JSON protocol handlers.
+
 use std::sync::Arc;
 
 use axum::{http::StatusCode, response::{IntoResponse, Response}};

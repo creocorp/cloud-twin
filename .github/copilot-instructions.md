@@ -8,7 +8,7 @@ single process with no external dependencies. All state is persisted in SQLite o
 kept in-memory. It is designed as a drop-in endpoint override for SDK-based
 application code during local development and CI.
 
-**Ports:** `4793` → Cloud API, `8793` → Dashboard (opt-in)  
+**Ports:** `4793` → Cloud API
 **Primary goal:** SDK-compatible endpoints, not a full cloud replica.
 
 ---
@@ -16,7 +16,7 @@ application code during local development and CI.
 ## Repository Layout
 
 ```
-dashboard/                      # Vite + React + Tailwind dashboard (opt-in, port 8793)
+dashboard/                      # Vite + React + Tailwind dashboard (opt-in)
   src/
     api/client.ts               # Typed fetch wrappers for /api/dashboard/* endpoints
     hooks/useApi.ts             # useApi / usePolling React hooks

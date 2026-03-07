@@ -1,3 +1,7 @@
+//! Secrets Manager business logic.
+//!
+//! The service maps AWS-style secret operations onto a very small SQLite schema.
+
 use anyhow::{bail, Result};
 use chrono::Utc;
 use rusqlite::OptionalExtension;
@@ -8,6 +12,7 @@ use super::models::Secret;
 const ACCOUNT_ID: &str = "000000000000";
 const REGION:     &str = "us-east-1";
 
+/// Encapsulates secret CRUD behavior over the shared database.
 pub struct SecretsManagerService {
     db: Database,
 }

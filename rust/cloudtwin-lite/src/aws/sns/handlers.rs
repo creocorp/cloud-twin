@@ -1,3 +1,5 @@
+//! SNS AWS Query protocol handlers.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

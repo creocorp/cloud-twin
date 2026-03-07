@@ -1,3 +1,5 @@
+//! Azure Service Bus HTTP handlers.
+
 use std::sync::Arc;
 
 use axum::{

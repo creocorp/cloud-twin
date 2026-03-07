@@ -1,3 +1,8 @@
+//! GCP Pub/Sub business logic.
+//!
+//! This service owns topics, subscriptions, published messages, and the
+//! pull/ack lifecycle represented by `ack_id` rows.
+
 use anyhow::{bail, Result};
 use chrono::Utc;
 use rusqlite::OptionalExtension;
@@ -6,6 +11,7 @@ use uuid::Uuid;
 use crate::db::Database;
 use super::models::{PubsubAckable, PubsubMessage, PubsubSubscription, PubsubTopic};
 
+/// Implements a minimal Pub/Sub runtime over SQLite.
 pub struct PubsubService {
     db:      Database,
     project: String,

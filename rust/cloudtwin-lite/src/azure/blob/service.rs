@@ -1,3 +1,8 @@
+//! Azure Blob Storage business logic.
+//!
+//! This service hides the SQL details behind storage-style operations such as
+//! create container, put blob, and fetch blob metadata/content.
+
 use anyhow::{bail, Result};
 use chrono::Utc;
 use hex::encode as hex_encode;
@@ -7,6 +12,7 @@ use rusqlite::OptionalExtension;
 use crate::db::Database;
 use super::models::{AzureBlob, AzureContainer};
 
+/// Implements Azure Blob semantics over the shared SQLite store.
 pub struct BlobService {
     db:      Database,
     account: String,

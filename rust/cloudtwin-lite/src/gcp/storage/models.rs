@@ -1,3 +1,5 @@
+//! GCP Cloud Storage models.
+
 #[derive(Debug, Clone)]
 pub struct GcsBucket {
     pub name:       String,

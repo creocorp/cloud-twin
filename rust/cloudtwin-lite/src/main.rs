@@ -1,3 +1,10 @@
+//! Crate entry point for CloudTwin Lite.
+//!
+//! If you are coming from C# or Python, this file plays the role of a very small
+//! `Program.cs` plus a bit of `Startup` / FastAPI app wiring. It assembles the
+//! shared state, mounts provider routers, and exposes the one AWS front door at
+//! `/` that fan-outs into protocol-specific handlers.
+
 mod aws;
 mod azure;
 mod config;
@@ -24,6 +31,10 @@ use config::Config;
 use db::Database;
 
 /// Shared application state injected into every handler.
+///
+/// In C# terms this is close to a scoped dependency bag that controllers can
+/// resolve from DI. In Python terms it is similar to an app context object that
+/// handlers receive explicitly.
 pub struct AppState {
     pub db:  Database,
     pub cfg: Config,
@@ -31,6 +42,7 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Configure structured logging first so startup failures are visible.
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env()
@@ -38,8 +50,12 @@ async fn main() -> Result<()> {
         )
         .init();
 
+    // Resolve process configuration once at startup and clone cheap values into
+    // the shared state. Rust makes that explicit instead of hiding it behind a
+    // global singleton.
     let cfg = Config::from_env();
 
+    // Open SQLite and ensure every table exists before we accept traffic.
     let db = Database::open(&cfg.db_path).await?;
     db.migrate().await?;
 
@@ -80,6 +96,7 @@ async fn main() -> Result<()> {
 }
 
 async fn health() -> Json<serde_json::Value> {
+    // Keep the health payload intentionally tiny so probes stay cheap.
     Json(json!({
         "status":  "ok",
         "service": "cloudtwin-lite",
@@ -97,6 +114,9 @@ async fn aws_post(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
+    // AWS is the only provider here that multiplexes many services through one
+    // HTTP endpoint. `proto::AwsPayload` is the thin decoder that tells us
+    // whether this request is AWS Query or AWS JSON protocol.
     match proto::AwsPayload::parse(&headers, &body) {
         proto::AwsPayload::Json { target, body } => {
             if target.starts_with("AmazonSQS.") {

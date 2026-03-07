@@ -1,3 +1,5 @@
+//! GCP Cloud Storage HTTP handlers.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

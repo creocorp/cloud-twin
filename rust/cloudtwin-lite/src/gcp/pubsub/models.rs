@@ -1,3 +1,5 @@
+//! GCP Pub/Sub models.
+
 #[derive(Debug, Clone)]
 pub struct PubsubTopic {
     pub name:       String,

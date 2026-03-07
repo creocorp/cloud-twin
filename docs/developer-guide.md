@@ -718,50 +718,31 @@ cargo build --release
 
 ## Dashboard
 
-The dashboard is a Vite + React + Tailwind app located at `dashboard/` (repo
-root). It is independent of the Python package — no JS tooling touches `src/`.
+The dashboard is served by the main FastAPI app on the same API port as the
+cloud endpoints. The browser entrypoint is `/dashboard`, static assets are under
+`/dashboard/static/...`, and the backing JSON endpoints live under
+`/api/dashboard/*`.
+
+The static UI is located under `dashboard/static/` in the repo root.
 
 ### Directory layout
 
 ```
 dashboard/
-  index.html
-  vite.config.ts          # dev server on :8793, proxies /api/* → :4793
-  package.json
-  tailwind.config.js
-  src/
-    main.tsx              # React entry point
-    App.tsx               # HashRouter + all routes
-    index.css             # Tailwind directives
-    api/
-      client.ts           # Typed fetch wrappers + response interfaces
-    hooks/
-      useApi.ts           # useApi / usePolling hooks
-    components/
-      layout/
-        Layout.tsx        # Sidebar + Outlet wrapper
-        Sidebar.tsx       # Navigation with AWS / Azure / GCP groups
-      shared/             # Badge, EmptyState, ErrorBanner, PageHeader,
-                          # RefreshButton, ResourceTable, Spinner, StatCard
-    pages/
-      Overview.tsx        # Health + service grid
-      EventLog.tsx        # Live telemetry feed (auto-polls every 3 s)
-      aws/SES.tsx
-      aws/S3.tsx
-      aws/SNS.tsx
-      aws/SQS.tsx
-      azure/Blob.tsx
-      azure/ServiceBus.tsx
-      gcp/Storage.tsx
-      gcp/PubSub.tsx
+  static/
+    index.html
+    js/
+      api.js              # Thin client for /api/dashboard/*
+      main.js             # App bootstrap
+      router.js           # Hash-based client-side router
+      pages/              # Per-page renderers
 ```
 
 ### API contract
 
-The dashboard calls `/api/dashboard/*` endpoints which **the Python backend
-needs to implement**. Response shapes are defined in `src/api/client.ts`.
-Until a backend endpoint exists, the dashboard shows a yellow "API endpoint
-not yet available" notice instead of an error.
+The dashboard calls `/api/dashboard/*` endpoints. Those routes are registered by
+the Python backend in `src/cloudtwin/api/dashboard/` and are available through
+the same server process as the rest of CloudTwin.
 
 | Dashboard route | Expected API endpoint |
 |---|---|
@@ -778,15 +759,18 @@ not yet available" notice instead of an error.
 
 ### Enabling / disabling
 
-The dashboard is gated by `DashboardConfig.enabled` (default `false`).
-When disabled, the Python backend should not mount the static files or the
-`/api/dashboard/*` endpoints. Users opt in via config or env var:
+`DashboardConfig.enabled` controls whether the browser UI is mounted at
+`/dashboard`. The dashboard API router is still registered so the backend can
+serve `/api/dashboard/*` consistently and support local UI development.
+
+Current default: `true`.
+
+Users can still override it via config or env var:
 
 ```yaml
 cloudtwin:
   dashboard:
     enabled: true
-    port: 8793
 ```
 
 ```bash
@@ -796,22 +780,20 @@ CLOUDTWIN_DASHBOARD_ENABLED=true python -m cloudtwin
 ### Development workflow
 
 ```bash
-# Terminal 1 — Python API
+# Terminal 1 — Python API + dashboard UI
 python -m cloudtwin
-
-# Terminal 2 — Vite dev server (proxies /api/* to :4793)
-cd dashboard && npm install && npm run dev
-# → http://localhost:8793
 ```
+
+Then open `http://localhost:4793/dashboard`.
 
 ### Production build
 
-The Python backend serves the built assets from `dashboard/dist/` via FastAPI
-`StaticFiles` when the dashboard is enabled:
+The Python backend serves the static dashboard from `dashboard/static/` via
+FastAPI `StaticFiles` when the dashboard UI is enabled:
 
 ```python
-# app.py (to be implemented by backend)
+# app.py
 from fastapi.staticfiles import StaticFiles
 if config.dashboard.enabled:
-    app.mount("/", StaticFiles(directory="dashboard/dist", html=True), name="dashboard")
+  app.mount("/dashboard/static", StaticFiles(directory="dashboard/static"), name="dashboard-static")
 ```

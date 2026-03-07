@@ -1,3 +1,9 @@
+//! Runtime configuration for the Lite binary.
+//!
+//! Think of this as a tiny hand-rolled `IOptions<T>` object from C# or a Python
+//! settings object built from `os.environ`. The crate keeps configuration simple
+//! and explicit rather than introducing a full config framework.
+
 use std::env;
 
 /// Runtime configuration resolved from environment variables.
@@ -18,6 +24,10 @@ pub struct Config {
 }
 
 impl Config {
+    /// Resolve configuration from environment variables.
+    ///
+    /// The method is intentionally eager: read everything once, parse it once,
+    /// and then pass an owned `Config` through the application.
     pub fn from_env() -> Self {
         let port: u16 = env::var("CLOUDTWIN_PORT")
             .ok()

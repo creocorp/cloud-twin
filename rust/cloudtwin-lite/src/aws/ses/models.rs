@@ -1,3 +1,5 @@
+//! SES runtime models.
+
 #[derive(Debug, Clone)]
 pub struct SesIdentity {
     pub identity:   String,

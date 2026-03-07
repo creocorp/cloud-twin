@@ -1,3 +1,8 @@
+//! SES protocol handlers.
+//!
+//! This file contains both the AWS Query handlers for SES v1 and the REST-style
+//! routes for SES v2, with both delegating to the same service layer.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -17,6 +22,7 @@ fn svc(state: &Arc<AppState>) -> SesService { SesService::new(state.db.clone()) 
 
 // ── Query protocol (SES v1) ──────────────────────────────────────────────────
 
+/// AWS Query actions routed to SES.
 pub const QUERY_ACTIONS: &[&str] = &[
     "SendEmail",
     "VerifyEmailIdentity",

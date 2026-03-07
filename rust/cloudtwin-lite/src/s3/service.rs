@@ -1,3 +1,8 @@
+//! Legacy top-level S3 business logic.
+//!
+//! This file mirrors the newer `aws::s3` service and remains useful as a
+//! reference while the Rust layout settles.
+
 use anyhow::{bail, Result};
 use chrono::Utc;
 use hex::encode as hex_encode;
@@ -6,6 +11,7 @@ use md5::{Digest, Md5};
 use crate::db::Database;
 use super::models::{Bucket, Object};
 
+/// Implements the legacy standalone S3 service over SQLite.
 pub struct S3Service {
     db: Database,
 }

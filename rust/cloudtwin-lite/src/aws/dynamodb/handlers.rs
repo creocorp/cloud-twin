@@ -1,3 +1,8 @@
+//! DynamoDB AWS JSON protocol handlers.
+//!
+//! Handlers are the transport adapter layer: they decode protocol fields,
+//! invoke the service, and shape the response back into AWS-compatible JSON.
+
 use std::sync::Arc;
 
 use axum::{http::StatusCode, response::{IntoResponse, Response}};
@@ -8,6 +13,7 @@ use super::service::DynamoDBService;
 
 fn svc(state: &Arc<AppState>) -> DynamoDBService { DynamoDBService::new(state.db.clone()) }
 
+/// AWS JSON target names this module knows how to serve.
 pub const JSON_TARGETS: &[&str] = &[
     "DynamoDB_20120810.CreateTable",
     "DynamoDB_20120810.DescribeTable",

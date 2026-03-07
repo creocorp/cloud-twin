@@ -1,3 +1,9 @@
+//! Azure Blob Storage HTTP handlers.
+//!
+//! Compared with the AWS modules, these routes look more like straightforward
+//! REST endpoints. The service still does the real work; handlers just map HTTP
+//! verbs, paths, headers, and XML responses.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

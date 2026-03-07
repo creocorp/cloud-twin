@@ -1,3 +1,8 @@
+//! SNS business logic.
+//!
+//! This service persists topics, subscriptions, and published messages while
+//! staying agnostic of the AWS Query HTTP envelope.
+
 use anyhow::{bail, Result};
 use chrono::Utc;
 use rusqlite::OptionalExtension;
@@ -9,6 +14,7 @@ use super::models::{SnsMessage, SnsSubscription, SnsTopic};
 const ACCOUNT_ID: &str = "000000000000";
 const REGION:     &str = "us-east-1";
 
+/// Encapsulates SNS topic, subscription, and publish operations.
 pub struct SnsService {
     db: Database,
 }

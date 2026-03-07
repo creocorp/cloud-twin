@@ -1,3 +1,5 @@
+//! Azure Service Bus runtime models.
+
 #[derive(Debug, Clone)]
 pub struct AsbQueue {
     pub name:       String,

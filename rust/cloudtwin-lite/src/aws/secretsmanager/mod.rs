@@ -1,3 +1,5 @@
+//! Secrets Manager feature module.
+
 mod handlers;
 mod models;
 mod service;

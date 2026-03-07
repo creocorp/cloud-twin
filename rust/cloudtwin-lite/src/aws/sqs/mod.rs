@@ -1,3 +1,5 @@
+//! SQS feature module.
+
 mod handlers;
 mod models;
 mod service;
