@@ -36,12 +36,12 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: creogroup/cloudtwin-lite
-          # Strip "lite-" prefix so tags become 0.2.2 / 0.2 / latest
+          images: creogroup/cloudtwin
+          # Keep "lite-" prefix: tags become lite-0.2.2 / lite-0.2 / lite-latest
           tags: |
-            type=match,pattern=lite-(.*),group=1
-            type=match,pattern=lite-(\d+\.\d+),group=1
-            type=raw,value=latest
+            type=match,pattern=(lite-.*),group=1
+            type=match,pattern=(lite-\d+\.\d+),group=1
+            type=raw,value=lite-latest
 
       - name: Build and push
         uses: docker/build-push-action@v6
