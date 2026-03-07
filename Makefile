@@ -85,6 +85,42 @@ docker-run:  ## Run the Docker container (ephemeral)
 docker-push:  ## Push image to Docker Hub (DOCKER_IMAGE=user/cloudtwin DOCKER_TAG=x)
 	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)
 
+# ── Rust / cloudtwin-lite ──────────────────────────────────────────────────────
+
+RUST_DIR = rust/cloudtwin-lite
+
+.PHONY: rust-build
+rust-build:  ## Build cloudtwin-lite (release)
+	cd $(RUST_DIR) && cargo build --release
+
+.PHONY: rust-build-debug
+rust-build-debug:  ## Build cloudtwin-lite (debug)
+	cd $(RUST_DIR) && cargo build
+
+.PHONY: rust-run
+rust-run:  ## Run cloudtwin-lite with in-memory storage
+	cd $(RUST_DIR) && CLOUDTWIN_DB_PATH=:memory: cargo run
+
+.PHONY: rust-test
+rust-test:  ## Run cloudtwin-lite unit/integration tests
+	cd $(RUST_DIR) && cargo test
+
+.PHONY: rust-check
+rust-check:  ## Check cloudtwin-lite compiles without producing binaries
+	cd $(RUST_DIR) && cargo check
+
+.PHONY: rust-clippy
+rust-clippy:  ## Run clippy linter on cloudtwin-lite
+	cd $(RUST_DIR) && cargo clippy -- -D warnings
+
+.PHONY: rust-clean
+rust-clean:  ## Remove cloudtwin-lite build artifacts
+	cd $(RUST_DIR) && cargo clean
+
+.PHONY: docker-build-lite
+docker-build-lite:  ## Build the cloudtwin-lite Docker image
+	docker build -t cloudtwin-lite:dev -f docker/Dockerfile.lite .
+
 # ── Cleanup ────────────────────────────────────────────────────────────────────
 
 .PHONY: clean

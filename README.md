@@ -120,14 +120,32 @@ dashboard:
 
 ## Dashboard
 
-An optional web dashboard is available at `http://localhost:8793`. It shows
-live resource status and event logs across all services.
-
-Enable it via config or environment variable:
+An optional web dashboard is available at `http://localhost:8793`. Enable it
+via environment variable or config:
 
 ```bash
 CLOUDTWIN_DASHBOARD_ENABLED=true python -m cloudtwin
 ```
+
+Or in `cloudtwin.yml`:
+
+```yaml
+dashboard:
+  enabled: true
+  port: 8793
+```
+
+The dashboard provides:
+
+- **Overview** — live service health and recent event counts
+- **Per-service pages** — browse and inspect resources for each service
+  (SES identities and messages, S3 buckets and objects, SNS topics, SQS queues,
+   Azure Blob containers, Azure Service Bus queues/topics, GCP Cloud Storage
+   buckets, GCP Pub/Sub topics and subscriptions)
+- **Event log** — filterable stream of all actions emitted by the telemetry engine
+
+The dashboard auto-polls the `/api/dashboard/*` endpoints and requires no
+additional setup beyond enabling it in config.
 
 ---
 
@@ -145,14 +163,21 @@ python -m pytest tests/integration/ -q
 
 ## CloudTwin Lite (Rust)
 
-A Rust rewrite of CloudTwin is in active development under [`rust/cloudtwin-lite/`](rust/cloudtwin-lite/).
-The goal is a single statically-linked binary with no Python runtime dependency,
-suitable for embedding in CI pipelines or resource-constrained environments.
+A single statically-linked binary with no Python runtime dependency, suitable
+for embedding in CI pipelines or resource-constrained environments.
+Source is under [`rust/cloudtwin-lite/`](rust/cloudtwin-lite/).
 
-> **Status:** Early — not at feature parity with the Python version.
-> Currently only S3 is implemented.
+**Implemented services:** S3, SES (v1 + v2), SNS, SQS, DynamoDB, Secrets Manager,
+Azure Blob Storage, Azure Service Bus, GCP Cloud Storage, GCP Pub/Sub.
 
-**Build and run:**
+**Run with Docker:**
+
+```bash
+docker pull creogroup/cloudtwin-lite:latest
+docker run -p 4793:4793 creogroup/cloudtwin-lite
+```
+
+**Build from source:**
 
 ```bash
 cd rust/cloudtwin-lite
@@ -161,14 +186,30 @@ cargo build --release
 # Listening on http://0.0.0.0:4793
 ```
 
+Or via Make from the repo root:
+
+```bash
+make rust-build        # release build
+make rust-run          # build + run
+make rust-check        # cargo check only
+```
+
 **Configuration (environment variables):**
 
 | Variable | Default | Description |
 |---|---|---|
 | `CLOUDTWIN_PORT` | `4793` | Port to listen on |
-| `CLOUDTWIN_DB_PATH` | `/data/cloudtwin-lite.db` | SQLite database path (use `:memory:` for in-memory) |
+| `CLOUDTWIN_DB_PATH` | `/data/cloudtwin-lite.db` | SQLite database path (`:memory:` for in-memory) |
 
-See [docs/developer-guide.md#cloudtwin-lite-rust](docs/developer-guide.md#cloudtwin-lite-rust) for architecture and contribution notes.
+**Routing:**
+
+| Provider | Base path |
+|---|---|
+| AWS (S3, SES, SNS, SQS, DynamoDB, Secrets Manager) | `/` |
+| Azure (Blob Storage, Service Bus) | `/azure/` |
+| GCP (Cloud Storage, Pub/Sub) | `/gcp/` |
+
+See [docs/developer-guide.md](docs/developer-guide.md) for architecture and contribution notes.
 
 ---
 

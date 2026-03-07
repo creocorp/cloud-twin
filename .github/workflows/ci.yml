@@ -32,3 +32,31 @@ jobs:
 
       - name: Run tests
         run: pytest tests/ -v
+
+  rust-check:
+    name: Rust check (cloudtwin-lite)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry / build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/cloudtwin-lite/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/cloudtwin-lite/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: cargo check
+        working-directory: rust/cloudtwin-lite
+        run: cargo check
+
+      - name: cargo test
+        working-directory: rust/cloudtwin-lite
+        run: cargo test

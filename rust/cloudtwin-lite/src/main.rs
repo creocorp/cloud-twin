@@ -1,11 +1,21 @@
+mod aws;
+mod azure;
 mod config;
 mod db;
-mod s3;
+mod gcp;
+mod proto;
 
 use std::sync::Arc;
 
 use anyhow::Result;
-use axum::{routing::get, Json, Router};
+use axum::{
+    body::Bytes,
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::Response,
+    routing::{get, post},
+    Json, Router,
+};
 use serde_json::json;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -15,14 +25,16 @@ use db::Database;
 
 /// Shared application state injected into every handler.
 pub struct AppState {
-    pub db: Database,
+    pub db:  Database,
+    pub cfg: Config,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+            EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| EnvFilter::new("info")),
         )
         .init();
 
@@ -31,14 +43,35 @@ async fn main() -> Result<()> {
     let db = Database::open(&cfg.db_path).await?;
     db.migrate().await?;
 
-    let state = Arc::new(AppState { db });
+    let state = Arc::new(AppState { db, cfg: cfg.clone() });
 
+    // Build the router:
+    // – Sub-routers that already consumed state via with_state() (Router<()>)
+    //   are merged with .merge(); axum converts Router<()> → Router<S> automatically.
+    // – azure:: and gcp:: routers do NOT call with_state() internally, so they
+    //   return Router<Arc<AppState>> and can be used with .nest().
+    // – A single .with_state(state) at the end satisfies all remaining extractors.
     let app = Router::new()
         .route("/_health", get(health))
-        .merge(s3::router(state));
+        // AWS single-endpoint dispatcher  (SES v1/SNS query-protocol;
+        //                                  SQS/DynamoDB/SecretsManager JSON-protocol)
+        .route("/", post(aws_post))
+        // SES v2 REST   (/v2/email/...)
+        .merge(aws::ses::router_v2())
+        // S3 REST        (/:bucket  and  /:bucket/*key)
+        .merge(aws::s3::router())
+        // Azure services (/azure/...)
+        .nest("/azure", azure::router())
+        // GCP services   (/gcp/...)
+        .nest("/gcp", gcp::router())
+        // Provide shared state to every handler that uses it via State<Arc<AppState>>
+        .with_state(state);
 
     let addr = format!("0.0.0.0:{}", cfg.port);
-    info!("CloudTwin Lite listening on http://{}", addr);
+    info!("CloudTwin Lite listening on http://{addr}");
+    info!("  AWS   → http://{addr}/          (S3, SES, SNS, SQS, DynamoDB, SecretsManager)");
+    info!("  Azure → http://{addr}/azure/    (Blob Storage, Service Bus)");
+    info!("  GCP   → http://{addr}/gcp/      (Cloud Storage, Pub/Sub)");
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;
@@ -47,5 +80,56 @@ async fn main() -> Result<()> {
 }
 
 async fn health() -> Json<serde_json::Value> {
-    Json(json!({ "status": "ok", "service": "cloudtwin-lite" }))
+    Json(json!({
+        "status":  "ok",
+        "service": "cloudtwin-lite",
+        "version": env!("CARGO_PKG_VERSION"),
+    }))
+}
+
+/// `POST /` — routes all AWS protocol requests to the correct service handler.
+///
+/// * `Content-Type: application/x-amz-json-1.0` + `X-Amz-Target` header
+///   → JSON protocol (SQS, DynamoDB, SecretsManager)
+/// * anything else (form-urlencoded) → Query protocol (SES v1, SNS)
+async fn aws_post(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    match proto::AwsPayload::parse(&headers, &body) {
+        proto::AwsPayload::Json { target, body } => {
+            if target.starts_with("AmazonSQS.") {
+                aws::sqs::handle_json(&state, &target, body).await
+            } else if target.starts_with("DynamoDB_") {
+                aws::dynamodb::handle_json(&state, &target, body).await
+            } else if target.starts_with("secretsmanager.") {
+                aws::secretsmanager::handle_json(&state, &target, body).await
+            } else {
+                proto::json_error_response(
+                    StatusCode::BAD_REQUEST,
+                    "InvalidAction",
+                    &format!("Unknown X-Amz-Target: {target}"),
+                )
+            }
+        }
+        proto::AwsPayload::Query(params) => {
+            let action = params
+                .get("Action")
+                .map(|s| s.as_str())
+                .unwrap_or("")
+                .to_string();
+            if aws::ses::QUERY_ACTIONS.contains(&action.as_str()) {
+                aws::ses::handle_query(&state, &action, &params).await
+            } else if aws::sns::QUERY_ACTIONS.contains(&action.as_str()) {
+                aws::sns::handle_query(&state, &action, &params).await
+            } else {
+                proto::xml_error_response(
+                    StatusCode::BAD_REQUEST,
+                    "InvalidAction",
+                    &format!("Unknown Action: {action}"),
+                )
+            }
+        }
+    }
 }

@@ -32,3 +32,6 @@ htmlcov/
 node_modules/
 .env
 .ruff_cache/
+
+# Rust
+rust/cloudtwin-lite/target/
