@@ -17,7 +17,10 @@ pub enum AwsPayload {
     /// Form-urlencoded body (SES v1, SNS).
     Query(HashMap<String, String>),
     /// JSON body with X-Amz-Target header (SQS, DynamoDB, SecretsManager).
-    Json { target: String, body: serde_json::Value },
+    Json {
+        target: String,
+        body: serde_json::Value,
+    },
 }
 
 impl AwsPayload {
@@ -55,7 +58,7 @@ pub fn xml_error_response(status: StatusCode, code: &str, message: &str) -> Resp
 <RequestId>cloudtwin-lite</RequestId>\
 </ErrorResponse>",
         code = xml_escape(code),
-        msg  = xml_escape(message),
+        msg = xml_escape(message),
     );
     (status, [(header::CONTENT_TYPE, "text/xml")], body).into_response()
 }
@@ -74,10 +77,10 @@ pub fn json_error_response(status: StatusCode, code: &str, message: &str) -> Res
 pub fn xml_escape(s: &str) -> String {
     // Keep escaping local and obvious instead of pulling in a heavier XML lib.
     s.replace('&', "&amp;")
-     .replace('<', "&lt;")
-     .replace('>', "&gt;")
-     .replace('"', "&quot;")
-     .replace('\'', "&apos;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
 }
 
 /// Wrap inner XML in the standard AWS query-protocol response envelope.

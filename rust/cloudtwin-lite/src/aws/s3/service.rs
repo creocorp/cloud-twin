@@ -8,8 +8,8 @@ use chrono::Utc;
 use hex::encode as hex_encode;
 use md5::{Digest, Md5};
 
-use crate::db::Database;
 use super::models::{Bucket, Object};
+use crate::db::Database;
 
 /// Implements S3 bucket and object semantics on top of SQLite.
 pub struct S3Service {
@@ -61,7 +61,8 @@ impl S3Service {
 
     pub async fn delete_bucket(&self, name: &str) -> Result<()> {
         let name = name.to_string();
-        let deleted = self.db
+        let deleted = self
+            .db
             .conn
             .call(move |conn| {
                 Ok(conn.execute(

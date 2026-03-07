@@ -37,7 +37,12 @@ impl Database {
     /// development and CI, so we use idempotent `CREATE TABLE IF NOT EXISTS`
     /// statements rather than a versioned migration framework.
     pub async fn migrate(&self) -> Result<()> {
-        self.conn.call(|conn| { conn.execute_batch(DDL)?; Ok(()) }).await?;
+        self.conn
+            .call(|conn| {
+                conn.execute_batch(DDL)?;
+                Ok(())
+            })
+            .await?;
         Ok(())
     }
 }

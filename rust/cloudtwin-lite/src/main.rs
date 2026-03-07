@@ -36,7 +36,7 @@ use db::Database;
 /// resolve from DI. In Python terms it is similar to an app context object that
 /// handlers receive explicitly.
 pub struct AppState {
-    pub db:  Database,
+    pub db: Database,
     pub cfg: Config,
 }
 
@@ -45,8 +45,7 @@ async fn main() -> Result<()> {
     // Configure structured logging first so startup failures are visible.
     tracing_subscriber::fmt()
         .with_env_filter(
-            EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("info")),
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
         )
         .init();
 
@@ -59,7 +58,10 @@ async fn main() -> Result<()> {
     let db = Database::open(&cfg.db_path).await?;
     db.migrate().await?;
 
-    let state = Arc::new(AppState { db, cfg: cfg.clone() });
+    let state = Arc::new(AppState {
+        db,
+        cfg: cfg.clone(),
+    });
 
     // Build the router:
     // – Sub-routers that already consumed state via with_state() (Router<()>)
@@ -109,11 +111,7 @@ async fn health() -> Json<serde_json::Value> {
 /// * `Content-Type: application/x-amz-json-1.0` + `X-Amz-Target` header
 ///   → JSON protocol (SQS, DynamoDB, SecretsManager)
 /// * anything else (form-urlencoded) → Query protocol (SES v1, SNS)
-async fn aws_post(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Response {
+async fn aws_post(State(state): State<Arc<AppState>>, headers: HeaderMap, body: Bytes) -> Response {
     // AWS is the only provider here that multiplexes many services through one
     // HTTP endpoint. `proto::AwsPayload` is the thin decoder that tells us
     // whether this request is AWS Query or AWS JSON protocol.

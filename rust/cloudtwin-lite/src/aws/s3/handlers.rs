@@ -15,8 +15,8 @@ use axum::{
     Router,
 };
 
-use crate::AppState;
 use super::service::S3Service;
+use crate::AppState;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Router
@@ -24,15 +24,21 @@ use super::service::S3Service;
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/",                 get(list_buckets))
-        .route("/:bucket",          put(create_bucket)
-                                        .delete(delete_bucket)
-                                        .get(list_objects)
-                                        .head(bucket_head))
-        .route("/:bucket/*key",     put(put_object)
-                                        .get(get_object)
-                                        .head(head_object)
-                                        .delete(delete_object))
+        .route("/", get(list_buckets))
+        .route(
+            "/:bucket",
+            put(create_bucket)
+                .delete(delete_bucket)
+                .get(list_objects)
+                .head(bucket_head),
+        )
+        .route(
+            "/:bucket/*key",
+            put(put_object)
+                .get(get_object)
+                .head(head_object)
+                .delete(delete_object),
+        )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -40,12 +46,7 @@ pub fn router() -> Router<Arc<AppState>> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn xml_response(status: StatusCode, body: String) -> Response {
-    (
-        status,
-        [(header::CONTENT_TYPE, "application/xml")],
-        body,
-    )
-        .into_response()
+    (status, [(header::CONTENT_TYPE, "application/xml")], body).into_response()
 }
 
 fn xml_ok(body: String) -> Response {
@@ -118,10 +119,7 @@ async fn list_buckets(State(state): State<Arc<AppState>>) -> Response {
     }
 }
 
-async fn create_bucket(
-    State(state): State<Arc<AppState>>,
-    Path(bucket): Path<String>,
-) -> Response {
+async fn create_bucket(State(state): State<Arc<AppState>>, Path(bucket): Path<String>) -> Response {
     match svc(&state).create_bucket(&bucket).await {
         Ok(_) => (StatusCode::OK, [("Location", format!("/{bucket}"))]).into_response(),
         Err(e) => xml_error(
@@ -133,10 +131,7 @@ async fn create_bucket(
     }
 }
 
-async fn delete_bucket(
-    State(state): State<Arc<AppState>>,
-    Path(bucket): Path<String>,
-) -> Response {
+async fn delete_bucket(State(state): State<Arc<AppState>>, Path(bucket): Path<String>) -> Response {
     match svc(&state).delete_bucket(&bucket).await {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(e) if e.to_string().contains("NoSuchBucket") => xml_error(
@@ -155,14 +150,11 @@ async fn delete_bucket(
 }
 
 /// HEAD /:bucket — used by some SDKs to check bucket existence.
-async fn bucket_head(
-    State(state): State<Arc<AppState>>,
-    Path(bucket): Path<String>,
-) -> StatusCode {
+async fn bucket_head(State(state): State<Arc<AppState>>, Path(bucket): Path<String>) -> StatusCode {
     match svc(&state).bucket_exists(&bucket).await {
-        Ok(true)  => StatusCode::OK,
+        Ok(true) => StatusCode::OK,
         Ok(false) => StatusCode::NOT_FOUND,
-        Err(_)    => StatusCode::INTERNAL_SERVER_ERROR,
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 
@@ -175,13 +167,16 @@ async fn list_objects(
     Path(bucket): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Response {
-    let prefix  = params.get("prefix").map(|s| s.as_str()).unwrap_or("");
+    let prefix = params.get("prefix").map(|s| s.as_str()).unwrap_or("");
     let max_keys: i64 = params
         .get("max-keys")
         .and_then(|s| s.parse().ok())
         .unwrap_or(1000);
 
-    match svc(&state).list_objects(&bucket, Some(prefix), max_keys).await {
+    match svc(&state)
+        .list_objects(&bucket, Some(prefix), max_keys)
+        .await
+    {
         Ok(objects) => {
             let key_count = objects.len();
             let contents: String = objects
@@ -246,11 +241,7 @@ async fn put_object(
         .put_object(&bucket, &key, body.to_vec(), &content_type)
         .await
     {
-        Ok(etag) => (
-            StatusCode::OK,
-            [(header::ETAG, etag)],
-        )
-            .into_response(),
+        Ok(etag) => (StatusCode::OK, [(header::ETAG, etag)]).into_response(),
         Err(e) if e.to_string().contains("NoSuchBucket") => xml_error(
             StatusCode::NOT_FOUND,
             "NoSuchBucket",
@@ -274,9 +265,9 @@ async fn get_object(
         Ok(obj) => (
             StatusCode::OK,
             [
-                (header::CONTENT_TYPE.as_str(),   obj.content_type.as_str()),
-                (header::ETAG.as_str(),            obj.etag.as_str()),
-                ("x-amz-request-id",               "cloudtwin-lite"),
+                (header::CONTENT_TYPE.as_str(), obj.content_type.as_str()),
+                (header::ETAG.as_str(), obj.etag.as_str()),
+                ("x-amz-request-id", "cloudtwin-lite"),
             ],
             obj.content,
         )
@@ -311,10 +302,18 @@ async fn head_object(
             let mut headers = HeaderMap::new();
             headers.insert(
                 header::CONTENT_TYPE,
-                obj.content_type.parse().unwrap_or_else(|_| "application/octet-stream".parse().unwrap()),
+                obj.content_type
+                    .parse()
+                    .unwrap_or_else(|_| "application/octet-stream".parse().unwrap()),
             );
-            headers.insert(header::CONTENT_LENGTH, obj.size.to_string().parse().unwrap());
-            headers.insert(header::ETAG, obj.etag.parse().unwrap_or_else(|_| "".parse().unwrap()));
+            headers.insert(
+                header::CONTENT_LENGTH,
+                obj.size.to_string().parse().unwrap(),
+            );
+            headers.insert(
+                header::ETAG,
+                obj.etag.parse().unwrap_or_else(|_| "".parse().unwrap()),
+            );
             (StatusCode::OK, headers).into_response()
         }
         Err(e) if e.to_string().contains("NoSuchKey") => StatusCode::NOT_FOUND.into_response(),
@@ -328,7 +327,7 @@ async fn delete_object(
     Path((bucket, key)): Path<(String, String)>,
 ) -> StatusCode {
     match svc(&state).delete_object(&bucket, &key).await {
-        Ok(_)  => StatusCode::NO_CONTENT,
+        Ok(_) => StatusCode::NO_CONTENT,
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }

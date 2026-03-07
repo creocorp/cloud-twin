@@ -4,9 +4,9 @@ mod handlers;
 mod models;
 mod service;
 
-use std::sync::Arc;
-use axum::Router;
 use crate::AppState;
+use axum::Router;
+use std::sync::Arc;
 
 /// Build the router mounted under `/azure` for Blob Storage endpoints.
 pub fn router() -> Router<Arc<AppState>> {

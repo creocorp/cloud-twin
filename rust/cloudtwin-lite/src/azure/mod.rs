@@ -6,9 +6,9 @@
 pub mod blob;
 pub mod servicebus;
 
-use std::sync::Arc;
-use axum::Router;
 use crate::AppState;
+use axum::Router;
+use std::sync::Arc;
 
 /// Returns a router containing all Azure services, to be mounted at `/azure`.
 pub fn router() -> Router<Arc<AppState>> {

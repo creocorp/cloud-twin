@@ -28,6 +28,7 @@ from urllib.parse import unquote
 
 try:
     import google_crc32c as _google_crc32c
+
     _HAS_CRC32C = True
 except ImportError:  # not installed outside dev environment
     _HAS_CRC32C = False

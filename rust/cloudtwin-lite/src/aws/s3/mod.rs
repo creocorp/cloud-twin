@@ -4,9 +4,9 @@ mod handlers;
 mod models;
 mod service;
 
-use std::sync::Arc;
-use axum::Router;
 use crate::AppState;
+use axum::Router;
+use std::sync::Arc;
 
 /// Build the REST router for S3-style bucket and object routes.
 pub fn router() -> Router<Arc<AppState>> {

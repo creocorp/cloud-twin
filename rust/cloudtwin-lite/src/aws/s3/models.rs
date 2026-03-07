@@ -1,6 +1,7 @@
 //! S3 bucket and object structs.
 //!
 //! These structs represent the runtime's persisted view of S3 state.
+#![allow(dead_code)]
 
 /// S3-compatible data models.
 
