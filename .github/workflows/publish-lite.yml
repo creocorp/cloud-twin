@@ -3,7 +3,7 @@ name: Publish CloudTwin Lite
 on:
   push:
     tags:
-      - "lite-v*.*.*"    # triggers on: lite-v1.0.0, lite-v0.2.1, etc.
+      - "lite-*.*.*"    # triggers on: lite-v1.0.0, lite-v0.2.1, etc.
   workflow_dispatch:     # manual trigger from the Actions tab
 
 env:
