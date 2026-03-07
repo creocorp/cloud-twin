@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.aws.dynamodb.inmemory import (
-    InMemoryDynamoItemRepository,
-    InMemoryDynamoTableRepository,
-)
 from cloudtwin.persistence.repositories.aws.dynamodb.repository import (
     DynamoItemRepository,
     DynamoTableRepository,
@@ -20,6 +16,4 @@ __all__ = [
     "DynamoItemRepository",
     "SqliteDynamoTableRepository",
     "SqliteDynamoItemRepository",
-    "InMemoryDynamoTableRepository",
-    "InMemoryDynamoItemRepository",
 ]

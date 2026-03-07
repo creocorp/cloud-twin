@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.aws.secretsmanager.inmemory import (
-    InMemorySecretRepository,
-    InMemorySecretVersionRepository,
-)
 from cloudtwin.persistence.repositories.aws.secretsmanager.repository import (
     SecretRepository,
     SecretVersionRepository,
@@ -20,6 +16,4 @@ __all__ = [
     "SecretVersionRepository",
     "SqliteSecretRepository",
     "SqliteSecretVersionRepository",
-    "InMemorySecretRepository",
-    "InMemorySecretVersionRepository",
 ]

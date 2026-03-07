@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.gcp.secretmanager.inmemory import (
-    InMemoryGcpSecretRepository,
-    InMemoryGcpSecretVersionRepository,
-)
 from cloudtwin.persistence.repositories.gcp.secretmanager.repository import (
     GcpSecretRepository,
     GcpSecretVersionRepository,
@@ -20,6 +16,4 @@ __all__ = [
     "GcpSecretVersionRepository",
     "SqliteGcpSecretRepository",
     "SqliteGcpSecretVersionRepository",
-    "InMemoryGcpSecretRepository",
-    "InMemoryGcpSecretVersionRepository",
 ]

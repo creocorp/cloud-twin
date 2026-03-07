@@ -2,12 +2,6 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.azure.servicebus.inmemory import (
-    InMemoryAsbMessageRepository,
-    InMemoryAsbQueueRepository,
-    InMemoryAsbSubscriptionRepository,
-    InMemoryAsbTopicRepository,
-)
 from cloudtwin.persistence.repositories.azure.servicebus.repository import (
     AsbMessageRepository,
     AsbQueueRepository,
@@ -26,10 +20,6 @@ __all__ = [
     "AsbTopicRepository",
     "AsbSubscriptionRepository",
     "AsbMessageRepository",
-    "InMemoryAsbQueueRepository",
-    "InMemoryAsbTopicRepository",
-    "InMemoryAsbSubscriptionRepository",
-    "InMemoryAsbMessageRepository",
     "SqliteAsbQueueRepository",
     "SqliteAsbTopicRepository",
     "SqliteAsbSubscriptionRepository",

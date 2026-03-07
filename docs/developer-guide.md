@@ -33,9 +33,9 @@ per cloud (`AwsProvider`, `AzureProvider`, `GcpProvider`). Each provider
 discovers its services and calls their `register()` function, which mounts
 HTTP routes and wires up dependencies.
 
-All persistence is handled through _repository_ abstractions backed by either
-SQLite (`aiosqlite`) or plain Python dicts. Services depend only on repository
-interfaces and never look at which backend is active.
+All persistence is handled through _repository_ abstractions backed by SQLite
+(`aiosqlite`). Services depend only on repository interfaces and never look at
+which connection is active.
 
 ```
 Request → FastAPI Router → Handler (protocol adapter)
@@ -43,8 +43,9 @@ Request → FastAPI Router → Handler (protocol adapter)
                           Service (business logic)
                               ↓
                           Repository (abstract)
-                         ↙           ↘
-              SQLiteRepo         InMemoryRepo
+                              ↓
+                       SQLiteRepository
+                      (file or :memory:)
 ```
 
 Telemetry events are fire-and-forget writes to an `events` table for future
@@ -87,18 +88,18 @@ src/cloudtwin/
     repositories/
       __init__.py               # make_repositories() factory + all re-exports
       aws/
-        ses/                    # repository.py · inmemory.py · sqlite.py (DDL) · __init__.py
-        s3/                     # repository.py · inmemory.py · sqlite.py (DDL) · __init__.py
-        sns/                    # repository.py · inmemory.py · sqlite.py (DDL) · __init__.py
-        sqs/                    # repository.py · inmemory.py · sqlite.py (DDL) · __init__.py
+        ses/                    # repository.py · sqlite.py (DDL) · __init__.py
+        s3/                     # repository.py · sqlite.py (DDL) · __init__.py
+        sns/                    # repository.py · sqlite.py (DDL) · __init__.py
+        sqs/                    # repository.py · sqlite.py (DDL) · __init__.py
       azure/
-        blob/                   # repository.py · inmemory.py · sqlite.py (DDL) · __init__.py
-        servicebus/             # repository.py · inmemory.py · sqlite.py (DDL) · __init__.py
+        blob/                   # repository.py · sqlite.py (DDL) · __init__.py
+        servicebus/             # repository.py · sqlite.py (DDL) · __init__.py
       gcp/
-        storage/                # repository.py · inmemory.py · sqlite.py (DDL) · __init__.py
-        pubsub/                 # repository.py · inmemory.py · sqlite.py (DDL) · __init__.py
+        storage/                # repository.py · sqlite.py (DDL) · __init__.py
+        pubsub/                 # repository.py · sqlite.py (DDL) · __init__.py
       common/
-        events/                 # repository.py · inmemory.py · sqlite.py (DDL) · __init__.py
+        events/                 # repository.py · sqlite.py (DDL) · __init__.py
 
   providers/
     aws/
@@ -135,8 +136,11 @@ tests/
 1. **Single runtime, no external services.** No MinIO, no RabbitMQ, no mail
    servers. Everything runs in-process.
 
-2. **SQLite as source of truth.** All services store state in SQLite.
-   An in-memory mode (Python dicts) is also supported for CI and ephemeral testing.
+2. **SQLite as source of truth.** All services store state in SQLite via
+   `aiosqlite`. Both storage modes use the same `Sqlite*` repository
+   implementations: `mode="sqlite"` persists to a file; `mode="memory"` opens
+   an in-memory SQLite connection (`":memory:"`), which is fast, isolated, and
+   requires no file I/O — ideal for CI and ephemeral testing.
 
 3. **Services are pure Python.** `service.py` files contain only domain logic.
    They have no knowledge of HTTP, XML, or JSON. They depend only on repository
@@ -152,8 +156,9 @@ tests/
    no service-specific code.
 
 6. **Repository abstraction.** Services depend on abstract repository base
-   classes. Two concrete implementations exist: `SqliteXxxRepository` and
-   `InMemoryXxxRepository`. Services never check which implementation is active.
+   classes. One concrete implementation exists per entity: `SqliteXxxRepository`.
+   It works transparently with both file-backed and `:memory:` SQLite connections.
+   Services never check which storage mode is active.
 
 ---
 
@@ -208,7 +213,6 @@ Every new entity needs:
 - An abstract class in `persistence/repositories/<provider>/<service>/repository.py`
   (inherits `ABC`)
 - A `sqlite.py` with the SQLite implementation **and** a module-level `DDL` constant
-- An `inmemory.py` with the in-memory implementation
 - An `__init__.py` re-exporting all classes
 - The `DDL` imported and concatenated in `persistence/db.py`
 - An entry in `make_repositories()` in `persistence/repositories/__init__.py`
@@ -506,7 +510,6 @@ Example: adding Kinesis.
 
 2. **Create the repository package** at `src/cloudtwin/persistence/repositories/aws/kinesis/`:
    - `repository.py` — abstract interface(s)
-   - `inmemory.py` — in-memory implementation(s)
    - `sqlite.py` — SQLite implementation(s) **plus a module-level `DDL` string constant**
    - `__init__.py` — re-exports all classes
 

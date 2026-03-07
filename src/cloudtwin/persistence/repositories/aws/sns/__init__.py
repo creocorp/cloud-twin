@@ -2,11 +2,6 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.aws.sns.inmemory import (
-    InMemorySnsMessageRepository,
-    InMemorySnsSubscriptionRepository,
-    InMemorySnsTopicRepository,
-)
 from cloudtwin.persistence.repositories.aws.sns.repository import (
     SnsMessageRepository,
     SnsSubscriptionRepository,
@@ -22,9 +17,6 @@ __all__ = [
     "SnsTopicRepository",
     "SnsSubscriptionRepository",
     "SnsMessageRepository",
-    "InMemorySnsTopicRepository",
-    "InMemorySnsSubscriptionRepository",
-    "InMemorySnsMessageRepository",
     "SqliteSnsTopicRepository",
     "SqliteSnsSubscriptionRepository",
     "SqliteSnsMessageRepository",

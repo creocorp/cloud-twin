@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.azure.queue.inmemory import (
-    InMemoryAzureQueueMessageRepository,
-    InMemoryAzureStorageQueueRepository,
-)
 from cloudtwin.persistence.repositories.azure.queue.repository import (
     AzureQueueMessageRepository,
     AzureStorageQueueRepository,
@@ -20,6 +16,4 @@ __all__ = [
     "AzureQueueMessageRepository",
     "SqliteAzureStorageQueueRepository",
     "SqliteAzureQueueMessageRepository",
-    "InMemoryAzureStorageQueueRepository",
-    "InMemoryAzureQueueMessageRepository",
 ]

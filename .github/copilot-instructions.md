@@ -59,53 +59,44 @@ src/cloudtwin/
         __init__.py             # Re-exports all AWS repo classes
         ses/
           repository.py         # Abstract: SesIdentityRepository, SesMessageRepository
-          inmemory.py           # InMemory implementations
           sqlite.py             # SQLite implementations + DDL constant
           __init__.py
         s3/
           repository.py         # Abstract: S3BucketRepository, S3ObjectRepository
-          inmemory.py
           sqlite.py             # + DDL
           __init__.py
         sns/
           repository.py         # Abstract: SnsTopicRepository, SnsSubscriptionRepository, SnsMessageRepository
-          inmemory.py
           sqlite.py             # + DDL
           __init__.py
         sqs/
           repository.py         # Abstract: SqsQueueRepository, SqsMessageRepository
-          inmemory.py
           sqlite.py             # + DDL
           __init__.py
       azure/
         __init__.py
         blob/
           repository.py         # Abstract: AzureContainerRepository, AzureBlobRepository
-          inmemory.py
           sqlite.py             # + DDL
           __init__.py
         servicebus/
           repository.py         # Abstract: AsbQueueRepository, AsbTopicRepository, AsbSubscriptionRepository, AsbMessageRepository
-          inmemory.py
           sqlite.py             # + DDL
           __init__.py
       gcp/
         __init__.py
         storage/
           repository.py         # Abstract: GcsBucketRepository, GcsObjectRepository
-          inmemory.py
           sqlite.py             # + DDL
           __init__.py
         pubsub/
           repository.py         # Abstract: PubsubTopicRepository, PubsubSubscriptionRepository, PubsubMessageRepository, PubsubAckableRepository
-          inmemory.py
           sqlite.py             # + DDL
           __init__.py
       common/
         __init__.py
         events/
           repository.py         # Abstract: EventRepository
-          inmemory.py
           sqlite.py             # + DDL
           __init__.py
 
@@ -184,8 +175,10 @@ tests/
 1. **Single runtime, no external services.** No MinIO, no RabbitMQ, no mail
    servers. Everything runs in-process.
 
-2. **SQLite as source of truth.** All services store state in SQLite. An
-   in-memory mode (Python dicts) is also supported for CI and ephemeral testing.
+2. **SQLite as source of truth.** All services store state in SQLite via
+   `aiosqlite`. Both storage modes use the same `Sqlite*` repository
+   implementations: `mode="sqlite"` persists to a file; `mode="memory"` opens
+   a SQLite `:memory:` connection — fast, isolated, no file I/O, ideal for CI.
 
 3. **Services are pure Python.** `service.py` files contain only domain logic.
    They have no knowledge of HTTP, XML, or JSON. They depend only on repository
@@ -201,9 +194,10 @@ tests/
    no service-specific code.
 
 6. **Repository abstraction.** Services depend on abstract repository base
-   classes (e.g. `SesIdentityRepository`). Two concrete implementations exist:
-   `SqliteXxxRepository` and `InMemoryXxxRepository`. Services never check which
-   implementation is active.
+   classes (e.g. `SesIdentityRepository`). One concrete implementation exists
+   per entity: `SqliteXxxRepository`. It works transparently with both
+   file-backed and `:memory:` SQLite connections. Services never check which
+   storage mode is active.
 
 ---
 
@@ -217,7 +211,6 @@ tests/
    - `handlers.py` — HTTP layer, registers actions into the appropriate shared router
 2. Create `src/cloudtwin/persistence/repositories/aws/kinesis/` with:
    - `repository.py` — abstract interface(s)
-   - `inmemory.py` — in-memory implementation(s)
    - `sqlite.py` — SQLite implementation(s) **plus a module-level `DDL` string constant**
    - `__init__.py` — re-exports all classes
 3. Import the new `DDL` in `persistence/db.py` and add it to the `DDL` concatenation
@@ -274,7 +267,6 @@ Every new entity needs:
 - A dataclass in `persistence/models/<provider>/<service>.py`
 - An abstract class in `persistence/repositories/<provider>/<service>/repository.py` (inherits `ABC`)
 - A `sqlite.py` with the SQLite implementation **and** a `DDL` module-level string constant
-- An `inmemory.py` with the in-memory implementation
 - An `__init__.py` re-exporting all classes
 - The `DDL` imported and concatenated in `persistence/db.py`
 - An entry in the `make_repositories()` factory in `persistence/repositories/__init__.py`
@@ -336,10 +328,10 @@ Never read environment variables directly inside service or handler code.
 ### Storage Modes
 
 - `CLOUDTWIN_STORAGE_MODE=sqlite` (default) — persists to `/data/cloudtwin.db`
-- `CLOUDTWIN_STORAGE_MODE=memory` — pure in-memory, no file I/O, used in tests
+- `CLOUDTWIN_STORAGE_MODE=memory` — SQLite `:memory:` connection, no file I/O, used in tests
 
-Services and handlers never check the storage mode — the `make_repositories()`
-factory returns the correct implementation transparently.
+Both modes use the same `Sqlite*` repository classes. The `Database` class
+handles the connection details; repositories are unaware of which mode is active.
 
 ### Telemetry
 

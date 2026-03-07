@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.azure.eventgrid.inmemory import (
-    InMemoryEventGridEventRepository,
-    InMemoryEventGridTopicRepository,
-)
 from cloudtwin.persistence.repositories.azure.eventgrid.repository import (
     EventGridEventRepository,
     EventGridTopicRepository,
@@ -20,6 +16,4 @@ __all__ = [
     "EventGridEventRepository",
     "SqliteEventGridTopicRepository",
     "SqliteEventGridEventRepository",
-    "InMemoryEventGridTopicRepository",
-    "InMemoryEventGridEventRepository",
 ]

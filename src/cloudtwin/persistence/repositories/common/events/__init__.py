@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.common.events.inmemory import (
-    InMemoryEventRepository,
-)
 from cloudtwin.persistence.repositories.common.events.repository import EventRepository
 from cloudtwin.persistence.repositories.common.events.sqlite import (
     SqliteEventRepository,
@@ -12,6 +9,5 @@ from cloudtwin.persistence.repositories.common.events.sqlite import (
 
 __all__ = [
     "EventRepository",
-    "InMemoryEventRepository",
     "SqliteEventRepository",
 ]

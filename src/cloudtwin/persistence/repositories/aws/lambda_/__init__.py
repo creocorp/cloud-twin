@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.aws.lambda_.inmemory import (
-    InMemoryLambdaFunctionRepository,
-    InMemoryLambdaInvocationRepository,
-)
 from cloudtwin.persistence.repositories.aws.lambda_.repository import (
     LambdaFunctionRepository,
     LambdaInvocationRepository,
@@ -20,6 +16,4 @@ __all__ = [
     "LambdaInvocationRepository",
     "SqliteLambdaFunctionRepository",
     "SqliteLambdaInvocationRepository",
-    "InMemoryLambdaFunctionRepository",
-    "InMemoryLambdaInvocationRepository",
 ]

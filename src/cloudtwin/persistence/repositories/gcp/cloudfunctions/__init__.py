@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.gcp.cloudfunctions.inmemory import (
-    InMemoryCloudFunctionInvocationRepository,
-    InMemoryCloudFunctionRepository,
-)
 from cloudtwin.persistence.repositories.gcp.cloudfunctions.repository import (
     CloudFunctionInvocationRepository,
     CloudFunctionRepository,
@@ -20,6 +16,4 @@ __all__ = [
     "CloudFunctionInvocationRepository",
     "SqliteCloudFunctionRepository",
     "SqliteCloudFunctionInvocationRepository",
-    "InMemoryCloudFunctionRepository",
-    "InMemoryCloudFunctionInvocationRepository",
 ]

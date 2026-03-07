@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.gcp.firestore.inmemory import (
-    InMemoryFirestoreDocumentRepository,
-)
 from cloudtwin.persistence.repositories.gcp.firestore.repository import (
     FirestoreDocumentRepository,
 )
@@ -15,5 +12,4 @@ from cloudtwin.persistence.repositories.gcp.firestore.sqlite import (
 __all__ = [
     "FirestoreDocumentRepository",
     "SqliteFirestoreDocumentRepository",
-    "InMemoryFirestoreDocumentRepository",
 ]

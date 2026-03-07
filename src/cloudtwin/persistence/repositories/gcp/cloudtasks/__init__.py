@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.gcp.cloudtasks.inmemory import (
-    InMemoryCloudTaskRepository,
-    InMemoryCloudTasksQueueRepository,
-)
 from cloudtwin.persistence.repositories.gcp.cloudtasks.repository import (
     CloudTaskRepository,
     CloudTasksQueueRepository,
@@ -20,6 +16,4 @@ __all__ = [
     "CloudTaskRepository",
     "SqliteCloudTasksQueueRepository",
     "SqliteCloudTaskRepository",
-    "InMemoryCloudTasksQueueRepository",
-    "InMemoryCloudTaskRepository",
 ]

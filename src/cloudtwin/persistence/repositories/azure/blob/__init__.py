@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from cloudtwin.persistence.repositories.azure.blob.inmemory import (
-    InMemoryAzureBlobRepository,
-    InMemoryAzureContainerRepository,
-)
 from cloudtwin.persistence.repositories.azure.blob.repository import (
     AzureBlobRepository,
     AzureContainerRepository,
@@ -18,8 +14,6 @@ from cloudtwin.persistence.repositories.azure.blob.sqlite import (
 __all__ = [
     "AzureContainerRepository",
     "AzureBlobRepository",
-    "InMemoryAzureContainerRepository",
-    "InMemoryAzureBlobRepository",
     "SqliteAzureContainerRepository",
     "SqliteAzureBlobRepository",
 ]
