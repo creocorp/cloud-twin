@@ -96,6 +96,8 @@ def server_url():
                     "lambda",
                     "dynamodb",
                     "secretsmanager",
+                    # bedrock must come before s3 to avoid route shadowing
+                    "bedrock",
                     "s3",
                 ],
                 ses=SesConfig(strict_verification=False, smtp=SmtpConfig()),
@@ -104,6 +106,73 @@ def server_url():
         dashboard=DashboardConfig(enabled=False),
         logging=LoggingConfig(level="warning"),
         api_port=port,
+        bedrock={
+            "defaults": {"mode": "text"},
+            "models": {
+                "test.text": {"mode": "text"},
+                "test.schema": {
+                    "mode": "schema",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "answer": {"type": "string"},
+                            "score": {"type": "number"},
+                            "tags": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                        },
+                    },
+                },
+                "test.static": {
+                    "mode": "static",
+                    "static": {"result": "fixed", "value": 42},
+                },
+                "test.sequence": {
+                    "sequence": {
+                        "mode": "sequence",
+                        "responses": [
+                            {"static": {"answer": "first"}},
+                            {"static": {"answer": "second"}},
+                        ],
+                    }
+                },
+                "test.cycle": {
+                    "sequence": {
+                        "mode": "cycle",
+                        "responses": [
+                            {"static": {"answer": "a"}},
+                            {"static": {"answer": "b"}},
+                        ],
+                    }
+                },
+                "test.rules": {
+                    "rules": [
+                        {
+                            "contains": "sentiment",
+                            "response": {"static": {"sentiment": "positive", "score": 0.9}},
+                        },
+                        {
+                            "contains": "fail",
+                            "error": {"type": "ThrottlingException", "message": "Rule-triggered throttle"},
+                        },
+                    ],
+                    "mode": "text",
+                },
+                "test.inject": {
+                    "mode": "text",
+                    "errors": [{"every": 3, "type": "ThrottlingException", "message": "Every 3rd request fails"}],
+                },
+                "test.stream": {
+                    "mode": "text",
+                    "streaming": {
+                        "enabled": True,
+                        "chunk_mode": "word",
+                        "chunk_delay_ms": 0,
+                    },
+                },
+            },
+        },
     )
     app = create_app(config)
 
@@ -186,3 +255,25 @@ def secretsmanager(server_url):
     import boto3
 
     return boto3.client("secretsmanager", endpoint_url=server_url, **_FAKE_CREDS)
+
+
+@pytest.fixture(scope="session")
+def bedrock_runtime(server_url):
+    import boto3
+
+    # Disable automatic botocore retries so that simulated ThrottlingException
+    # errors injected by the scenario engine are not silently retried away.
+    # ``total_max_attempts=1`` means: 1 attempt, no retries.
+    return boto3.client(
+        "bedrock-runtime",
+        endpoint_url=server_url,
+        config=BotocoreConfig(retries={"total_max_attempts": 1, "mode": "standard"}),
+        **_FAKE_CREDS,
+    )
+
+
+@pytest.fixture(scope="session")
+def bedrock_mgmt(server_url):
+    import boto3
+
+    return boto3.client("bedrock", endpoint_url=server_url, **_FAKE_CREDS)

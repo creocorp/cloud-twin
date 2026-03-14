@@ -497,6 +497,21 @@ The tables below list every operation currently implemented per service.
 | `GET /v2/projects/{project}/locations/{loc}/functions/{name}` | Get function details |
 | `DELETE /v2/projects/{project}/locations/{loc}/functions/{name}` | Delete a function |
 
+### AWS Bedrock (simulation, REST)
+
+Bedrock is a simulation engine — it does not call real models. All responses are
+generated deterministically from configuration.
+
+| Method + Path | SDK operation | Description |
+|---|---|---|
+| `GET /foundation-models` | `bedrock.list_foundation_models()` | List known model stubs |
+| `POST /model/{modelId}/invoke` | `bedrock-runtime.invoke_model()` | Invoke a model (non-streaming) |
+| `POST /model/{modelId}/invoke-with-response-stream` | `bedrock-runtime.invoke_model_with_response_stream()` | Invoke a model with EventStream streaming |
+
+**NOTE:** Bedrock's routes must be registered before S3's wildcard
+`GET /{bucket}` route. In the `services` list, always place `"bedrock"` before
+`"s3"`.
+
 ---
 
 ## Adding a New AWS Service
@@ -580,6 +595,170 @@ Both routers are created by `AwsProvider` and passed to each service's
 
 Access config inside a service or handler via the `Config` dataclass passed to
 `register()`. Never read environment variables directly in service or handler code.
+
+---
+
+## AWS Bedrock Simulation
+
+CloudTwin includes a fully config-driven Bedrock simulation engine for testing
+application-level Bedrock integration logic without calling real models.
+
+### Module layout
+
+```
+src/cloudtwin/providers/aws/bedrock/
+  __init__.py         # register() entry point
+  models.py           # Config dataclasses (BedrockSimConfig, ModelSimConfig, …)
+  state.py            # BedrockState – thread-safe per-model request counters
+  generator.py        # BedrockGenerator – deterministic text/schema/static generation
+  scenario_engine.py  # ScenarioEngine – central response-resolution pipeline
+  streaming.py        # EventStream binary encoding + async chunk generator
+  handlers.py         # REST HTTP handlers (InvokeModel, InvokeModelWithResponseStream, ListFoundationModels)
+```
+
+### Response-resolution order
+
+For every request the engine follows this strict order:
+
+1. Resolve model config (fall back to global defaults for unknown models)
+2. Increment per-model request counter
+3. Check configured injected errors (`every: N`)
+4. Check prompt rules (`contains` — first match wins)
+5. Check sequence / cycle responses
+6. Fallback to configured mode (`text`, `schema`, `static`)
+7. Attach latency config
+8. For streaming endpoint: wrap resolved body in EventStream chunks
+
+### Full YAML reference
+
+```yaml
+bedrock:
+  defaults:
+    mode: text            # "text" | "schema" | "static"
+    latency:
+      min_ms: 0
+      max_ms: 0
+
+  models:
+    my.model:
+      mode: text          # response mode for fallback
+      text:               # text-mode options
+        template: lipsum
+        min_words: 5
+        max_words: 20
+
+      schema:             # schema-mode: generate from JSON Schema
+        type: object
+        properties:
+          answer:
+            type: string
+          score:
+            type: number
+          tags:
+            type: array
+            items:
+              type: string
+
+      static:             # static-mode: return verbatim
+        result: fixed
+        value: 42
+
+      sequence:           # ordered or cycled multi-response
+        mode: sequence    # "sequence" or "cycle"
+        responses:
+          - static:
+              answer: first
+          - static:
+              answer: second
+
+      rules:              # prompt-based matching (contains, first match wins)
+        - contains: "sentiment"
+          response:
+            static:
+              sentiment: positive
+        - contains: "fail"
+          error:
+            type: ThrottlingException
+            message: "Rule-triggered throttle"
+
+      errors:             # periodic error injection
+        - every: 5
+          type: ThrottlingException
+          message: "Every 5th request fails"
+
+      streaming:          # for invoke-with-response-stream
+        enabled: true
+        chunk_mode: word           # "word" | "char" | "fixed_chars"
+        fixed_chunk_size: 10      # used when chunk_mode = "fixed_chars"
+        first_chunk_delay_ms: 0
+        chunk_delay_ms: 0
+        fail_after_chunks: null   # set to N to simulate mid-stream failure
+
+      latency:
+        min_ms: 50
+        max_ms: 150
+```
+
+### Schema types supported
+
+| JSON Schema type | Generated value |
+|---|---|
+| `string` | Two random lorem-ipsum words |
+| `number` | Deterministic float from `[0.42, 0.73, …]` cycled by request count |
+| `integer` | Deterministic integer from `[1, 7, 42, …]` cycled by request count |
+| `boolean` | `true` on odd request counts, `false` on even |
+| `array` | 1–3 items of the configured `items` type |
+| `object` | Recurse into `properties` |
+| `enum` | Deterministically rotates through enum values |
+
+All values are seeded from `(model_id, field_path, request_count)` for stability.
+
+### Testing with boto3
+
+```python
+import boto3, json
+from botocore.config import Config as BotocoreConfig
+
+# Disable auto-retry so simulated ThrottlingException errors are not silently
+# swallowed and retried before reaching the test.
+client = boto3.client(
+    "bedrock-runtime",
+    endpoint_url="http://localhost:4793",
+    aws_access_key_id="test",
+    aws_secret_access_key="test",
+    region_name="us-east-1",
+    config=BotocoreConfig(retries={"total_max_attempts": 1, "mode": "standard"}),
+)
+
+# Non-streaming
+resp = client.invoke_model(
+    modelId="my.model",
+    body=json.dumps({"prompt": "what is the sentiment?"}).encode(),
+    contentType="application/json",
+    accept="application/json",
+)
+result = json.loads(resp["body"].read())
+
+# Streaming
+resp = client.invoke_model_with_response_stream(
+    modelId="my.model",
+    body=json.dumps({"prompt": "explain this"}).encode(),
+    contentType="application/json",
+)
+for event in resp["body"]:
+    chunk = event.get("chunk")
+    if chunk:
+        data = json.loads(chunk["bytes"].decode())
+        print(data.get("delta", {}).get("text", ""), end="", flush=True)
+```
+
+### Caveats
+
+- This is a simulator, not a real model. Response quality is synthetic.
+- Behavior is deterministic by design — same input, same counter, same output.
+- Provider-specific payload shapes (Anthropic, Meta, Amazon Titan, etc.) are
+  not reproduced exactly. Use the generic `content` / `stop_reason` fields.
+- `ListFoundationModels` returns a static catalogue of common model IDs.
 
 ---
 

@@ -1,6 +1,6 @@
 [package]
 name        = "cloudtwin-lite"
-version     = "0.2.0"
+version     = "0.2.3"
 edition     = "2021"
 description = "CloudTwin Lite — lightweight multi-cloud local runtime built in Rust"
 
@@ -31,6 +31,7 @@ bytes            = "1"
 md-5             = "0.10"
 hex              = "0.4"
 base64           = "0.22"
+crc32fast        = "1"
 anyhow           = "1"
 
 # Logging

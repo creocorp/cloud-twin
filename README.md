@@ -23,6 +23,7 @@ for cloud services during development.
 | AWS | Lambda |
 | AWS | DynamoDB |
 | AWS | Secrets Manager |
+| AWS | Bedrock (simulation) |
 | Azure | Blob Storage |
 | Azure | Service Bus |
 | Azure | Queue Storage |
@@ -76,6 +77,96 @@ pip install -e ".[dev]"
 python -m cloudtwin
 # Listening on http://0.0.0.0:4793
 ```
+
+---
+
+## AWS Bedrock Simulation
+
+CloudTwin includes a fully config-driven Bedrock simulation engine. It does
+**not** call real models — it produces deterministic synthetic responses for
+testing SDK integration, retry logic, streaming handling, and prompt routing.
+
+### Supported features
+
+- `text` — synthetic lorem-ipsum text generation
+- `schema` — JSON object generated from a simplified JSON Schema definition
+- `static` — fixed configured payload returned verbatim
+- Sequences and cycles — deterministic multi-response progressions
+- Prompt rules — `contains`-based rule matching for response selection
+- Error injection — fire a configured error every N requests
+- Latency simulation — configurable min/max response delay
+- Streaming — `InvokeModelWithResponseStream` with word, char, or fixed-char chunking
+
+### Endpoints
+
+| Method | Path | SDK operation |
+|---|---|---|
+| `GET` | `/foundation-models` | `bedrock.list_foundation_models()` |
+| `POST` | `/model/{modelId}/invoke` | `bedrock-runtime.invoke_model()` |
+| `POST` | `/model/{modelId}/invoke-with-response-stream` | `bedrock-runtime.invoke_model_with_response_stream()` |
+
+### Quick example
+
+```python
+import boto3, json
+
+client = boto3.client(
+    "bedrock-runtime",
+    endpoint_url="http://localhost:4793",
+    aws_access_key_id="test",
+    aws_secret_access_key="test",
+    region_name="us-east-1",
+)
+
+resp = client.invoke_model(
+    modelId="anthropic.claude-3-sonnet-20240229-v1:0",
+    body=json.dumps({"prompt": "Summarise this document"}).encode(),
+    contentType="application/json",
+    accept="application/json",
+)
+result = json.loads(resp["body"].read())
+print(result["content"])  # synthetic lorem-ipsum text
+```
+
+### YAML configuration
+
+```yaml
+bedrock:
+  defaults:
+    mode: text
+    latency:
+      min_ms: 50
+      max_ms: 120
+
+  models:
+    anthropic.claude-3-sonnet-20240229-v1:0:
+      mode: schema
+      schema:
+        type: object
+        properties:
+          summary:
+            type: string
+          confidence:
+            type: number
+          tags:
+            type: array
+            items:
+              type: string
+      streaming:
+        enabled: true
+        chunk_mode: word
+        first_chunk_delay_ms: 150
+        chunk_delay_ms: 20
+
+    custom.error-model:
+      mode: text
+      errors:
+        - every: 5
+          type: ThrottlingException
+          message: "Every 5th request is throttled"
+```
+
+See [docs/developer-guide.md](docs/developer-guide.md#aws-bedrock-simulation) for the full reference.
 
 ---
 

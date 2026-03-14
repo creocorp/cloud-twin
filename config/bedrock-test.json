@@ -1,0 +1,71 @@
+{
+  "defaults": {
+    "mode": "text"
+  },
+  "models": {
+    "test.text": {
+      "mode": "text",
+      "text": { "min_words": 5, "max_words": 15 }
+    },
+    "test.schema": {
+      "mode": "schema",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "answer": { "type": "string" },
+          "score":  { "type": "number" },
+          "tags":   { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "test.static": {
+      "mode": "static",
+      "static": { "result": "fixed", "value": 42 }
+    },
+    "test.sequence": {
+      "sequence": {
+        "mode": "sequence",
+        "responses": [
+          { "static": { "answer": "first"  } },
+          { "static": { "answer": "second" } }
+        ]
+      }
+    },
+    "test.cycle": {
+      "sequence": {
+        "mode": "cycle",
+        "responses": [
+          { "static": { "answer": "a" } },
+          { "static": { "answer": "b" } }
+        ]
+      }
+    },
+    "test.rules": {
+      "mode": "text",
+      "rules": [
+        {
+          "contains": "sentiment",
+          "response": { "static": { "sentiment": "positive", "score": 0.9 } }
+        },
+        {
+          "contains": "fail",
+          "error": { "type": "ThrottlingException", "message": "Rule-triggered throttle" }
+        }
+      ]
+    },
+    "test.inject": {
+      "mode": "text",
+      "errors": [
+        { "every": 3, "type": "ThrottlingException", "message": "Every 3rd request fails" }
+      ]
+    },
+    "test.stream": {
+      "mode": "text",
+      "streaming": {
+        "enabled": true,
+        "chunk_mode": "word",
+        "chunk_delay_ms": 0
+      }
+    }
+  }
+}

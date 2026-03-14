@@ -9,7 +9,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::{get, post, put},
+    routing::{get, put},
     Json, Router,
 };
 
@@ -21,28 +21,72 @@ fn svc(state: &Arc<AppState>) -> PubsubService {
 }
 
 /// Router is mounted at `/gcp` in main.
+///
+/// GCP uses the `:action` suffix convention (e.g. `/topics/my-topic:publish`).
+/// Axum cannot express two named parameters in a single path segment
+/// (`:topic:publish` is invalid syntax), but path parameter extraction captures
+/// the full segment including colons, so we register a single POST handler per
+/// resource type and dispatch by suffix inside the handler.
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         // Topics
         .route(
             "/v1/:project/topics/:topic",
-            put(create_topic).get(get_topic).delete(delete_topic),
+            put(create_topic).get(get_topic).delete(delete_topic).post(topic_action),
         )
         .route("/v1/:project/topics", get(list_topics))
-        .route("/v1/:project/topics/:topic:publish", post(publish))
         // Subscriptions
         .route(
             "/v1/:project/subscriptions/:sub",
             put(create_subscription)
                 .get(get_subscription)
-                .delete(delete_subscription),
+                .delete(delete_subscription)
+                .post(subscription_action),
         )
         .route("/v1/:project/subscriptions", get(list_subscriptions))
-        .route("/v1/:project/subscriptions/:sub:pull", post(pull))
-        .route(
-            "/v1/:project/subscriptions/:sub:acknowledge",
-            post(acknowledge),
-        )
+}
+
+// ── Action dispatchers ────────────────────────────────────────────────────────
+
+/// Dispatch `POST /v1/:project/topics/:topic_action` based on the `:action`
+/// suffix of the last path segment (e.g. `my-topic:publish`).
+async fn topic_action(
+    State(state): State<Arc<AppState>>,
+    Path((project, topic_action)): Path<(String, String)>,
+    body: axum::body::Bytes,
+) -> Response {
+    if let Some(topic) = topic_action.strip_suffix(":publish") {
+        let json_body: serde_json::Value =
+            serde_json::from_slice(&body).unwrap_or(serde_json::json!({}));
+        return publish_inner(&state, &project, topic, json_body).await;
+    }
+    (
+        StatusCode::BAD_REQUEST,
+        axum::Json(serde_json::json!({ "error": format!("unknown topic action in: {topic_action}") })),
+    )
+        .into_response()
+}
+
+/// Dispatch `POST /v1/:project/subscriptions/:sub_action` based on the `:action`
+/// suffix (`:pull` or `:acknowledge`).
+async fn subscription_action(
+    State(state): State<Arc<AppState>>,
+    Path((project, sub_action)): Path<(String, String)>,
+    body: axum::body::Bytes,
+) -> Response {
+    let json_body: serde_json::Value =
+        serde_json::from_slice(&body).unwrap_or(serde_json::json!({}));
+    if let Some(sub) = sub_action.strip_suffix(":pull") {
+        return pull_inner(&state, &project, sub, json_body).await;
+    }
+    if let Some(sub) = sub_action.strip_suffix(":acknowledge") {
+        return acknowledge_inner(&state, &project, sub, json_body).await;
+    }
+    (
+        StatusCode::BAD_REQUEST,
+        axum::Json(serde_json::json!({ "error": format!("unknown subscription action in: {sub_action}") })),
+    )
+        .into_response()
 }
 
 // ── Topic handlers ────────────────────────────────────────────────────────────
@@ -114,10 +158,11 @@ async fn delete_topic(
 
 // ── Publish ───────────────────────────────────────────────────────────────────
 
-async fn publish(
-    State(state): State<Arc<AppState>>,
-    Path((_project, topic)): Path<(String, String)>,
-    Json(body): Json<serde_json::Value>,
+async fn publish_inner(
+    state: &Arc<AppState>,
+    _project: &str,
+    topic: &str,
+    body: serde_json::Value,
 ) -> Response {
     let msgs: Vec<(String, String)> = body
         .get("messages")
@@ -230,10 +275,11 @@ async fn delete_subscription(
 
 // ── Pull & Acknowledge ────────────────────────────────────────────────────────
 
-async fn pull(
-    State(state): State<Arc<AppState>>,
-    Path((_project, sub)): Path<(String, String)>,
-    Json(body): Json<serde_json::Value>,
+async fn pull_inner(
+    state: &Arc<AppState>,
+    _project: &str,
+    sub: &str,
+    body: serde_json::Value,
 ) -> Response {
     let max = body
         .get("maxMessages")
@@ -270,11 +316,12 @@ async fn pull(
     }
 }
 
-async fn acknowledge(
-    State(state): State<Arc<AppState>>,
-    Path((_project, sub)): Path<(String, String)>,
-    Json(body): Json<serde_json::Value>,
-) -> StatusCode {
+async fn acknowledge_inner(
+    state: &Arc<AppState>,
+    _project: &str,
+    sub: &str,
+    body: serde_json::Value,
+) -> Response {
     let ack_ids: Vec<String> = body
         .get("ackIds")
         .and_then(|v| v.as_array())
@@ -284,8 +331,8 @@ async fn acknowledge(
                 .collect()
         })
         .unwrap_or_default();
-    match svc(&state).acknowledge(&sub, ack_ids).await {
-        Ok(_) => StatusCode::OK,
-        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    match svc(state).acknowledge(&sub, ack_ids).await {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }

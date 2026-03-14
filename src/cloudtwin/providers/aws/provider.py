@@ -41,6 +41,8 @@ _SERVICE_REGISTRY: dict[str, str] = {
     "lambda": "cloudtwin.providers.aws.lambda_",
     "dynamodb": "cloudtwin.providers.aws.dynamodb",
     "secretsmanager": "cloudtwin.providers.aws.secretsmanager",
+    # Bedrock uses REST-style routes; must be registered before S3's wildcard routes.
+    "bedrock": "cloudtwin.providers.aws.bedrock",
 }
 
 
@@ -65,8 +67,9 @@ class AwsProvider:
                 log.warning("Unknown AWS service %r – skipping", service_name)
                 continue
             module = importlib.import_module(module_path)
-            # S3 does not use the shared routers – it mounts its own REST routes
-            if service_name == "s3":
+            # S3 and Bedrock do not use the shared routers – they mount their own REST routes.
+            # Bedrock must be registered before S3 to prevent route shadowing.
+            if service_name in ("s3", "bedrock"):
                 module.register(app, self._config, self._repos, self._telemetry)
             else:
                 module.register(

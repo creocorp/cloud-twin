@@ -38,6 +38,7 @@ use db::Database;
 pub struct AppState {
     pub db: Database,
     pub cfg: Config,
+    pub bedrock: aws::bedrock::BedrockState,
 }
 
 #[tokio::main]
@@ -58,9 +59,12 @@ async fn main() -> Result<()> {
     let db = Database::open(&cfg.db_path).await?;
     db.migrate().await?;
 
+    let bedrock_state = aws::bedrock::BedrockState::new(aws::bedrock::BedrockSimConfig::load());
+
     let state = Arc::new(AppState {
         db,
         cfg: cfg.clone(),
+        bedrock: bedrock_state,
     });
 
     // Build the router:
@@ -76,6 +80,9 @@ async fn main() -> Result<()> {
         .route("/", post(aws_post))
         // SES v2 REST   (/v2/email/...)
         .merge(aws::ses::router_v2())
+        // Bedrock REST   (/foundation-models  and  /model/:id/invoke*)
+        // Must be merged before S3 so static paths win over S3's /:bucket param.
+        .merge(aws::bedrock::router())
         // S3 REST        (/:bucket  and  /:bucket/*key)
         .merge(aws::s3::router())
         // Azure services (/azure/...)

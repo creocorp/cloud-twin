@@ -50,6 +50,7 @@ class AwsConfig:
             "lambda",
             "dynamodb",
             "secretsmanager",
+            "bedrock",  # must come before "s3" – see providers/aws/bedrock/handlers.py
             "s3",
         ]
     )
@@ -141,6 +142,8 @@ class Config:
     dashboard: DashboardConfig = field(default_factory=DashboardConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     api_port: int = 4793
+    # Raw ``bedrock:`` section from cloudtwin.yml (parsed by the bedrock package)
+    bedrock: dict = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -231,4 +234,5 @@ def load_config() -> Config:
         dashboard=dashboard,
         logging=logging,
         api_port=int(_env("CLOUDTWIN_API_PORT", yaml_data.get("api_port", 4793))),
+        bedrock=yaml_data.get("bedrock", {}),
     )
