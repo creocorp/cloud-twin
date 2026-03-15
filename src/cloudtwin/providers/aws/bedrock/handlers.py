@@ -29,7 +29,6 @@ from typing import Any
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from cloudtwin.core.errors import CloudTwinError
 from cloudtwin.core.telemetry import TelemetryEngine
 from cloudtwin.providers.aws.bedrock.models import StreamingConfig
 from cloudtwin.providers.aws.bedrock.scenario_engine import ScenarioEngine
