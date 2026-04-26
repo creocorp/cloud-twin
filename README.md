@@ -88,16 +88,9 @@ CloudTwin includes a fully config-driven Bedrock simulation engine. It does
 **not** call real models — it produces deterministic synthetic responses for
 testing SDK integration, retry logic, streaming handling, and prompt routing.
 
-### Supported features
-
-- `text` — synthetic lorem-ipsum text generation
-- `schema` — JSON object generated from a simplified JSON Schema definition
-- `static` — fixed configured payload returned verbatim
-- Sequences and cycles — deterministic multi-response progressions
-- Prompt rules — `contains`-based rule matching for response selection
-- Error injection — fire a configured error every N requests
-- Latency simulation — configurable min/max response delay
-- Streaming — `InvokeModelWithResponseStream` with word, char, or fixed-char chunking
+All output is **deterministically seeded** from `(model_id, field_path, request_count)`.
+The same call always produces the same result — critical for stable tests and
+snapshot assertions.
 
 ### Endpoints
 
@@ -108,14 +101,12 @@ testing SDK integration, retry logic, streaming handling, and prompt routing.
 | `POST` | `/model/{modelId}/invoke-with-response-stream` | `bedrock-runtime.invoke_model_with_response_stream()` |
 
 All three endpoints are served by **both** the Python backend and CloudTwin
-Lite (Rust) with byte-for-byte identical request/response shapes — feature
-parity covers `text` / `schema` / `static` modes, sequence/cycle progressions,
-prompt rules (`contains`), periodic error injection (`every: N`), latency
-simulation, and EventStream streaming with `word` / `char` / `fixed` chunking.
-Responses include `x-cloudtwin-request-count` and `x-cloudtwin-response-source`
-headers so test harnesses can introspect the resolved scenario. The full
-Bedrock integration suite (`tests/integration/providers/aws/test_bedrock_boto3.py`,
-25 tests) passes against both backends.
+Lite (Rust). Responses include introspection headers:
+
+| Header | Value |
+|---|---|
+| `x-cloudtwin-request-count` | Per-model invocation counter (1-based) |
+| `x-cloudtwin-response-source` | How the response was resolved: `text`, `schema`, `static`, `rule`, `sequence[N]`, `error_injection` |
 
 ### Dashboard chat playground
 
@@ -123,8 +114,8 @@ The dashboard's **AWS → Bedrock** page includes an interactive chat window for
 sending prompts to any configured model. It calls the live `/model/{id}/invoke`
 and `/model/{id}/invoke-with-response-stream` endpoints, decodes the EventStream
 binary frames in the browser, and shows the resolution source and request count
-returned by the backend — useful for quickly probing scenario rules and
-streaming behaviour without writing SDK code.
+— useful for quickly probing scenario rules and streaming behaviour without
+writing SDK code.
 
 ### Quick example
 
@@ -149,63 +140,271 @@ result = json.loads(resp["body"].read())
 print(result["content"])  # synthetic lorem-ipsum text
 ```
 
-### YAML configuration
+### Resolution pipeline
 
-The `bedrock:` section in `cloudtwin.yml` has two fields:
+When `invoke_model` or `invoke_model_with_response_stream` is called, the
+engine resolves a response in strict priority order — **first match wins**:
 
-- **`defaults:`** — fallback `mode` (and optional `latency`) for any model with no explicit behaviour configured.
-- **`models:`** — every key is a model ID. Each entry appears in `ListFoundationModels` and optionally defines its simulation behaviour. `name:` and `provider:` are optional display metadata; both are derived from the model ID key if omitted.
+1. **Error injection** — if the model has `errors:` configured and
+   `request_count % every == 0`, return a synthetic AWS error immediately.
+2. **Prompt rules** — scan `rules:` top-to-bottom; if any `contains:` substring
+   matches the prompt (case-insensitive), return that rule's `response:` or
+   `error:`.
+3. **Sequence / cycle** — if the model has a `sequence:` block, select the
+   response entry by request count (`sequence` clamps to last; `cycle` wraps).
+4. **Fallback mode** — resolve using the model's `mode:` (`text`, `schema`, or
+   `static`). If no mode is set, fall back to `defaults.mode` (default: `text`).
 
-Both the Python backend and CloudTwin Lite read this from the same `cloudtwin.yml` — there is no separate Bedrock config file.
+Unknown model IDs (not listed in `models:`) resolve using the global `defaults:`
+— so the engine always returns a valid response, even for model IDs you haven't
+configured.
+
+### YAML configuration reference
+
+The `bedrock:` section in `cloudtwin.yml` has two top-level keys:
 
 ```yaml
 bedrock:
-  defaults:
+  defaults:             # fallback behaviour for unconfigured models
     mode: text          # text | schema | static
-    latency:
+    latency:            # optional — applies to all models unless overridden
       min_ms: 50
       max_ms: 120
 
   models:
-    # Real foundation model — name/provider shown in ListFoundationModels.
-    # No mode set, so it falls back to defaults.mode (lorem-ipsum text).
-    anthropic.claude-3-sonnet-20240229-v1:0:
-      name: Claude 3 Sonnet
-      provider: anthropic
-
-    # Return a generated JSON object matching a schema.
-    my-model.schema:
-      mode: schema
-      schema:
-        type: object
-        properties:
-          summary:    { type: string }
-          confidence: { type: number }
-      streaming:
-        enabled: true
-        chunk_mode: word
-        first_chunk_delay_ms: 150
-        chunk_delay_ms: 20
-
-    # Inject an error every 5th request.
-    my-model.flaky:
-      mode: text
-      errors:
-        - every: 5
-          type: ThrottlingException
-          message: "Every 5th request is throttled"
-
-    # Match on prompt content.
-    my-model.rules:
-      mode: text
-      rules:
-        - contains: sentiment
-          response: { static: { sentiment: positive, score: 0.9 } }
-        - contains: fail
-          error: { type: ValidationException, message: Rejected by rule }
+    <model_id>:         # every key appears in ListFoundationModels
+      name: ...         # optional — derived from model_id if omitted
+      provider: ...     # optional — derived from model_id prefix if omitted
+      mode: text        # text | schema | static
+      # ... per-feature config (see below)
 ```
 
-See [docs/developer-guide.md](docs/developer-guide.md#aws-bedrock-simulation) for the full reference.
+---
+
+#### Mode: `text` — synthetic lorem-ipsum
+
+Returns a deterministic string of lorem-ipsum words seeded from the model ID
+and request count.
+
+```yaml
+my-model.text:
+  mode: text
+  text:
+    min_words: 10       # minimum words in response (default: 5)
+    max_words: 30       # maximum words in response (default: 15)
+```
+
+Response body: `{ "content": "lorem ipsum dolor ...", "stop_reason": "end_turn", "model": "my-model.text" }`
+
+---
+
+#### Mode: `schema` — generated JSON matching a schema
+
+Returns a JSON object with fake data generated recursively from a simplified
+JSON Schema definition. Supported types: `object`, `array`, `string`, `number`,
+`integer`, `boolean`. Arrays generate 1–3 items. `enum` selects cyclically.
+
+```yaml
+my-model.schema:
+  mode: schema
+  schema:
+    type: object
+    properties:
+      summary:    { type: string }                     # → lorem-ipsum 2-word string
+      confidence: { type: number }                     # → deterministic float (0.42, 0.73, …)
+      tags:       { type: array, items: { type: string } }
+      status:     { type: string, enum: [draft, published, archived] }  # cycles through values
+      count:      { type: integer }                    # → deterministic int (1, 7, 42, …)
+      active:     { type: boolean }                    # → alternates true/false
+```
+
+---
+
+#### Mode: `static` — fixed payload
+
+Returns the exact JSON object you configure, every time.
+
+```yaml
+my-model.static:
+  mode: static
+  static:
+    result: fixed
+    value: 42
+```
+
+---
+
+#### Sequences and cycles
+
+Define an ordered list of responses. In `sequence` mode the engine clamps to
+the last entry once exhausted; in `cycle` mode it wraps around forever.
+
+Each entry in `responses:` can be a `static:` payload, a `text:` config, or an
+`error:`.
+
+```yaml
+# Sequence: first → second → second → second …
+my-model.sequence:
+  sequence:
+    mode: sequence        # "sequence" (clamp) or "cycle" (wrap)
+    responses:
+      - static: { answer: first }
+      - static: { answer: second }
+
+# Cycle: a → b → a → b → a …
+my-model.cycle:
+  sequence:
+    mode: cycle
+    responses:
+      - static: { answer: a }
+      - static: { answer: b }
+
+# Mixed entries: static, then text, then an error
+my-model.mixed-seq:
+  sequence:
+    mode: sequence
+    responses:
+      - static: { step: "initial" }
+      - text: { min_words: 3, max_words: 8 }
+      - error: { type: ServiceUnavailableException, message: "Gone away" }
+```
+
+---
+
+#### Prompt rules (`contains`)
+
+Match on prompt content and return a specific response or error. Rules are
+evaluated top-to-bottom; **first match wins**. If no rule matches, the engine
+falls through to sequence/fallback.
+
+```yaml
+my-model.rules:
+  mode: text                # fallback if no rule matches
+  rules:
+    - contains: sentiment
+      response:
+        static: { sentiment: positive, score: 0.9 }
+
+    - contains: translate
+      response:
+        text: { min_words: 5, max_words: 10 }
+
+    - contains: fail
+      error:
+        type: ValidationException
+        message: "Prompt rejected by rule"
+```
+
+---
+
+#### Error injection (`every: N`)
+
+Fire a synthetic AWS error on every Nth invocation. Multiple entries are
+supported — the first matching entry wins.
+
+```yaml
+my-model.flaky:
+  mode: text
+  errors:
+    - every: 3
+      type: ThrottlingException
+      message: "Every 3rd request fails"
+    - every: 10
+      type: ServiceUnavailableException
+      message: "Every 10th request is a 503"
+```
+
+---
+
+#### Latency simulation
+
+Add artificial delay before the response is sent. Configured per-model or
+globally under `defaults:`. Per-model config overrides the global default.
+
+```yaml
+bedrock:
+  defaults:
+    latency:              # applies to all models unless overridden
+      min_ms: 50
+      max_ms: 200
+
+  models:
+    my-model.fast:
+      mode: text
+      latency:            # overrides the global default for this model
+        min_ms: 0
+        max_ms: 10
+```
+
+---
+
+#### Streaming (`InvokeModelWithResponseStream`)
+
+Control how the response is chunked into the AWS EventStream binary frames.
+All chunk modes are supported by both Python and Rust backends.
+
+```yaml
+my-model.stream:
+  mode: text
+  streaming:
+    enabled: true
+    chunk_mode: word         # "word" | "char" | "fixed"
+    fixed_chunk_size: 10     # bytes per chunk (only used when chunk_mode=fixed)
+    first_chunk_delay_ms: 0  # delay before first chunk
+    chunk_delay_ms: 20       # delay between subsequent chunks
+    fail_after_chunks: 5     # inject a stream error after this many chunks (optional)
+```
+
+| `chunk_mode` | Behaviour |
+|---|---|
+| `word` (default) | Split on whitespace; each word is one event |
+| `char` | Every character is a separate event |
+| `fixed` | Fixed byte-width chunks of `fixed_chunk_size` |
+
+Setting `fail_after_chunks` is useful for testing client-side stream error
+recovery — the engine sends N valid chunks followed by a
+`modelStreamErrorException` event.
+
+---
+
+#### Combining features
+
+All features compose freely on a single model. The resolution pipeline applies
+them in priority order, so you can have error injection + prompt rules +
+sequence + streaming + latency all on the same model ID:
+
+```yaml
+my-model.kitchen-sink:
+  mode: text
+  text: { min_words: 10, max_words: 20 }
+  latency: { min_ms: 50, max_ms: 150 }
+  streaming:
+    enabled: true
+    chunk_mode: word
+    chunk_delay_ms: 10
+  errors:
+    - every: 5
+      type: ThrottlingException
+      message: "Rate limited"
+  rules:
+    - contains: classify
+      response: { static: { label: spam, confidence: 0.97 } }
+  sequence:
+    mode: cycle
+    responses:
+      - static: { answer: alpha }
+      - static: { answer: beta }
+```
+
+On this model:
+- Every 5th call → `ThrottlingException` (regardless of prompt)
+- Prompt containing "classify" → `{ label: spam, confidence: 0.97 }`
+- Otherwise → cycles between `alpha` and `beta`
+- The `text:` fallback is only reached if `sequence:` is removed
+- All successful responses are streamed word-by-word with 10ms inter-chunk delay
+- A random 50–150ms latency is applied before any response
+
+See [docs/developer-guide.md](docs/developer-guide.md#aws-bedrock-simulation) for additional architecture notes.
 
 ---
 
