@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 1 – Build
 # ─────────────────────────────────────────────────────────────────────────────
-FROM rust:1.85-slim AS builder
+FROM rust:1.95-slim-bookworm AS builder
 
 WORKDIR /build
 
@@ -35,11 +35,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /build/target/release/cloudtwin-lite /app/cloudtwin-lite
 
+# Dashboard static assets + default config
+COPY dashboard/static /app/dashboard/static
+COPY config/cloudtwin.yml /config/cloudtwin.yml
+
 VOLUME ["/data"]
 EXPOSE 4793
 
 # CLOUDTWIN_PORT and CLOUDTWIN_DB_PATH are the two runtime env vars.
 # Defaults: port=4793, db=/data/cloudtwin-lite.db
 ENV CLOUDTWIN_DB_PATH=/data/cloudtwin-lite.db
+ENV CLOUDTWIN_DASHBOARD_STATIC=/app/dashboard/static
+ENV CLOUDTWIN_CONFIG_PATH=/config/cloudtwin.yml
 
 CMD ["/app/cloudtwin-lite"]
