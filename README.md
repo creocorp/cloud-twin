@@ -10,6 +10,8 @@ for cloud services during development.
 
 **Port:** `4793` → Cloud API and dashboard UI (`/dashboard` when enabled)
 
+![CloudTwin dashboard overview](docs/screenshots/overview.png)
+
 ---
 
 ## Supported Services
@@ -288,6 +290,14 @@ The dashboard provides:
    Azure Blob containers, Azure Service Bus queues/topics, GCP Cloud Storage
    buckets, GCP Pub/Sub topics and subscriptions)
 - **Event log** — filterable stream of all actions emitted by the telemetry engine
+
+| Overview | Bedrock Chat Playground |
+|---|---|
+| ![Overview](docs/screenshots/overview.png) | ![Bedrock chat](docs/screenshots/bedrock-chat.png) |
+
+| SES — identities & sent messages | SNS — topics & subscriptions |
+|---|---|
+| ![SES](docs/screenshots/ses.png) | ![SNS](docs/screenshots/sns.png) |
 
 The dashboard auto-polls the `/api/dashboard/*` endpoints. The backend router
 for those endpoints is part of the main app; enabling the dashboard controls
