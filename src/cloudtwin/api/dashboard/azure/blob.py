@@ -15,7 +15,11 @@ async def azure_blob(request: Request):
     containers = await repos["azure_container"].list_by_account(account)
     result = []
     for c in containers:
-        blobs = await repos["azure_blob"].list_by_container(c.id) if c.id is not None else []
+        blobs = (
+            await repos["azure_blob"].list_by_container(c.id)
+            if c.id is not None
+            else []
+        )
         result.append(
             {
                 "name": c.name,

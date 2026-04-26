@@ -150,18 +150,29 @@ def server_url():
                     "rules": [
                         {
                             "contains": "sentiment",
-                            "response": {"static": {"sentiment": "positive", "score": 0.9}},
+                            "response": {
+                                "static": {"sentiment": "positive", "score": 0.9}
+                            },
                         },
                         {
                             "contains": "fail",
-                            "error": {"type": "ThrottlingException", "message": "Rule-triggered throttle"},
+                            "error": {
+                                "type": "ThrottlingException",
+                                "message": "Rule-triggered throttle",
+                            },
                         },
                     ],
                     "mode": "text",
                 },
                 "test.inject": {
                     "mode": "text",
-                    "errors": [{"every": 3, "type": "ThrottlingException", "message": "Every 3rd request fails"}],
+                    "errors": [
+                        {
+                            "every": 3,
+                            "type": "ThrottlingException",
+                            "message": "Every 3rd request fails",
+                        }
+                    ],
                 },
                 "test.stream": {
                     "mode": "text",

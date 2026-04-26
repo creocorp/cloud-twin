@@ -9,16 +9,19 @@ router = APIRouter()
 
 @router.get("/azure/keyvault")
 async def azure_keyvault(request: Request):
-    repos = request.app.state.repos
-    secrets = await repos["kv_secret"].list_all()
+    db = request.app.state.db
+    async with db.conn.execute(
+        "SELECT vault, name, version, created_at FROM kv_secrets ORDER BY created_at DESC"
+    ) as cur:
+        rows = await cur.fetchall()
     return {
         "secrets": [
             {
-                "vault": s.vault,
-                "name": s.name,
-                "version": s.version,
-                "created_at": s.created_at,
+                "vault": r["vault"],
+                "name": r["name"],
+                "version": r["version"],
+                "created_at": r["created_at"],
             }
-            for s in secrets
+            for r in rows
         ]
     }

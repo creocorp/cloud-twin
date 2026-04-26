@@ -9,12 +9,15 @@ router = APIRouter()
 
 @router.get("/azure/queue")
 async def azure_queue(request: Request):
+    config = request.app.state.config
     repos = request.app.state.repos
-    queues = await repos["azure_storage_queue"].list_all()
+    account = config.providers.azure.blob.account_name
+    queues = await repos["azure_storage_queue"].list_by_account(account)
     result = []
     for q in queues:
+        # Count visible messages via peek (cheap, returns up to 32)
         msgs = (
-            await repos["azure_queue_message"].list_by_queue(q.id)
+            await repos["azure_queue_message"].peek(q.id, 32)
             if q.id is not None
             else []
         )

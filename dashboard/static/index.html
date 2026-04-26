@@ -65,6 +65,9 @@
         <a href="#/aws/sns" class="nav-link" data-route="/aws/sns"><i data-lucide="bell" style="width:16px;height:16px;flex-shrink:0"></i>SNS</a>
         <a href="#/aws/sqs" class="nav-link" data-route="/aws/sqs"><i data-lucide="layers" style="width:16px;height:16px;flex-shrink:0"></i>SQS</a>
         <a href="#/aws/bedrock" class="nav-link" data-route="/aws/bedrock"><i data-lucide="cpu" style="width:16px;height:16px;flex-shrink:0"></i>Bedrock</a>
+        <a href="#/aws/dynamodb" class="nav-link" data-route="/aws/dynamodb"><i data-lucide="table" style="width:16px;height:16px;flex-shrink:0"></i>DynamoDB</a>
+        <a href="#/aws/lambda" class="nav-link" data-route="/aws/lambda"><i data-lucide="zap" style="width:16px;height:16px;flex-shrink:0"></i>Lambda</a>
+        <a href="#/aws/secretsmanager" class="nav-link" data-route="/aws/secretsmanager"><i data-lucide="key" style="width:16px;height:16px;flex-shrink:0"></i>Secrets Manager</a>
       </div>
 
       <div style="margin-top:16px">
@@ -74,6 +77,10 @@
         </div>
         <a href="#/azure/blob" class="nav-link" data-route="/azure/blob"><i data-lucide="archive" style="width:16px;height:16px;flex-shrink:0"></i>Blob Storage</a>
         <a href="#/azure/servicebus" class="nav-link" data-route="/azure/servicebus"><i data-lucide="send" style="width:16px;height:16px;flex-shrink:0"></i>Service Bus</a>
+        <a href="#/azure/eventgrid" class="nav-link" data-route="/azure/eventgrid"><i data-lucide="grid" style="width:16px;height:16px;flex-shrink:0"></i>Event Grid</a>
+        <a href="#/azure/functions" class="nav-link" data-route="/azure/functions"><i data-lucide="zap" style="width:16px;height:16px;flex-shrink:0"></i>Functions</a>
+        <a href="#/azure/keyvault" class="nav-link" data-route="/azure/keyvault"><i data-lucide="lock" style="width:16px;height:16px;flex-shrink:0"></i>Key Vault</a>
+        <a href="#/azure/queue" class="nav-link" data-route="/azure/queue"><i data-lucide="inbox" style="width:16px;height:16px;flex-shrink:0"></i>Queue Storage</a>
       </div>
 
       <div style="margin-top:16px">
@@ -83,6 +90,10 @@
         </div>
         <a href="#/gcp/storage" class="nav-link" data-route="/gcp/storage"><i data-lucide="hard-drive" style="width:16px;height:16px;flex-shrink:0"></i>Cloud Storage</a>
         <a href="#/gcp/pubsub" class="nav-link" data-route="/gcp/pubsub"><i data-lucide="radio" style="width:16px;height:16px;flex-shrink:0"></i>Pub/Sub</a>
+        <a href="#/gcp/cloudfunctions" class="nav-link" data-route="/gcp/cloudfunctions"><i data-lucide="zap" style="width:16px;height:16px;flex-shrink:0"></i>Cloud Functions</a>
+        <a href="#/gcp/cloudtasks" class="nav-link" data-route="/gcp/cloudtasks"><i data-lucide="list-todo" style="width:16px;height:16px;flex-shrink:0"></i>Cloud Tasks</a>
+        <a href="#/gcp/firestore" class="nav-link" data-route="/gcp/firestore"><i data-lucide="flame" style="width:16px;height:16px;flex-shrink:0"></i>Firestore</a>
+        <a href="#/gcp/secretmanager" class="nav-link" data-route="/gcp/secretmanager"><i data-lucide="key" style="width:16px;height:16px;flex-shrink:0"></i>Secret Manager</a>
       </div>
     </nav>
   </aside>
@@ -96,10 +107,21 @@
     <div class="page" id="page-aws-sns"></div>
     <div class="page" id="page-aws-sqs"></div>
     <div class="page" id="page-aws-bedrock"></div>
+    <div class="page" id="page-aws-dynamodb"></div>
+    <div class="page" id="page-aws-lambda"></div>
+    <div class="page" id="page-aws-secretsmanager"></div>
     <div class="page" id="page-azure-blob"></div>
     <div class="page" id="page-azure-servicebus"></div>
+    <div class="page" id="page-azure-eventgrid"></div>
+    <div class="page" id="page-azure-functions"></div>
+    <div class="page" id="page-azure-keyvault"></div>
+    <div class="page" id="page-azure-queue"></div>
     <div class="page" id="page-gcp-storage"></div>
     <div class="page" id="page-gcp-pubsub"></div>
+    <div class="page" id="page-gcp-cloudfunctions"></div>
+    <div class="page" id="page-gcp-cloudtasks"></div>
+    <div class="page" id="page-gcp-firestore"></div>
+    <div class="page" id="page-gcp-secretmanager"></div>
   </main>
 
 </div>
@@ -117,10 +139,21 @@
   <script src="./js/pages/aws-sns.js"></script>
   <script src="./js/pages/aws-sqs.js"></script>
   <script src="./js/pages/aws-bedrock.js"></script>
+  <script src="./js/pages/aws-dynamodb.js"></script>
+  <script src="./js/pages/aws-lambda.js"></script>
+  <script src="./js/pages/aws-secretsmanager.js"></script>
   <script src="./js/pages/azure-blob.js"></script>
   <script src="./js/pages/azure-servicebus.js"></script>
+  <script src="./js/pages/azure-eventgrid.js"></script>
+  <script src="./js/pages/azure-functions.js"></script>
+  <script src="./js/pages/azure-keyvault.js"></script>
+  <script src="./js/pages/azure-queue.js"></script>
   <script src="./js/pages/gcp-storage.js"></script>
   <script src="./js/pages/gcp-pubsub.js"></script>
+  <script src="./js/pages/gcp-cloudfunctions.js"></script>
+  <script src="./js/pages/gcp-cloudtasks.js"></script>
+  <script src="./js/pages/gcp-firestore.js"></script>
+  <script src="./js/pages/gcp-secretmanager.js"></script>
 
   <!-- Router + bootstrap (must be last) -->
   <script src="./js/router.js"></script>

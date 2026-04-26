@@ -10,12 +10,12 @@ router = APIRouter()
 @router.get("/aws/dynamodb")
 async def aws_dynamodb(request: Request):
     repos = request.app.state.repos
-    tables = await repos["dynamodb_table"].list_all()
+    tables = await repos["dynamo_table"].list_all()
     return {
         "tables": [
             {
                 "name": t.name,
-                "status": t.status,
+                "status": "ACTIVE",
                 "created_at": t.created_at,
             }
             for t in tables

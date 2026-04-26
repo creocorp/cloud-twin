@@ -210,6 +210,49 @@ def load_config() -> Config:
         ses=ses,
     )
 
+    # --- azure ---
+    azure_section = yaml_data.get("providers", {}).get("azure", {})
+    blob_section = azure_section.get("blob", {})
+    sb_section = azure_section.get("servicebus", {})
+    azure = AzureConfig(
+        services=azure_section.get(
+            "services",
+            ["blob", "servicebus", "queue", "eventgrid", "keyvault", "functions"],
+        ),
+        blob=AzureBlobConfig(
+            account_name=_env(
+                "CLOUDTWIN_AZURE_ACCOUNT",
+                blob_section.get("account_name", "devstoreaccount1"),
+            ),
+        ),
+        servicebus=AzureServiceBusConfig(
+            namespace=_env(
+                "CLOUDTWIN_AZURE_NAMESPACE",
+                sb_section.get("namespace", "cloudtwin"),
+            ),
+        ),
+    )
+
+    # --- gcp ---
+    gcp_section = yaml_data.get("providers", {}).get("gcp", {})
+    gcp = GcpConfig(
+        project=_env(
+            "CLOUDTWIN_GCP_PROJECT",
+            gcp_section.get("project", "cloudtwin-local"),
+        ),
+        services=gcp_section.get(
+            "services",
+            [
+                "storage",
+                "pubsub",
+                "firestore",
+                "cloudtasks",
+                "secretmanager",
+                "cloudfunctions",
+            ],
+        ),
+    )
+
     # --- dashboard ---
     dash_section = yaml_data.get("dashboard", {})
     dash_enabled_env = _env("CLOUDTWIN_DASHBOARD_ENABLED")
@@ -230,7 +273,7 @@ def load_config() -> Config:
 
     return Config(
         storage=storage,
-        providers=ProvidersConfig(aws=aws),
+        providers=ProvidersConfig(aws=aws, azure=azure, gcp=gcp),
         dashboard=dashboard,
         logging=logging,
         api_port=int(_env("CLOUDTWIN_API_PORT", yaml_data.get("api_port", 4793))),

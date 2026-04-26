@@ -26,10 +26,21 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/aws/sns", get(aws_sns))
         .route("/aws/sqs", get(aws_sqs))
         .route("/aws/bedrock", get(aws_bedrock))
+        .route("/aws/dynamodb", get(aws_dynamodb))
+        .route("/aws/lambda", get(aws_lambda))
+        .route("/aws/secretsmanager", get(aws_secretsmanager))
         .route("/azure/blob", get(azure_blob))
         .route("/azure/servicebus", get(azure_servicebus))
+        .route("/azure/eventgrid", get(azure_eventgrid))
+        .route("/azure/functions", get(azure_functions))
+        .route("/azure/keyvault", get(azure_keyvault))
+        .route("/azure/queue", get(azure_queue))
         .route("/gcp/storage", get(gcp_storage))
         .route("/gcp/pubsub", get(gcp_pubsub))
+        .route("/gcp/cloudfunctions", get(gcp_cloudfunctions))
+        .route("/gcp/cloudtasks", get(gcp_cloudtasks))
+        .route("/gcp/firestore", get(gcp_firestore))
+        .route("/gcp/secretmanager", get(gcp_secretmanager))
 }
 
 async fn health(State(state): State<Arc<AppState>>) -> Json<Value> {
@@ -44,12 +55,21 @@ async fn health(State(state): State<Arc<AppState>>) -> Json<Value> {
         "aws/sns":             true,
         "aws/sqs":             true,
         "aws/dynamodb":        true,
+        "aws/lambda":          true,
         "aws/secretsmanager":  true,
         "aws/bedrock":         true,
         "azure/blob":          true,
         "azure/servicebus":    true,
+        "azure/eventgrid":     true,
+        "azure/functions":     true,
+        "azure/keyvault":      true,
+        "azure/queue":         true,
         "gcp/storage":         true,
         "gcp/pubsub":          true,
+        "gcp/cloudfunctions":  true,
+        "gcp/cloudtasks":      true,
+        "gcp/firestore":       true,
+        "gcp/secretmanager":   true,
     });
     Json(json!({
         "status":       "ok",
@@ -440,4 +460,119 @@ async fn gcp_pubsub(State(state): State<Arc<AppState>>) -> Json<Value> {
         .unwrap_or_default();
 
     Json(json!({"topics": topics, "subscriptions": subscriptions}))
+}
+
+// ── AWS: DynamoDB ────────────────────────────────────────────────────────────
+
+async fn aws_dynamodb(State(state): State<Arc<AppState>>) -> Json<Value> {
+    let tables: Vec<Value> = state
+        .db
+        .conn
+        .call(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT name, created_at FROM dynamo_tables ORDER BY created_at DESC",
+            )?;
+            let rows = stmt
+                .query_map([], |row| {
+                    Ok(json!({
+                        "name": row.get::<_, String>(0)?,
+                        "status": "ACTIVE",
+                        "created_at": row.get::<_, String>(1)?,
+                    }))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(rows)
+        })
+        .await
+        .unwrap_or_default();
+    Json(json!({"tables": tables}))
+}
+
+// ── AWS: Lambda ──────────────────────────────────────────────────────────────
+
+async fn aws_lambda(_state: State<Arc<AppState>>) -> Json<Value> {
+    // Lambda is not implemented in the Rust backend; return empty list.
+    Json(json!({"functions": []}))
+}
+
+// ── AWS: Secrets Manager ─────────────────────────────────────────────────────
+
+async fn aws_secretsmanager(State(state): State<Arc<AppState>>) -> Json<Value> {
+    let secrets: Vec<Value> = state
+        .db
+        .conn
+        .call(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT name, arn, created_at FROM secrets ORDER BY created_at DESC",
+            )?;
+            let rows = stmt
+                .query_map([], |row| {
+                    Ok(json!({
+                        "name": row.get::<_, String>(0)?,
+                        "arn": row.get::<_, String>(1)?,
+                        "created_at": row.get::<_, String>(2)?,
+                    }))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(rows)
+        })
+        .await
+        .unwrap_or_default();
+    Json(json!({"secrets": secrets}))
+}
+
+// ── Azure: Event Grid ────────────────────────────────────────────────────────
+
+async fn azure_eventgrid(_state: State<Arc<AppState>>) -> Json<Value> {
+    // Event Grid is not implemented in the Rust backend; return empty list.
+    Json(json!({"topics": []}))
+}
+
+// ── Azure: Functions ─────────────────────────────────────────────────────────
+
+async fn azure_functions(_state: State<Arc<AppState>>) -> Json<Value> {
+    // Azure Functions is not implemented in the Rust backend; return empty list.
+    Json(json!({"functions": []}))
+}
+
+// ── Azure: Key Vault ─────────────────────────────────────────────────────────
+
+async fn azure_keyvault(_state: State<Arc<AppState>>) -> Json<Value> {
+    // Key Vault is not implemented in the Rust backend; return empty list.
+    Json(json!({"secrets": []}))
+}
+
+// ── Azure: Queue Storage ─────────────────────────────────────────────────────
+
+async fn azure_queue(_state: State<Arc<AppState>>) -> Json<Value> {
+    // Azure Queue Storage is not implemented in the Rust backend; return empty list.
+    Json(json!({"queues": []}))
+}
+
+// ── GCP: Cloud Functions ─────────────────────────────────────────────────────
+
+async fn gcp_cloudfunctions(_state: State<Arc<AppState>>) -> Json<Value> {
+    // Cloud Functions is not implemented in the Rust backend; return empty list.
+    Json(json!({"functions": []}))
+}
+
+// ── GCP: Cloud Tasks ─────────────────────────────────────────────────────────
+
+async fn gcp_cloudtasks(_state: State<Arc<AppState>>) -> Json<Value> {
+    // Cloud Tasks is not implemented in the Rust backend; return empty list.
+    Json(json!({"queues": []}))
+}
+
+// ── GCP: Firestore ───────────────────────────────────────────────────────────
+
+async fn gcp_firestore(_state: State<Arc<AppState>>) -> Json<Value> {
+    // Firestore is not implemented in the Rust backend; return empty list.
+    Json(json!({"collections": []}))
+}
+
+// ── GCP: Secret Manager ─────────────────────────────────────────────────────
+
+async fn gcp_secretmanager(_state: State<Arc<AppState>>) -> Json<Value> {
+    // Secret Manager is not implemented in the Rust backend; return empty list.
+    Json(json!({"secrets": []}))
 }

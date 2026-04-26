@@ -37,6 +37,7 @@ from cloudtwin.providers.aws.bedrock.models import StreamingConfig
 # Binary EventStream encoding
 # ---------------------------------------------------------------------------
 
+
 def _encode_header_field(name: str, value: str) -> bytes:
     """Encode a single EventStream header name/value pair (string type = 7)."""
     name_b = name.encode("utf-8")
@@ -52,9 +53,7 @@ def _encode_header_field(name: str, value: str) -> bytes:
 
 def encode_event_stream_message(headers: dict[str, str], payload: bytes) -> bytes:
     """Return a complete binary-framed EventStream message."""
-    headers_data = b"".join(
-        _encode_header_field(k, v) for k, v in headers.items()
-    )
+    headers_data = b"".join(_encode_header_field(k, v) for k, v in headers.items())
     # total = prelude(8) + prelude_crc(4) + headers + payload + msg_crc(4)
     total_length = 16 + len(headers_data) + len(payload)
     prelude = struct.pack("!II", total_length, len(headers_data))
@@ -67,6 +66,7 @@ def encode_event_stream_message(headers: dict[str, str], payload: bytes) -> byte
 # ---------------------------------------------------------------------------
 # Bedrock-specific event builders
 # ---------------------------------------------------------------------------
+
 
 def _chunk_event(chunk_content: dict) -> bytes:
     """Encode one content chunk as a Bedrock ``chunk`` EventStream event."""
@@ -113,6 +113,7 @@ def _error_event(error_type: str, message: str) -> bytes:
 # Chunk splitting
 # ---------------------------------------------------------------------------
 
+
 def split_chunks(text: str, config: StreamingConfig) -> list[str]:
     """Split *text* into chunks according to *config.chunk_mode*."""
     if config.chunk_mode == "word":
@@ -122,13 +123,14 @@ def split_chunks(text: str, config: StreamingConfig) -> list[str]:
         return list(text) if text else [text]
     if config.chunk_mode == "fixed_chars":
         size = max(1, config.fixed_chunk_size)
-        return [text[i: i + size] for i in range(0, max(1, len(text)), size)]
+        return [text[i : i + size] for i in range(0, max(1, len(text)), size)]
     return [text]
 
 
 # ---------------------------------------------------------------------------
 # Async generator
 # ---------------------------------------------------------------------------
+
 
 async def stream_response(
     content: str | dict,

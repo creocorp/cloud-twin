@@ -19,6 +19,7 @@ import pytest
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _invoke(client, model_id: str, prompt: str = "test") -> dict:
     """Invoke a model and return the parsed response body."""
     response = client.invoke_model(
@@ -49,6 +50,7 @@ def _collect_stream(client, model_id: str, prompt: str = "test") -> list[dict]:
 # ListFoundationModels
 # ---------------------------------------------------------------------------
 
+
 class TestListFoundationModels:
     def test_returns_model_list(self, bedrock_mgmt):
         resp = bedrock_mgmt.list_foundation_models()
@@ -72,6 +74,7 @@ class TestListFoundationModels:
 # ---------------------------------------------------------------------------
 # InvokeModel — text mode (default fallback)
 # ---------------------------------------------------------------------------
+
 
 class TestInvokeModelText:
     def test_returns_content_field(self, bedrock_runtime):
@@ -99,6 +102,7 @@ class TestInvokeModelText:
 # InvokeModel — schema mode
 # ---------------------------------------------------------------------------
 
+
 class TestInvokeModelSchema:
     def test_returns_json_object(self, bedrock_runtime):
         body = _invoke(bedrock_runtime, "test.schema")
@@ -123,6 +127,7 @@ class TestInvokeModelSchema:
 # InvokeModel — static mode
 # ---------------------------------------------------------------------------
 
+
 class TestInvokeModelStatic:
     def test_returns_fixed_payload(self, bedrock_runtime):
         body = _invoke(bedrock_runtime, "test.static")
@@ -139,6 +144,7 @@ class TestInvokeModelStatic:
 # ---------------------------------------------------------------------------
 # InvokeModel — sequence mode
 # ---------------------------------------------------------------------------
+
 
 class TestInvokeModelSequence:
     """Sequence mode exhausts entries then re-uses the last one."""
@@ -165,6 +171,7 @@ class TestInvokeModelSequence:
 # InvokeModel — cycle mode
 # ---------------------------------------------------------------------------
 
+
 class TestInvokeModelCycle:
     """Cycle mode wraps back to the first entry after exhaustion."""
 
@@ -186,6 +193,7 @@ class TestInvokeModelCycle:
 # ---------------------------------------------------------------------------
 # InvokeModel — prompt rules
 # ---------------------------------------------------------------------------
+
 
 class TestInvokeModelRules:
     def test_contains_rule_returns_configured_response(self, bedrock_runtime):
@@ -209,6 +217,7 @@ class TestInvokeModelRules:
 # InvokeModel — error injection (every-N)
 # ---------------------------------------------------------------------------
 
+
 class TestInvokeModelErrorInjection:
     def test_inject_errors_appear_in_sequence(self, bedrock_runtime):
         """With every=3, exactly 4 errors occur in any 12 consecutive calls."""
@@ -225,7 +234,9 @@ class TestInvokeModelErrorInjection:
                 errors_seen += 1
 
         # In any 12 consecutive calls with every=3, exactly 4 errors fire
-        assert errors_seen == 4, f"Expected 4 injected errors in 12 calls, got {errors_seen}"
+        assert errors_seen == 4, (
+            f"Expected 4 injected errors in 12 calls, got {errors_seen}"
+        )
         assert successes_seen == 8
 
 
@@ -233,16 +244,18 @@ class TestInvokeModelErrorInjection:
 # InvokeModelWithResponseStream
 # ---------------------------------------------------------------------------
 
+
 class TestInvokeModelStream:
     def test_stream_returns_multiple_chunks(self, bedrock_runtime):
         chunks = _collect_stream(bedrock_runtime, "test.stream", "hello world foo bar")
         assert len(chunks) > 0
 
     def test_chunk_has_delta_text(self, bedrock_runtime):
-        chunks = _collect_stream(bedrock_runtime, "test.stream", "some text for streaming")
+        chunks = _collect_stream(
+            bedrock_runtime, "test.stream", "some text for streaming"
+        )
         text_chunks = [
-            c for c in chunks
-            if c.get("type") == "content_block_delta" and "delta" in c
+            c for c in chunks if c.get("type") == "content_block_delta" and "delta" in c
         ]
         assert len(text_chunks) > 0
         for ch in text_chunks:

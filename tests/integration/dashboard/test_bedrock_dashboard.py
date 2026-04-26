@@ -44,9 +44,9 @@ def test_bedrock_model_ids_are_unique(bedrock_resp):
 def test_bedrock_model_shape(bedrock_resp):
     """Each model entry must carry the four required fields with correct types."""
     for m in bedrock_resp.json()["models"]:
-        assert isinstance(m.get("model_id"), str),      f"model_id wrong: {m}"
-        assert isinstance(m.get("model_name"), str),    f"model_name wrong: {m}"
-        assert isinstance(m.get("provider"), str),      f"provider wrong: {m}"
+        assert isinstance(m.get("model_id"), str), f"model_id wrong: {m}"
+        assert isinstance(m.get("model_name"), str), f"model_name wrong: {m}"
+        assert isinstance(m.get("provider"), str), f"provider wrong: {m}"
         assert isinstance(m.get("request_count"), int), f"request_count wrong: {m}"
 
 

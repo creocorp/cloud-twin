@@ -41,6 +41,7 @@ log = logging.getLogger("cloudtwin.bedrock")
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _extract_prompt(body: dict) -> str:
     """Best-effort extraction of user prompt text for rule matching."""
     for key in ("prompt", "inputText", "input"):
@@ -73,7 +74,10 @@ def _error_response(error_type: str, message: str, status: int = 400) -> Respons
 # Router factory
 # ---------------------------------------------------------------------------
 
-def make_bedrock_router(engine: ScenarioEngine, telemetry: TelemetryEngine) -> APIRouter:
+
+def make_bedrock_router(
+    engine: ScenarioEngine, telemetry: TelemetryEngine
+) -> APIRouter:
     router = APIRouter()
 
     sim_config = engine._config
@@ -105,7 +109,9 @@ def make_bedrock_router(engine: ScenarioEngine, telemetry: TelemetryEngine) -> A
         try:
             body: dict = json.loads(raw_body) if raw_body else {}
         except json.JSONDecodeError:
-            return _error_response("ValidationException", "Request body is not valid JSON")
+            return _error_response(
+                "ValidationException", "Request body is not valid JSON"
+            )
 
         prompt_text = _extract_prompt(body)
 
@@ -134,8 +140,14 @@ def make_bedrock_router(engine: ScenarioEngine, telemetry: TelemetryEngine) -> A
             response_body = resolved.body
 
         await telemetry.emit(
-            "aws", "bedrock", "invoke_model",
-            {"model_id": model_id, "request_count": resolved.request_count, "source": resolved.source},
+            "aws",
+            "bedrock",
+            "invoke_model",
+            {
+                "model_id": model_id,
+                "request_count": resolved.request_count,
+                "source": resolved.source,
+            },
         )
 
         return Response(
@@ -157,7 +169,9 @@ def make_bedrock_router(engine: ScenarioEngine, telemetry: TelemetryEngine) -> A
         try:
             body: dict = json.loads(raw_body) if raw_body else {}
         except json.JSONDecodeError:
-            return _error_response("ValidationException", "Request body is not valid JSON")
+            return _error_response(
+                "ValidationException", "Request body is not valid JSON"
+            )
 
         prompt_text = _extract_prompt(body)
 
@@ -187,8 +201,14 @@ def make_bedrock_router(engine: ScenarioEngine, telemetry: TelemetryEngine) -> A
         )
 
         await telemetry.emit(
-            "aws", "bedrock", "invoke_model_stream",
-            {"model_id": model_id, "request_count": resolved.request_count, "source": resolved.source},
+            "aws",
+            "bedrock",
+            "invoke_model_stream",
+            {
+                "model_id": model_id,
+                "request_count": resolved.request_count,
+                "source": resolved.source,
+            },
         )
 
         return StreamingResponse(

@@ -4,8 +4,11 @@ Demo seed script — populates a running CloudTwin server with realistic
 sample data so the dashboard shows meaningful usage for screenshots.
 
 Usage:
-    make demo                              # server must be running on port 4793
-    python scripts/demo.py
+    make demo                              # seed all providers
+    python scripts/demo.py                 # seed all providers
+    python scripts/demo.py aws             # seed only AWS
+    python scripts/demo.py azure gcp       # seed Azure + GCP
+    python scripts/demo.py --verify        # seed all + verify dashboard APIs
     python scripts/demo.py --url http://localhost:4793
 
 Requires dev dependencies (boto3, azure-storage-blob, google-cloud-*):
@@ -87,6 +90,9 @@ def seed_aws(base: str) -> None:
     _seed_sns(base, boto3)
     _seed_sqs(base, boto3)
     _seed_bedrock(base, boto3)
+    _seed_dynamodb(base)
+    _seed_lambda(base)
+    _seed_secretsmanager(base)
 
 
 def _seed_s3(base: str, boto3) -> None:
@@ -106,7 +112,6 @@ def _seed_s3(base: str, boto3) -> None:
 
 def _seed_ses(base: str, boto3) -> None:
     ses = boto3.client("ses", endpoint_url=base, **_AWS_CREDS)
-    sesv2 = boto3.client("sesv2", endpoint_url=base, **_AWS_CREDS)
     for identity in ("alerts@example.com", "noreply@demo.io", "example.com"):
         try:
             ses.verify_email_identity(EmailAddress=identity)
@@ -174,9 +179,12 @@ def _seed_bedrock(base: str, boto3) -> None:
     import json as _json
 
     _MODELS = [
-        ("amazon.titan-text-express-v1",           "Hello, give me a one-sentence greeting."),
-        ("anthropic.claude-3-haiku-20240307-v1:0", "Summarise cloud computing in one sentence."),
-        ("meta.llama3-8b-instruct-v1:0",           "What is the capital of France?"),
+        ("amazon.titan-text-express-v1", "Hello, give me a one-sentence greeting."),
+        (
+            "anthropic.claude-3-haiku-20240307-v1:0",
+            "Summarise cloud computing in one sentence.",
+        ),
+        ("meta.llama3-8b-instruct-v1:0", "What is the capital of France?"),
     ]
     invocations = 0
     for model_id, prompt in _MODELS:
@@ -194,6 +202,126 @@ def _seed_bedrock(base: str, boto3) -> None:
     _ok(f"Bedrock — {len(_MODELS)} models, {invocations} invocations")
 
 
+def _seed_dynamodb(base: str) -> None:
+    http = httpx.Client(base_url=base, timeout=10.0)
+    headers = {"Content-Type": "application/x-amz-json-1.0"}
+
+    def _dynamo(action: str, body: dict) -> httpx.Response:
+        return http.post(
+            "/",
+            json=body,
+            headers={**headers, "X-Amz-Target": f"DynamoDB_20120810.{action}"},
+        )
+
+    # Create tables
+    for table_name, pk in [
+        ("users", "userId"),
+        ("orders", "orderId"),
+        ("products", "productId"),
+    ]:
+        try:
+            _dynamo(
+                "CreateTable",
+                {
+                    "TableName": table_name,
+                    "KeySchema": [{"AttributeName": pk, "KeyType": "HASH"}],
+                    "AttributeDefinitions": [
+                        {"AttributeName": pk, "AttributeType": "S"}
+                    ],
+                },
+            )
+        except Exception:
+            pass
+
+    # Populate some items
+    try:
+        for uid, name in [("u1", "Alice"), ("u2", "Bob"), ("u3", "Charlie")]:
+            _dynamo(
+                "PutItem",
+                {
+                    "TableName": "users",
+                    "Item": {
+                        "userId": {"S": uid},
+                        "name": {"S": name},
+                        "email": {"S": f"{name.lower()}@example.com"},
+                    },
+                },
+            )
+        for oid, total in [("o100", "49.99"), ("o101", "129.00")]:
+            _dynamo(
+                "PutItem",
+                {
+                    "TableName": "orders",
+                    "Item": {
+                        "orderId": {"S": oid},
+                        "total": {"N": total},
+                        "status": {"S": "shipped"},
+                    },
+                },
+            )
+    except Exception:
+        pass
+
+    _ok("DynamoDB — 3 tables, 5 items")
+
+
+def _seed_lambda(base: str) -> None:
+    http = httpx.Client(base_url=base, timeout=10.0)
+
+    functions = [
+        {
+            "FunctionName": "process-order",
+            "Runtime": "python3.12",
+            "Handler": "app.handler",
+        },
+        {
+            "FunctionName": "resize-image",
+            "Runtime": "nodejs20.x",
+            "Handler": "index.handler",
+        },
+        {
+            "FunctionName": "send-notification",
+            "Runtime": "python3.12",
+            "Handler": "notify.main",
+        },
+    ]
+    created = 0
+    for fn in functions:
+        try:
+            r = http.post("/2015-03-31/functions", json=fn)
+            if r.status_code in (200, 201):
+                created += 1
+        except Exception:
+            pass
+
+    _ok(f"Lambda — {created} functions")
+
+
+def _seed_secretsmanager(base: str) -> None:
+    http = httpx.Client(base_url=base, timeout=10.0)
+    headers = {"Content-Type": "application/x-amz-json-1.0"}
+
+    def _sm(action: str, body: dict) -> httpx.Response:
+        return http.post(
+            "/",
+            json=body,
+            headers={**headers, "X-Amz-Target": f"secretsmanager.{action}"},
+        )
+
+    secrets = [
+        ("prod/db-password", "supersecret123"),
+        ("prod/api-key", "ak_live_demo_1234567890"),
+        ("staging/jwt-secret", "jwt_s3cr3t_k3y"),
+    ]
+    for name, value in secrets:
+        try:
+            _sm("CreateSecret", {"Name": name, "SecretString": value})
+        except Exception:
+            pass
+
+    _ok(f"Secrets Manager — {len(secrets)} secrets")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Azure
 # ─────────────────────────────────────────────────────────────────────────────
@@ -203,6 +331,10 @@ def seed_azure(base: str) -> None:
     print("\n── Azure ────────────────────────────────────────────────────────────")
     _seed_azure_blob(base)
     _seed_azure_servicebus(base)
+    _seed_azure_eventgrid(base)
+    _seed_azure_functions(base)
+    _seed_azure_keyvault(base)
+    _seed_azure_queue(base)
 
 
 def _seed_azure_blob(base: str) -> None:
@@ -247,11 +379,11 @@ def _seed_azure_servicebus(base: str) -> None:
     # Create queues via the CloudTwin Service Bus REST API
     for queue_name in ("orders", "notifications"):
         try:
-            r = http.put(f"/servicebus/{ns}/queues/{queue_name}")
+            http.put(f"/{ns}/queues/{queue_name}")
             # Send a few messages
             for i in range(3):
                 http.post(
-                    f"/servicebus/{ns}/queues/{queue_name}/messages",
+                    f"/{ns}/queues/{queue_name}/messages",
                     json={"body": f"demo message {i}", "message_id": f"msg-{i}"},
                 )
         except Exception:
@@ -260,12 +392,99 @@ def _seed_azure_servicebus(base: str) -> None:
     # Create topics with subscriptions
     for topic_name in ("events", "alerts"):
         try:
-            http.put(f"/servicebus/{ns}/topics/{topic_name}")
-            http.put(f"/servicebus/{ns}/topics/{topic_name}/subscriptions/all")
+            http.put(f"/{ns}/topics/{topic_name}")
+            http.put(f"/{ns}/topics/{topic_name}/subscriptions/all")
         except Exception:
             pass
 
     _ok("Azure Service Bus — 2 queues, 2 topics, 6 messages")
+
+
+def _seed_azure_eventgrid(base: str) -> None:
+    http = httpx.Client(base_url=base, timeout=10.0)
+
+    topics = [
+        ("resource-changes", "https://hooks.example.com/resources"),
+        ("user-activity", "https://hooks.example.com/users"),
+    ]
+    for name, endpoint in topics:
+        try:
+            http.put(f"/azure/eventgrid/topics/{name}", json={"endpoint": endpoint})
+            http.post(
+                f"/azure/eventgrid/topics/{name}/events",
+                json=[
+                    {
+                        "eventType": "Microsoft.Resources.ResourceWriteSuccess",
+                        "subject": f"/subscriptions/demo/{name}/item-1",
+                        "data": {"resourceProvider": "demo"},
+                    },
+                    {
+                        "eventType": "Microsoft.Resources.ResourceDeleteSuccess",
+                        "subject": f"/subscriptions/demo/{name}/item-2",
+                        "data": {"resourceProvider": "demo"},
+                    },
+                ],
+            )
+        except Exception:
+            pass
+
+    _ok(f"Event Grid — {len(topics)} topics, {len(topics) * 2} events")
+
+
+def _seed_azure_functions(base: str) -> None:
+    http = httpx.Client(base_url=base, timeout=10.0)
+
+    functions = [
+        ("demo-app", "HttpTrigger"),
+        ("demo-app", "TimerTrigger"),
+        ("backend-api", "ProcessQueue"),
+    ]
+    for app, fn_name in functions:
+        try:
+            http.put(f"/azure/functions/{app}/functions/{fn_name}", json={})
+        except Exception:
+            pass
+
+    _ok(f"Azure Functions — {len(functions)} functions")
+
+
+def _seed_azure_keyvault(base: str) -> None:
+    http = httpx.Client(base_url=base, timeout=10.0)
+
+    secrets = [
+        ("demo-vault", "db-connection-string", "Server=localhost;Database=demo"),
+        ("demo-vault", "api-secret", "sk_live_demo_9876"),
+        (
+            "demo-vault",
+            "storage-key",
+            "DefaultEndpointsProtocol=https;AccountName=demo",
+        ),
+    ]
+    for vault, name, value in secrets:
+        try:
+            http.put(f"/azure/keyvault/{vault}/secrets/{name}", json={"value": value})
+        except Exception:
+            pass
+
+    _ok(f"Key Vault — {len(secrets)} secrets")
+
+
+def _seed_azure_queue(base: str) -> None:
+    http = httpx.Client(base_url=base, timeout=10.0)
+    account = _AZURE_ACCOUNT
+
+    for queue_name in ("task-queue", "email-queue"):
+        try:
+            http.put(f"/azure/queue/{account}/{queue_name}")
+            for i in range(3):
+                http.post(
+                    f"/azure/queue/{account}/{queue_name}/messages",
+                    content=f"queue message {i}",
+                )
+        except Exception:
+            pass
+
+    _ok("Azure Queue Storage — 2 queues, 6 messages")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -277,6 +496,10 @@ def seed_gcp(base: str) -> None:
     print("\n── GCP ──────────────────────────────────────────────────────────────")
     _seed_gcs(base)
     _seed_pubsub(base)
+    _seed_gcp_cloudfunctions(base)
+    _seed_gcp_cloudtasks(base)
+    _seed_gcp_firestore(base)
+    _seed_gcp_secretmanager(base)
 
 
 def _seed_gcs(base: str) -> None:
@@ -284,7 +507,9 @@ def _seed_gcs(base: str) -> None:
         from google.auth.credentials import AnonymousCredentials
         from google.cloud import storage
     except ImportError:
-        _skip("GCP Storage", "google-cloud-storage not installed — run: make install-dev")
+        _skip(
+            "GCP Storage", "google-cloud-storage not installed — run: make install-dev"
+        )
         return
 
     gcs = storage.Client(
@@ -352,9 +577,181 @@ def _seed_pubsub(base: str) -> None:
     _ok("GCP Pub/Sub — 3 topics, 3 subscriptions, 9 messages")
 
 
+def _seed_gcp_cloudfunctions(base: str) -> None:
+    http = httpx.Client(base_url=base, timeout=10.0)
+    project = _GCP_PROJECT
+    location = "us-central1"
+
+    functions = [
+        ("image-processor", "python312", "main.handler"),
+        ("webhook-relay", "nodejs20", "index.handler"),
+    ]
+    for fn_name, runtime, entry in functions:
+        try:
+            http.post(
+                f"/v2/projects/{project}/locations/{location}/functions",
+                json={
+                    "name": fn_name,
+                    "buildConfig": {"runtime": runtime, "entryPoint": entry},
+                },
+            )
+        except Exception:
+            pass
+
+    _ok(f"Cloud Functions — {len(functions)} functions")
+
+
+def _seed_gcp_cloudtasks(base: str) -> None:
+    http = httpx.Client(base_url=base, timeout=10.0)
+    project = _GCP_PROJECT
+    location = "us-central1"
+
+    queues = ["default", "high-priority"]
+    for q in queues:
+        full_name = f"projects/{project}/locations/{location}/queues/{q}"
+        try:
+            http.post(
+                f"/v2/projects/{project}/locations/{location}/queues",
+                json={"name": full_name},
+            )
+            for i in range(2):
+                http.post(
+                    f"/v2/projects/{project}/locations/{location}/queues/{q}/tasks",
+                    json={
+                        "task": {
+                            "httpRequest": {"url": f"https://example.com/work/{i}"}
+                        }
+                    },
+                )
+        except Exception:
+            pass
+
+    _ok(f"Cloud Tasks — {len(queues)} queues, {len(queues) * 2} tasks")
+
+
+def _seed_gcp_firestore(base: str) -> None:
+    http = httpx.Client(base_url=base, timeout=10.0)
+    project = _GCP_PROJECT
+    db_base = f"/v1/projects/{project}/databases/(default)/documents"
+
+    # users collection
+    users = [
+        ("alice", {"name": {"stringValue": "Alice"}, "role": {"stringValue": "admin"}}),
+        ("bob", {"name": {"stringValue": "Bob"}, "role": {"stringValue": "viewer"}}),
+    ]
+    for doc_id, fields in users:
+        try:
+            http.patch(f"{db_base}/users/{doc_id}", json={"fields": fields})
+        except Exception:
+            pass
+
+    # orders collection
+    orders = [
+        (
+            "order-1",
+            {"total": {"doubleValue": 49.99}, "status": {"stringValue": "shipped"}},
+        ),
+        (
+            "order-2",
+            {"total": {"doubleValue": 129.0}, "status": {"stringValue": "pending"}},
+        ),
+        (
+            "order-3",
+            {"total": {"doubleValue": 24.5}, "status": {"stringValue": "delivered"}},
+        ),
+    ]
+    for doc_id, fields in orders:
+        try:
+            http.patch(f"{db_base}/orders/{doc_id}", json={"fields": fields})
+        except Exception:
+            pass
+
+    _ok("Firestore — 2 collections, 5 documents")
+
+
+def _seed_gcp_secretmanager(base: str) -> None:
+    import base64 as _b64
+
+    http = httpx.Client(base_url=base, timeout=10.0)
+    project = _GCP_PROJECT
+
+    secrets = [
+        ("db-password", "s3cur3_p4ssw0rd"),
+        ("service-account-key", '{"type":"service_account","project_id":"demo"}'),
+    ]
+    for name, value in secrets:
+        try:
+            http.post(f"/v1/projects/{project}/secrets", json={"secretId": name})
+            encoded = _b64.b64encode(value.encode()).decode()
+            http.post(
+                f"/v1/projects/{project}/secrets/{name}:addVersion",
+                json={"payload": {"data": encoded}},
+            )
+        except Exception:
+            pass
+
+    _ok(f"Secret Manager — {len(secrets)} secrets")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Entry point
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+_DASHBOARD_ENDPOINTS = {
+    "aws": [
+        ("S3", "/api/dashboard/aws/s3", "buckets"),
+        ("SES", "/api/dashboard/aws/ses", "identities"),
+        ("SNS", "/api/dashboard/aws/sns", "topics"),
+        ("SQS", "/api/dashboard/aws/sqs", "queues"),
+        ("Bedrock", "/api/dashboard/aws/bedrock", "models"),
+        ("DynamoDB", "/api/dashboard/aws/dynamodb", "tables"),
+        ("Lambda", "/api/dashboard/aws/lambda", "functions"),
+        ("Secrets Manager", "/api/dashboard/aws/secretsmanager", "secrets"),
+    ],
+    "azure": [
+        ("Blob Storage", "/api/dashboard/azure/blob", "containers"),
+        ("Service Bus", "/api/dashboard/azure/servicebus", "queues"),
+        ("Event Grid", "/api/dashboard/azure/eventgrid", "topics"),
+        ("Functions", "/api/dashboard/azure/functions", "functions"),
+        ("Key Vault", "/api/dashboard/azure/keyvault", "secrets"),
+        ("Queue Storage", "/api/dashboard/azure/queue", "queues"),
+    ],
+    "gcp": [
+        ("Cloud Storage", "/api/dashboard/gcp/storage", "buckets"),
+        ("Pub/Sub", "/api/dashboard/gcp/pubsub", "topics"),
+        ("Cloud Functions", "/api/dashboard/gcp/cloudfunctions", "functions"),
+        ("Cloud Tasks", "/api/dashboard/gcp/cloudtasks", "queues"),
+        ("Firestore", "/api/dashboard/gcp/firestore", "collections"),
+        ("Secret Manager", "/api/dashboard/gcp/secretmanager", "secrets"),
+    ],
+}
+
+
+def verify_dashboard(base: str, providers: list[str]) -> None:
+    """Hit every dashboard API and report whether it returned data."""
+    print("\n── Verify Dashboard APIs ────────────────────────────────────────────")
+    ok = fail = 0
+    for provider in providers:
+        for label, path, key in _DASHBOARD_ENDPOINTS.get(provider, []):
+            try:
+                r = httpx.get(f"{base}{path}", timeout=5.0)
+                if r.status_code != 200:
+                    print(f"  ✗ {label}: HTTP {r.status_code}")
+                    fail += 1
+                    continue
+                data = r.json()
+                count = len(data.get(key, []))
+                if count > 0:
+                    print(f"  ✓ {label}: {count} {key}")
+                    ok += 1
+                else:
+                    print(f"  ⚠ {label}: 0 {key} (empty)")
+                    fail += 1
+            except Exception as exc:
+                print(f"  ✗ {label}: {exc}")
+                fail += 1
+    print(f"\n  Results: {ok} ok, {fail} issues")
 
 
 def main() -> None:
@@ -362,20 +759,38 @@ def main() -> None:
         description="Seed CloudTwin with demo data for dashboard screenshots."
     )
     parser.add_argument(
+        "providers",
+        nargs="*",
+        default=["aws", "azure", "gcp"],
+        help="Provider(s) to seed: aws, azure, gcp (default: all)",
+    )
+    parser.add_argument(
         "--url",
         default=BASE_URL,
         help=f"CloudTwin base URL (default: {BASE_URL})",
     )
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="Verify dashboard APIs return data after seeding",
+    )
     args = parser.parse_args()
     base = args.url.rstrip("/")
+    providers = args.providers
 
     print(f"Connecting to CloudTwin at {base} …")
     _wait_ready(base)
     print("Server is ready.\n")
 
-    seed_aws(base)
-    seed_azure(base)
-    seed_gcp(base)
+    if "aws" in providers:
+        seed_aws(base)
+    if "azure" in providers:
+        seed_azure(base)
+    if "gcp" in providers:
+        seed_gcp(base)
+
+    if args.verify:
+        verify_dashboard(base, providers)
 
     print(f"\nDone! Open the dashboard: {base}/dashboard")
 

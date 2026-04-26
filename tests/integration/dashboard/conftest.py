@@ -27,8 +27,10 @@ import yaml
 from cloudtwin.app import create_app
 from cloudtwin.config import (
     AwsConfig,
+    AzureConfig,
     Config,
     DashboardConfig,
+    GcpConfig,
     LoggingConfig,
     ProvidersConfig,
     SesConfig,
@@ -86,9 +88,38 @@ def dashboard_url():
         storage=StorageConfig(mode="memory"),
         providers=ProvidersConfig(
             aws=AwsConfig(
-                services=["bedrock", "ses", "s3", "sns", "sqs"],
+                services=[
+                    "bedrock",
+                    "ses",
+                    "s3",
+                    "sns",
+                    "sqs",
+                    "lambda",
+                    "dynamodb",
+                    "secretsmanager",
+                ],
                 ses=SesConfig(strict_verification=False, smtp=SmtpConfig()),
-            )
+            ),
+            azure=AzureConfig(
+                services=[
+                    "blob",
+                    "servicebus",
+                    "queue",
+                    "eventgrid",
+                    "keyvault",
+                    "functions",
+                ],
+            ),
+            gcp=GcpConfig(
+                services=[
+                    "storage",
+                    "pubsub",
+                    "firestore",
+                    "cloudtasks",
+                    "secretmanager",
+                    "cloudfunctions",
+                ],
+            ),
         ),
         dashboard=DashboardConfig(enabled=True),
         logging=LoggingConfig(level="warning"),
@@ -96,7 +127,9 @@ def dashboard_url():
         bedrock=_load_bedrock_config(),
     )
     app = create_app(config)
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+    server = uvicorn.Server(
+        uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
+    )
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     _wait_ready(f"http://127.0.0.1:{port}")

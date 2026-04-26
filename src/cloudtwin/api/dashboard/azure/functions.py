@@ -9,15 +9,18 @@ router = APIRouter()
 
 @router.get("/azure/functions")
 async def azure_functions(request: Request):
-    repos = request.app.state.repos
-    functions = await repos["azure_function"].list_all()
+    db = request.app.state.db
+    async with db.conn.execute(
+        "SELECT app, name, created_at FROM azure_functions ORDER BY created_at DESC"
+    ) as cur:
+        rows = await cur.fetchall()
     return {
         "functions": [
             {
-                "app": f.app,
-                "name": f.name,
-                "created_at": f.created_at,
+                "app": r["app"],
+                "name": r["name"],
+                "created_at": r["created_at"],
             }
-            for f in functions
+            for r in rows
         ]
     }

@@ -5,7 +5,7 @@ cloudtwin:
 
   providers:
     aws:
-      services: ["ses", "sns", "sqs", "bedrock", "s3"]
+      services: ["ses", "sns", "sqs", "bedrock", "s3", "lambda", "dynamodb", "secretsmanager"]
       ses:
         strict_verification: false
         smtp:
@@ -14,6 +14,17 @@ cloudtwin:
           username: null
           password: null
           use_tls: false
+
+    azure:
+      services: ["blob", "servicebus", "queue", "eventgrid", "keyvault", "functions"]
+      blob:
+        account_name: devstoreaccount1
+      servicebus:
+        namespace: cloudtwin
+
+    gcp:
+      project: cloudtwin-local
+      services: ["storage", "pubsub", "firestore", "cloudtasks", "secretmanager", "cloudfunctions"]
 
   dashboard:
     enabled: true

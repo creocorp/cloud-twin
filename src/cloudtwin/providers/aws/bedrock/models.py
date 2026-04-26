@@ -173,7 +173,7 @@ class ModelSimConfig:
     """Full simulation configuration for a single model ID."""
 
     mode: str = "text"  # "text" | "schema" | "static"
-    name: Optional[str] = None      # display name shown in ListFoundationModels
+    name: Optional[str] = None  # display name shown in ListFoundationModels
     provider: Optional[str] = None  # provider prefix (derived from model_id if omitted)
     static: Optional[dict] = None
     schema_config: Optional[SchemaNodeConfig] = None
@@ -196,7 +196,9 @@ class ModelSimConfig:
             name=data.get("name"),
             provider=data.get("provider"),
             static=data.get("static"),
-            schema_config=SchemaNodeConfig.from_dict(schema_raw) if schema_raw else None,
+            schema_config=SchemaNodeConfig.from_dict(schema_raw)
+            if schema_raw
+            else None,
             text=TextConfig.from_dict(text_raw) if text_raw else None,
             sequence=SequenceConfig.from_dict(seq_raw) if seq_raw else None,
             rules=[RuleConfig.from_dict(r) for r in data.get("rules", [])],

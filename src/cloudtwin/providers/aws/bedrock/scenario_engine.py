@@ -141,7 +141,9 @@ class ScenarioEngine:
             idx = (request_count - 1) % n
         else:  # "sequence" — pin to last entry once exhausted
             idx = min(request_count - 1, n - 1)
-        return self._resolve_entry(seq.responses[idx], model_id, request_count, "sequence")
+        return self._resolve_entry(
+            seq.responses[idx], model_id, request_count, "sequence"
+        )
 
     def _fallback(
         self,

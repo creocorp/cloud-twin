@@ -10,15 +10,16 @@ router = APIRouter()
 @router.get("/gcp/firestore")
 async def gcp_firestore(request: Request):
     config = request.app.state.config
-    repos = request.app.state.repos
+    db = request.app.state.db
     project = config.providers.gcp.project
-    documents = await repos["firestore_document"].list_by_project(project)
-    collections: dict[str, int] = {}
-    for d in documents:
-        collections[d.collection] = collections.get(d.collection, 0) + 1
+    async with db.conn.execute(
+        "SELECT collection, COUNT(*) as cnt FROM firestore_documents "
+        "WHERE project = ? GROUP BY collection ORDER BY collection",
+        (project,),
+    ) as cur:
+        rows = await cur.fetchall()
     return {
         "collections": [
-            {"name": name, "document_count": count}
-            for name, count in sorted(collections.items())
+            {"name": r["collection"], "document_count": r["cnt"]} for r in rows
         ]
     }
