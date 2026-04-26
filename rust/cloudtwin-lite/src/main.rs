@@ -8,9 +8,11 @@
 mod aws;
 mod azure;
 mod config;
+mod dashboard;
 mod db;
 mod gcp;
 mod proto;
+mod telemetry;
 
 use std::sync::Arc;
 
@@ -19,7 +21,7 @@ use axum::{
     body::Bytes,
     extract::State,
     http::{HeaderMap, StatusCode},
-    response::Response,
+    response::{Redirect, Response},
     routing::{get, post},
     Json, Router,
 };
@@ -50,16 +52,15 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    // Resolve process configuration once at startup and clone cheap values into
-    // the shared state. Rust makes that explicit instead of hiding it behind a
-    // global singleton.
-    let cfg = Config::from_env();
+    // Resolve process configuration once at startup — reads cloudtwin.yml then
+    // overlays any CLOUDTWIN_* env vars.
+    let cfg = Config::load();
 
     // Open SQLite and ensure every table exists before we accept traffic.
     let db = Database::open(&cfg.db_path).await?;
     db.migrate().await?;
 
-    let bedrock_state = aws::bedrock::BedrockState::new(aws::bedrock::BedrockSimConfig::load());
+    let bedrock_state = aws::bedrock::BedrockState::new(cfg.bedrock.clone());
 
     let state = Arc::new(AppState {
         db,
@@ -73,7 +74,7 @@ async fn main() -> Result<()> {
     // – azure:: and gcp:: routers do NOT call with_state() internally, so they
     //   return Router<Arc<AppState>> and can be used with .nest().
     // – A single .with_state(state) at the end satisfies all remaining extractors.
-    let app = Router::new()
+    let mut app = Router::new()
         .route("/_health", get(health))
         // AWS single-endpoint dispatcher  (SES v1/SNS query-protocol;
         //                                  SQS/DynamoDB/SecretsManager JSON-protocol)
@@ -89,8 +90,36 @@ async fn main() -> Result<()> {
         .nest("/azure", azure::router())
         // GCP services   (/gcp/...)
         .nest("/gcp", gcp::router())
-        // Provide shared state to every handler that uses it via State<Arc<AppState>>
-        .with_state(state);
+        // Dashboard API  (/api/dashboard/...)
+        .nest("/api/dashboard", dashboard::router());
+
+    // Optionally serve the static dashboard UI when CLOUDTWIN_DASHBOARD_STATIC is set.
+    if let Some(static_dir) = &cfg.dashboard_static_path {
+        use tower_http::services::ServeDir;
+        let index = format!("{static_dir}/index.html");
+        app = app
+            .route(
+                "/dashboard",
+                get(|| async { Redirect::permanent("/dashboard/static/index.html") }),
+            )
+            .route(
+                "/dashboard/",
+                get(|| async { Redirect::permanent("/dashboard/static/index.html") }),
+            )
+            .nest_service(
+                "/dashboard/static",
+                ServeDir::new(static_dir).not_found_service(
+                    tower_http::services::ServeFile::new(index),
+                ),
+            );
+        info!(
+            "Dashboard enabled — open http://localhost:{}/dashboard",
+            cfg.port
+        );
+    }
+
+    // Provide shared state to every handler that uses it via State<Arc<AppState>>
+    let app = app.with_state(state);
 
     let addr = format!("0.0.0.0:{}", cfg.port);
     info!("CloudTwin Lite listening on http://{addr}");

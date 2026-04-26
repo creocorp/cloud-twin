@@ -15,10 +15,11 @@ const api = {
   events:  (n = 100) => get(`/events?limit=${n}`),
 
   aws: {
-    ses: () => get('/aws/ses'),
-    s3:  () => get('/aws/s3'),
-    sns: () => get('/aws/sns'),
-    sqs: () => get('/aws/sqs'),
+    ses:     () => get('/aws/ses'),
+    s3:      () => get('/aws/s3'),
+    sns:     () => get('/aws/sns'),
+    sqs:     () => get('/aws/sqs'),
+    bedrock: () => get('/aws/bedrock'),
   },
 
   azure: {

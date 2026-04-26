@@ -251,4 +251,14 @@ CREATE TABLE IF NOT EXISTS pubsub_ackables (
     acked        INTEGER NOT NULL DEFAULT 0,
     created_at   TEXT NOT NULL
 );
+
+-- ─── Telemetry events ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS events (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider   TEXT    NOT NULL,
+    service    TEXT    NOT NULL,
+    action     TEXT    NOT NULL,
+    payload    TEXT    NOT NULL DEFAULT '{}',
+    created_at TEXT    NOT NULL
+);
 ";

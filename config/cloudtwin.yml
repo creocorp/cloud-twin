@@ -5,7 +5,7 @@ cloudtwin:
 
   providers:
     aws:
-      services: ["ses", "s3", "sns", "sqs"]
+      services: ["ses", "sns", "sqs", "bedrock", "s3"]
       ses:
         strict_verification: false
         smtp:
@@ -22,3 +22,85 @@ cloudtwin:
     level: info
 
   api_port: 4793
+
+  bedrock:
+    defaults:
+      mode: text
+
+    # Every entry in models: appears in ListFoundationModels.
+    # name: and provider: are optional — both are derived from the model_id key if omitted.
+    models:
+      # ── Real foundation models ────────────────────────────────────────────
+      amazon.titan-text-express-v1:
+        name: Amazon Titan Text Express
+        provider: amazon
+
+      anthropic.claude-3-sonnet-20240229-v1:0:
+        name: Claude 3 Sonnet
+        provider: anthropic
+
+      anthropic.claude-3-haiku-20240307-v1:0:
+        name: Claude 3 Haiku
+        provider: anthropic
+
+      meta.llama3-70b-instruct-v1:0:
+        name: Llama 3 70B Instruct
+        provider: meta
+
+      cohere.command-r-v1:0:
+        name: Command R
+        provider: cohere
+
+      # ── Test / simulation stubs ───────────────────────────────────────────
+      test.text:
+        mode: text
+        text: { min_words: 5, max_words: 15 }
+
+      test.schema:
+        mode: schema
+        schema:
+          type: object
+          properties:
+            answer: { type: string }
+            score:  { type: number }
+            tags:   { type: array, items: { type: string } }
+
+      test.static:
+        mode: static
+        static: { result: fixed, value: 42 }
+
+      test.sequence:
+        sequence:
+          mode: sequence
+          responses:
+            - static: { answer: first }
+            - static: { answer: second }
+
+      test.cycle:
+        sequence:
+          mode: cycle
+          responses:
+            - static: { answer: a }
+            - static: { answer: b }
+
+      test.rules:
+        mode: text
+        rules:
+          - contains: sentiment
+            response: { static: { sentiment: positive, score: 0.9 } }
+          - contains: fail
+            error: { type: ThrottlingException, message: Rule-triggered throttle }
+
+      test.inject:
+        mode: text
+        errors:
+          - every: 3
+            type: ThrottlingException
+            message: Every 3rd request fails
+
+      test.stream:
+        mode: text
+        streaming:
+          enabled: true
+          chunk_mode: word
+          chunk_delay_ms: 0

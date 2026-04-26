@@ -1,4 +1,5 @@
 from cloudtwin.api.dashboard.aws import (
+    bedrock,
     dynamodb,
     lambda_,
     s3,
@@ -16,4 +17,5 @@ routers = [
     lambda_.router,
     dynamodb.router,
     secretsmanager.router,
+    bedrock.router,
 ]

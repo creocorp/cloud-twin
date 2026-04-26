@@ -1,6 +1,6 @@
 [package]
 name        = "cloudtwin-lite"
-version     = "0.2.3"
+version     = "0.3.0"
 edition     = "2021"
 description = "CloudTwin Lite — lightweight multi-cloud local runtime built in Rust"
 
@@ -12,7 +12,7 @@ path = "src/main.rs"
 # HTTP server
 axum             = { version = "0.7", features = ["macros"] }
 tokio            = { version = "1",   features = ["full"] }
-tower-http       = { version = "0.5", features = ["cors", "trace"] }
+tower-http       = { version = "0.5", features = ["cors", "trace", "fs"] }
 tower            = "0.4"
 
 # SQLite (bundled = statically linked, no system libsqlite3 needed)
@@ -23,6 +23,7 @@ tokio-rusqlite   = "0.5"
 serde            = { version = "1", features = ["derive"] }
 serde_json       = "1"
 serde_urlencoded = "0.7"
+serde_yaml       = "0.9"
 
 # Utilities
 uuid             = { version = "1", features = ["v4"] }
@@ -33,7 +34,13 @@ hex              = "0.4"
 base64           = "0.22"
 crc32fast        = "1"
 anyhow           = "1"
+rand             = "0.8"
 
 # Logging
 tracing              = "0.1"
 tracing-subscriber   = { version = "0.3", features = ["env-filter", "fmt"] }
+
+[dev-dependencies]
+tower            = { version = "0.4", features = ["util"] }
+http             = "1"
+http-body-util   = "0.1"

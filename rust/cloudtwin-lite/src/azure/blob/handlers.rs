@@ -17,6 +17,7 @@ use axum::{
 };
 
 use super::service::BlobService;
+use crate::telemetry;
 use crate::AppState;
 
 fn svc(state: &Arc<AppState>) -> BlobService {
@@ -111,7 +112,10 @@ async fn create_container(
         // Might be a blob PUT at container level — handled by blob route
     }
     match svc(&state).create_container(&container).await {
-        Ok(_) => StatusCode::CREATED.into_response(),
+        Ok(_) => {
+            telemetry::emit(&state.db, "azure", "blob", "create_container", &serde_json::json!({"container": container}).to_string()).await;
+            StatusCode::CREATED.into_response()
+        }
         Err(e) => xml_err(
             StatusCode::INTERNAL_SERVER_ERROR,
             "InternalError",
@@ -125,7 +129,10 @@ async fn delete_container(
     Path((_, container)): Path<(String, String)>,
 ) -> Response {
     match svc(&state).delete_container(&container).await {
-        Ok(_) => StatusCode::ACCEPTED.into_response(),
+        Ok(_) => {
+            telemetry::emit(&state.db, "azure", "blob", "delete_container", &serde_json::json!({"container": container}).to_string()).await;
+            StatusCode::ACCEPTED.into_response()
+        }
         Err(e) if e.to_string().contains("ContainerNotFound") => xml_err(
             StatusCode::NOT_FOUND,
             "ContainerNotFound",
@@ -205,7 +212,10 @@ async fn put_blob(
         .put_blob(&container, &blob, body.to_vec(), &ct)
         .await
     {
-        Ok(etag) => (StatusCode::CREATED, [(header::ETAG, etag)]).into_response(),
+        Ok(etag) => {
+            telemetry::emit(&state.db, "azure", "blob", "put_blob", &serde_json::json!({"container": container, "blob": blob}).to_string()).await;
+            (StatusCode::CREATED, [(header::ETAG, etag)]).into_response()
+        }
         Err(e) if e.to_string().contains("ContainerNotFound") => xml_err(
             StatusCode::NOT_FOUND,
             "ContainerNotFound",
@@ -275,7 +285,10 @@ async fn delete_blob(
     Path((_, container, blob)): Path<(String, String, String)>,
 ) -> StatusCode {
     match svc(&state).delete_blob(&container, &blob).await {
-        Ok(_) => StatusCode::ACCEPTED,
+        Ok(_) => {
+            let _ = telemetry::emit(&state.db, "azure", "blob", "delete_blob", &serde_json::json!({"container": container, "blob": blob}).to_string()).await;
+            StatusCode::ACCEPTED
+        }
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }

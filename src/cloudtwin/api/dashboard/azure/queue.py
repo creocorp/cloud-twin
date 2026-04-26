@@ -10,7 +10,7 @@ router = APIRouter()
 @router.get("/azure/queue")
 async def azure_queue(request: Request):
     repos = request.app.state.repos
-    queues = await repos["azure_queue"].list_all()
+    queues = await repos["azure_storage_queue"].list_all()
     result = []
     for q in queues:
         msgs = (

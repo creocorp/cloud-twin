@@ -36,6 +36,10 @@ run-with-dashboard: install  ## Start CloudTwin with the dashboard enabled (http
 dashboard-dev:  ## Start the Vite dashboard dev server (proxies /api/* to port 4793)
 	cd dashboard && npm run dev
 
+.PHONY: demo
+demo: install-dev  ## Seed the running server with demo data (requires: make run-with-dashboard)
+	$(PYTHON) scripts/demo.py
+
 # ── Test ───────────────────────────────────────────────────────────────────────
 
 .PHONY: test
@@ -99,11 +103,38 @@ rust-build-debug:  ## Build cloudtwin-lite (debug)
 
 .PHONY: rust-run
 rust-run:  ## Run cloudtwin-lite with in-memory storage
-	cd $(RUST_DIR) && CLOUDTWIN_DB_PATH=:memory: cargo run
+	cd $(RUST_DIR) && \
+		CLOUDTWIN_CONFIG_PATH=$(CURDIR)/config/cloudtwin.yml \
+		CLOUDTWIN_DB_PATH=:memory: \
+		cargo run
+
+.PHONY: rust-run-with-dashboard
+rust-run-with-dashboard:  ## Run cloudtwin-lite with the dashboard (http://localhost:4793/dashboard)
+	mkdir -p data
+	cd $(RUST_DIR) && \
+		CLOUDTWIN_CONFIG_PATH=$(CURDIR)/config/cloudtwin.yml \
+		CLOUDTWIN_DB_PATH=$(CURDIR)/data/cloudtwin-lite.db \
+		CLOUDTWIN_DASHBOARD_STATIC=$(CURDIR)/dashboard/static \
+		cargo run
 
 .PHONY: rust-test
 rust-test:  ## Run cloudtwin-lite unit/integration tests
 	cd $(RUST_DIR) && cargo test
+
+.PHONY: rust-test-parity
+rust-test-parity:  ## Run the Bedrock integration suite against a running cloudtwin-lite binary (build first with `make rust-build`)
+	@echo "Starting cloudtwin-lite on :47930 with in-memory storage..."
+	@CLOUDTWIN_CONFIG_PATH=$(CURDIR)/config/cloudtwin.yml \
+		CLOUDTWIN_PORT=47930 \
+		CLOUDTWIN_DB_PATH=:memory: \
+		$(RUST_DIR)/target/release/cloudtwin-lite & \
+		echo $$! > /tmp/cloudtwin-lite-parity.pid; \
+		sleep 1; \
+		CLOUDTWIN_TEST_URL=http://127.0.0.1:47930 $(PYTEST) tests/integration/providers/aws/test_bedrock_boto3.py -v; \
+		status=$$?; \
+		kill $$(cat /tmp/cloudtwin-lite-parity.pid) 2>/dev/null; \
+		rm -f /tmp/cloudtwin-lite-parity.pid; \
+		exit $$status
 
 .PHONY: rust-check
 rust-check:  ## Check cloudtwin-lite compiles without producing binaries

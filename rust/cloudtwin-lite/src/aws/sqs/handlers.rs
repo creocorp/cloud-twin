@@ -12,6 +12,7 @@ use axum::{
 
 use super::service::SqsService;
 use crate::proto::json_error_response;
+use crate::telemetry;
 use crate::AppState;
 
 fn svc(state: &Arc<AppState>) -> SqsService {
@@ -30,11 +31,10 @@ pub async fn handle_json(state: &Arc<AppState>, target: &str, body: serde_json::
                 );
             }
             match svc(state).create_queue(name).await {
-                Ok(url) => (
-                    StatusCode::OK,
-                    axum::Json(serde_json::json!({ "QueueUrl": url })),
-                )
-                    .into_response(),
+                Ok(url) => {
+                    telemetry::emit(&state.db, "aws", "sqs", "create_queue", &serde_json::json!({"queue": name}).to_string()).await;
+                    (StatusCode::OK, axum::Json(serde_json::json!({ "QueueUrl": url }))).into_response()
+                }
                 Err(e) => json_error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "InternalError",
@@ -87,14 +87,13 @@ pub async fn handle_json(state: &Arc<AppState>, target: &str, body: serde_json::
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
             match svc(state).send_message(url, body_str).await {
-                Ok((mid, _)) => (
-                    StatusCode::OK,
-                    axum::Json(serde_json::json!({
+                Ok((mid, _)) => {
+                    telemetry::emit(&state.db, "aws", "sqs", "send_message", &serde_json::json!({"queue_url": url}).to_string()).await;
+                    (StatusCode::OK, axum::Json(serde_json::json!({
                         "MessageId":        mid,
                         "MD5OfMessageBody": SqsService::md5_body(body_str),
-                    })),
-                )
-                    .into_response(),
+                    }))).into_response()
+                }
                 Err(e) if e.to_string().contains("QueueDoesNotExist") => json_error_response(
                     StatusCode::BAD_REQUEST,
                     "QueueDoesNotExist",
@@ -150,7 +149,10 @@ pub async fn handle_json(state: &Arc<AppState>, target: &str, body: serde_json::
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
             match svc(state).delete_message(rh).await {
-                Ok(_) => (StatusCode::OK, axum::Json(serde_json::json!({}))).into_response(),
+                Ok(_) => {
+                    telemetry::emit(&state.db, "aws", "sqs", "delete_message", &serde_json::json!({"receipt_handle": rh}).to_string()).await;
+                    (StatusCode::OK, axum::Json(serde_json::json!({}))).into_response()
+                }
                 Err(e) => json_error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "InternalError",
@@ -161,7 +163,10 @@ pub async fn handle_json(state: &Arc<AppState>, target: &str, body: serde_json::
         "AmazonSQS.DeleteQueue" => {
             let url = body.get("QueueUrl").and_then(|v| v.as_str()).unwrap_or("");
             match svc(state).delete_queue(url).await {
-                Ok(_) => (StatusCode::OK, axum::Json(serde_json::json!({}))).into_response(),
+                Ok(_) => {
+                    telemetry::emit(&state.db, "aws", "sqs", "delete_queue", &serde_json::json!({"queue_url": url}).to_string()).await;
+                    (StatusCode::OK, axum::Json(serde_json::json!({}))).into_response()
+                }
                 Err(e) => json_error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "InternalError",

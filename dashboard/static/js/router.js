@@ -16,6 +16,7 @@ const ROUTES = {
   '/aws/s3':           { page: 'page-aws-s3',           load: loadS3,         poll: null  },
   '/aws/sns':          { page: 'page-aws-sns',          load: loadSNS,        poll: null  },
   '/aws/sqs':          { page: 'page-aws-sqs',          load: loadSQS,        poll: null  },
+  '/aws/bedrock':      { page: 'page-aws-bedrock',      load: loadBedrock,    poll: null  },
   '/azure/blob':       { page: 'page-azure-blob',       load: loadAzureBlob,  poll: null  },
   '/azure/servicebus': { page: 'page-azure-servicebus', load: loadAzureSB,    poll: null  },
   '/gcp/storage':      { page: 'page-gcp-storage',      load: loadGCSStorage, poll: null  },

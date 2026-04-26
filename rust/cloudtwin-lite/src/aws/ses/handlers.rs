@@ -16,7 +16,9 @@ use axum::{
 
 use super::service::SesService;
 use crate::proto::{wrap_xml, xml_error_response, xml_escape, xml_ok};
+use crate::telemetry;
 use crate::AppState;
+use serde_json::json as sjson;
 
 fn svc(state: &Arc<AppState>) -> SesService {
     SesService::new(state.db.clone())
@@ -52,11 +54,14 @@ pub async fn handle_query(
                 );
             }
             match svc(state).verify_email(email).await {
-                Ok(_) => xml_ok(wrap_xml(
-                    "VerifyEmailIdentity",
-                    NS,
-                    "<VerifyEmailIdentityResult/>",
-                )),
+                Ok(_) => {
+                    telemetry::emit(&state.db, "aws", "ses", "verify_identity", &serde_json::json!({"identity": email}).to_string()).await;
+                    xml_ok(wrap_xml(
+                        "VerifyEmailIdentity",
+                        NS,
+                        "<VerifyEmailIdentityResult/>",
+                    ))
+                }
                 Err(e) => xml_error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "InternalFailure",
@@ -74,7 +79,9 @@ pub async fn handle_query(
                 );
             }
             match svc(state).verify_domain(domain).await {
-                Ok(token) => xml_ok(wrap_xml(
+                Ok(token) => {
+                    telemetry::emit(&state.db, "aws", "ses", "verify_identity", &sjson!({"identity": domain}).to_string()).await;
+                    xml_ok(wrap_xml(
                     "VerifyDomainIdentity",
                     NS,
                     &format!(
@@ -83,7 +90,8 @@ pub async fn handle_query(
 </VerifyDomainIdentityResult>",
                         xml_escape(&token)
                     ),
-                )),
+                ))
+                }
                 Err(e) => xml_error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "InternalFailure",
@@ -111,7 +119,10 @@ pub async fn handle_query(
         "DeleteIdentity" => {
             let identity = params.get("Identity").map(|s| s.as_str()).unwrap_or("");
             match svc(state).delete_identity(identity).await {
-                Ok(_) => xml_ok(wrap_xml("DeleteIdentity", NS, "<DeleteIdentityResult/>")),
+                Ok(_) => {
+                    telemetry::emit(&state.db, "aws", "ses", "delete_identity", &sjson!({"identity": identity}).to_string()).await;
+                    xml_ok(wrap_xml("DeleteIdentity", NS, "<DeleteIdentityResult/>"))
+                }
                 Err(e) => xml_error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "InternalFailure",
@@ -191,14 +202,17 @@ pub async fn handle_query(
                 .send_email(&source, dests, &subject, text_body, html_body)
                 .await
             {
-                Ok(mid) => xml_ok(wrap_xml(
+                Ok(mid) => {
+                    telemetry::emit(&state.db, "aws", "ses", "send_email", &sjson!({"source": source}).to_string()).await;
+                    xml_ok(wrap_xml(
                     "SendEmail",
                     NS,
                     &format!(
                         "<SendEmailResult><MessageId>{}</MessageId></SendEmailResult>",
                         xml_escape(&mid)
                     ),
-                )),
+                ))
+                }
                 Err(e) => {
                     xml_error_response(StatusCode::BAD_REQUEST, "MessageRejected", &e.to_string())
                 }
@@ -300,11 +314,10 @@ async fn v2_send_email(
         .send_email(&source, dests, &subject, text_body, html_body)
         .await
     {
-        Ok(mid) => (
-            StatusCode::OK,
-            Json(serde_json::json!({ "MessageId": mid })),
-        )
-            .into_response(),
+        Ok(mid) => {
+            telemetry::emit(&state.db, "aws", "ses", "send_email", &sjson!({"source": source}).to_string()).await;
+            (StatusCode::OK, Json(serde_json::json!({ "MessageId": mid }))).into_response()
+        }
         Err(e) => (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({ "message": e.to_string() })),
@@ -327,12 +340,18 @@ async fn v2_create_identity(
     let is_domain = !identity.contains('@');
     if is_domain {
         match svc(&state).verify_domain(identity).await {
-            Ok(_)  => (StatusCode::OK, Json(serde_json::json!({ "IdentityType": "DOMAIN", "VerifiedForSendingStatus": true }))).into_response(),
+            Ok(_)  => {
+                telemetry::emit(&state.db, "aws", "ses", "verify_identity", &sjson!({"identity": identity}).to_string()).await;
+                (StatusCode::OK, Json(serde_json::json!({ "IdentityType": "DOMAIN", "VerifiedForSendingStatus": true }))).into_response()
+            }
             Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "message": e.to_string() }))).into_response(),
         }
     } else {
         match svc(&state).verify_email(identity).await {
-            Ok(_)  => (StatusCode::OK, Json(serde_json::json!({ "IdentityType": "EMAIL_ADDRESS", "VerifiedForSendingStatus": true }))).into_response(),
+            Ok(_)  => {
+                telemetry::emit(&state.db, "aws", "ses", "verify_identity", &sjson!({"identity": identity}).to_string()).await;
+                (StatusCode::OK, Json(serde_json::json!({ "IdentityType": "EMAIL_ADDRESS", "VerifiedForSendingStatus": true }))).into_response()
+            }
             Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "message": e.to_string() }))).into_response(),
         }
     }
@@ -391,7 +410,10 @@ async fn v2_delete_identity(
     Path(identity): Path<String>,
 ) -> StatusCode {
     match svc(&state).delete_identity(&identity).await {
-        Ok(_) => StatusCode::NO_CONTENT,
+        Ok(_) => {
+            let _ = telemetry::emit(&state.db, "aws", "ses", "delete_identity", &sjson!({"identity": identity}).to_string()).await;
+            StatusCode::NO_CONTENT
+        }
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }

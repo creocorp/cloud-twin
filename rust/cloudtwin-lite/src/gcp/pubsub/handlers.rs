@@ -14,6 +14,7 @@ use axum::{
 };
 
 use super::service::PubsubService;
+use crate::telemetry;
 use crate::AppState;
 
 fn svc(state: &Arc<AppState>) -> PubsubService {
@@ -104,7 +105,10 @@ async fn create_topic(
     Path((_project, topic)): Path<(String, String)>,
 ) -> Response {
     match svc(&state).create_topic(&topic).await {
-        Ok(t) => (StatusCode::OK, Json(topic_to_json(&t))).into_response(),
+        Ok(t) => {
+            telemetry::emit(&state.db, "gcp", "pubsub", "create_topic", &serde_json::json!({"topic": topic}).to_string()).await;
+            (StatusCode::OK, Json(topic_to_json(&t))).into_response()
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": e.to_string() })),
@@ -151,7 +155,10 @@ async fn delete_topic(
     Path((_project, topic)): Path<(String, String)>,
 ) -> StatusCode {
     match svc(&state).delete_topic(&topic).await {
-        Ok(_) => StatusCode::NO_CONTENT,
+        Ok(_) => {
+            let _ = telemetry::emit(&state.db, "gcp", "pubsub", "delete_topic", &serde_json::json!({"topic": topic}).to_string()).await;
+            StatusCode::NO_CONTENT
+        }
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
@@ -185,17 +192,14 @@ async fn publish_inner(
         })
         .unwrap_or_default();
 
-    match svc(&state).publish(&topic, msgs).await {
+    match svc(state).publish(topic, msgs).await {
         Ok(ids) => {
+            telemetry::emit(&state.db, "gcp", "pubsub", "publish", &serde_json::json!({"topic": topic}).to_string()).await;
             let results: Vec<_> = ids
                 .iter()
                 .map(|id| serde_json::json!({ "messageId": id }))
                 .collect();
-            (
-                StatusCode::OK,
-                Json(serde_json::json!({ "messageIds": results })),
-            )
-                .into_response()
+            (StatusCode::OK, Json(serde_json::json!({ "messageIds": results }))).into_response()
         }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -214,7 +218,10 @@ async fn create_subscription(
 ) -> Response {
     let topic = body.get("topic").and_then(|v| v.as_str()).unwrap_or("");
     match svc(&state).create_subscription(&sub, topic).await {
-        Ok(s) => (StatusCode::OK, Json(sub_to_json(&s))).into_response(),
+        Ok(s) => {
+            telemetry::emit(&state.db, "gcp", "pubsub", "create_subscription", &serde_json::json!({"subscription": sub, "topic": topic}).to_string()).await;
+            (StatusCode::OK, Json(sub_to_json(&s))).into_response()
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": e.to_string() })),
@@ -285,7 +292,7 @@ async fn pull_inner(
         .get("maxMessages")
         .and_then(|v| v.as_i64())
         .unwrap_or(10);
-    match svc(&state).pull(&sub, max).await {
+    match svc(state).pull(sub, max).await {
         Ok(pairs) => {
             let messages: Vec<_> = pairs
                 .iter()
@@ -331,7 +338,7 @@ async fn acknowledge_inner(
                 .collect()
         })
         .unwrap_or_default();
-    match svc(state).acknowledge(&sub, ack_ids).await {
+    match svc(state).acknowledge(sub, ack_ids).await {
         Ok(_) => StatusCode::OK.into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }

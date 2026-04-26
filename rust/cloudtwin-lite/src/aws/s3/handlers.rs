@@ -16,6 +16,7 @@ use axum::{
 };
 
 use super::service::S3Service;
+use crate::telemetry;
 use crate::AppState;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -121,7 +122,10 @@ async fn list_buckets(State(state): State<Arc<AppState>>) -> Response {
 
 async fn create_bucket(State(state): State<Arc<AppState>>, Path(bucket): Path<String>) -> Response {
     match svc(&state).create_bucket(&bucket).await {
-        Ok(_) => (StatusCode::OK, [("Location", format!("/{bucket}"))]).into_response(),
+        Ok(_) => {
+            telemetry::emit(&state.db, "aws", "s3", "create_bucket", &format!("{{\"bucket\":\"{bucket}\"}}")).await;
+            (StatusCode::OK, [("Location", format!("/{bucket}"))]).into_response()
+        }
         Err(e) => xml_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "InternalError",
@@ -133,7 +137,10 @@ async fn create_bucket(State(state): State<Arc<AppState>>, Path(bucket): Path<St
 
 async fn delete_bucket(State(state): State<Arc<AppState>>, Path(bucket): Path<String>) -> Response {
     match svc(&state).delete_bucket(&bucket).await {
-        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Ok(_) => {
+            telemetry::emit(&state.db, "aws", "s3", "delete_bucket", &format!("{{\"bucket\":\"{bucket}\"}}")).await;
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) if e.to_string().contains("NoSuchBucket") => xml_error(
             StatusCode::NOT_FOUND,
             "NoSuchBucket",
@@ -241,7 +248,10 @@ async fn put_object(
         .put_object(&bucket, &key, body.to_vec(), &content_type)
         .await
     {
-        Ok(etag) => (StatusCode::OK, [(header::ETAG, etag)]).into_response(),
+        Ok(etag) => {
+            telemetry::emit(&state.db, "aws", "s3", "put_object", &format!("{{\"bucket\":\"{bucket}\",\"key\":\"{key}\"}}")).await;
+            (StatusCode::OK, [(header::ETAG, etag)]).into_response()
+        }
         Err(e) if e.to_string().contains("NoSuchBucket") => xml_error(
             StatusCode::NOT_FOUND,
             "NoSuchBucket",
@@ -327,7 +337,10 @@ async fn delete_object(
     Path((bucket, key)): Path<(String, String)>,
 ) -> StatusCode {
     match svc(&state).delete_object(&bucket, &key).await {
-        Ok(_) => StatusCode::NO_CONTENT,
+        Ok(_) => {
+            telemetry::emit(&state.db, "aws", "s3", "delete_object", &format!("{{\"bucket\":\"{bucket}\",\"key\":\"{key}\"}}")).await;
+            StatusCode::NO_CONTENT
+        }
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }

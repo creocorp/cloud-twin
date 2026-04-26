@@ -13,6 +13,7 @@ use axum::{
 };
 
 use super::service::StorageService;
+use crate::telemetry;
 use crate::AppState;
 
 fn svc(state: &Arc<AppState>) -> StorageService {
@@ -77,7 +78,10 @@ async fn create_bucket(
     let name = body.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let location = body.get("location").and_then(|v| v.as_str());
     match svc(&state).create_bucket(name, location).await {
-        Ok(b) => (StatusCode::OK, Json(bucket_to_json(&b))).into_response(),
+        Ok(b) => {
+            telemetry::emit(&state.db, "gcp", "storage", "create_bucket", &serde_json::json!({"bucket": name}).to_string()).await;
+            (StatusCode::OK, Json(bucket_to_json(&b))).into_response()
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": e.to_string() })),
@@ -125,7 +129,10 @@ async fn delete_bucket(
     Path(bucket): Path<String>,
 ) -> StatusCode {
     match svc(&state).delete_bucket(&bucket).await {
-        Ok(_) => StatusCode::NO_CONTENT,
+        Ok(_) => {
+            let _ = telemetry::emit(&state.db, "gcp", "storage", "delete_bucket", &serde_json::json!({"bucket": bucket}).to_string()).await;
+            StatusCode::NO_CONTENT
+        }
         Err(e) if e.to_string().contains("BucketNotFound") => StatusCode::NOT_FOUND,
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
@@ -149,7 +156,10 @@ async fn upload_object(
         .upload_object(&bucket, name, body.to_vec(), ct)
         .await
     {
-        Ok(o) => (StatusCode::OK, Json(object_to_json(&o))).into_response(),
+        Ok(o) => {
+            telemetry::emit(&state.db, "gcp", "storage", "put_object", &serde_json::json!({"bucket": bucket, "object": name}).to_string()).await;
+            (StatusCode::OK, Json(object_to_json(&o))).into_response()
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": e.to_string() })),
@@ -242,7 +252,10 @@ async fn delete_object(
     Path((bucket, object)): Path<(String, String)>,
 ) -> StatusCode {
     match svc(&state).delete_object(&bucket, &object).await {
-        Ok(_) => StatusCode::NO_CONTENT,
+        Ok(_) => {
+            let _ = telemetry::emit(&state.db, "gcp", "storage", "delete_object", &serde_json::json!({"bucket": bucket, "object": object}).to_string()).await;
+            StatusCode::NO_CONTENT
+        }
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }

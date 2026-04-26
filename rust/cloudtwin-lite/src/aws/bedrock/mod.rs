@@ -13,9 +13,9 @@ mod streaming;
 pub use config::BedrockSimConfig;
 pub use state::BedrockState;
 
-use std::sync::Arc;
-use axum::Router;
 use crate::AppState;
+use axum::Router;
+use std::sync::Arc;
 
 /// Build the Bedrock REST router.
 ///

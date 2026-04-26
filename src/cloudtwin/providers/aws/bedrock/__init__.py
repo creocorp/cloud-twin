@@ -43,6 +43,9 @@ def register(
     engine = ScenarioEngine(sim_config, state, generator)
 
     app.include_router(make_bedrock_router(engine, telemetry))
+    # Expose state and config for the dashboard API.
+    app.state.bedrock_state = state
+    app.state.bedrock_sim_config = sim_config
     log.info(
         "Bedrock simulation registered (%d model overrides configured)",
         len(sim_config.models),

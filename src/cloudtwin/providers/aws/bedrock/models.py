@@ -173,6 +173,8 @@ class ModelSimConfig:
     """Full simulation configuration for a single model ID."""
 
     mode: str = "text"  # "text" | "schema" | "static"
+    name: Optional[str] = None      # display name shown in ListFoundationModels
+    provider: Optional[str] = None  # provider prefix (derived from model_id if omitted)
     static: Optional[dict] = None
     schema_config: Optional[SchemaNodeConfig] = None
     text: Optional[TextConfig] = None
@@ -191,6 +193,8 @@ class ModelSimConfig:
         latency_raw = data.get("latency")
         return cls(
             mode=data.get("mode", "text"),
+            name=data.get("name"),
+            provider=data.get("provider"),
             static=data.get("static"),
             schema_config=SchemaNodeConfig.from_dict(schema_raw) if schema_raw else None,
             text=TextConfig.from_dict(text_raw) if text_raw else None,
@@ -217,11 +221,32 @@ class BedrockDefaultsConfig:
 
 
 @dataclass
+class CatalogueEntry:
+    """One entry in the foundation-model catalogue (derived from models)."""
+
+    model_id: str
+    model_name: str
+    provider: str
+
+
+@dataclass
 class BedrockSimConfig:
     """Top-level parsed bedrock simulation config."""
 
     defaults: BedrockDefaultsConfig = field(default_factory=BedrockDefaultsConfig)
     models: dict[str, ModelSimConfig] = field(default_factory=dict)
+
+    @property
+    def catalogue(self) -> list[CatalogueEntry]:
+        """Derive the foundation-model catalogue from the models map."""
+        return [
+            CatalogueEntry(
+                model_id=model_id,
+                model_name=m.name or model_id,
+                provider=m.provider or model_id.split(".")[0],
+            )
+            for model_id, m in self.models.items()
+        ]
 
     @classmethod
     def from_dict(cls, data: dict) -> BedrockSimConfig:

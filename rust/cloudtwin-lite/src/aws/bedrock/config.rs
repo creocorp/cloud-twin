@@ -1,7 +1,8 @@
 //! Bedrock simulation configuration structs.
 //!
-//! Deserialized from JSON (env var CLOUDTWIN_BEDROCK_CONFIG or file at
-//! CLOUDTWIN_BEDROCK_CONFIG_PATH). Unknown models fall back to the global
+//! Deserialized from the `bedrock:` section of the shared `cloudtwin.yml`
+//! file (resolved via `CLOUDTWIN_CONFIG_PATH`, default `/config/cloudtwin.yml`)
+//! by `crate::config::Config::load`. Unknown models fall back to the global
 //! defaults so the server is useful even with no configuration.
 
 use std::collections::HashMap;
@@ -22,38 +23,6 @@ pub struct BedrockSimConfig {
 }
 
 impl BedrockSimConfig {
-    /// Load configuration from the environment.
-    ///
-    /// Priority:
-    ///   1. `CLOUDTWIN_BEDROCK_CONFIG`  – inline JSON string
-    ///   2. `CLOUDTWIN_BEDROCK_CONFIG_PATH` – path to a JSON file
-    ///   3. Built-in default (text mode, no model overrides)
-    pub fn load() -> Self {
-        // 1. Inline JSON
-        if let Ok(json_str) = std::env::var("CLOUDTWIN_BEDROCK_CONFIG") {
-            match serde_json::from_str(&json_str) {
-                Ok(cfg) => return cfg,
-                Err(e) => tracing::warn!("CLOUDTWIN_BEDROCK_CONFIG parse error: {e}"),
-            }
-        }
-
-        // 2. File path
-        let path = std::env::var("CLOUDTWIN_BEDROCK_CONFIG_PATH")
-            .unwrap_or_else(|_| "/config/bedrock.json".to_string());
-        if std::path::Path::new(&path).exists() {
-            match std::fs::read_to_string(&path) {
-                Ok(content) => match serde_json::from_str(&content) {
-                    Ok(cfg) => return cfg,
-                    Err(e) => tracing::warn!("Bedrock config parse error in {path}: {e}"),
-                },
-                Err(e) => tracing::warn!("Cannot read bedrock config at {path}: {e}"),
-            }
-        }
-
-        // 3. Default
-        Self::default()
-    }
-
     /// Return the effective config for a model, falling back to a stub that uses
     /// the global default mode when the model has no explicit entry.
     pub fn get_model_config<'a>(&'a self, model_id: &str) -> ModelSimConfigRef<'a> {
@@ -141,7 +110,10 @@ pub struct DefaultsConfig {
 
 impl Default for DefaultsConfig {
     fn default() -> Self {
-        Self { mode: "text".to_string(), latency: None }
+        Self {
+            mode: "text".to_string(),
+            latency: None,
+        }
     }
 }
 
@@ -277,6 +249,10 @@ fn default_every() -> u64 {
 /// Per-model configuration.
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ModelSimConfig {
+    /// Optional display name shown in ListFoundationModels.
+    pub name: Option<String>,
+    /// Optional provider name; derived from the model_id prefix if omitted.
+    pub provider: Option<String>,
     pub mode: Option<String>,
     #[serde(rename = "static")]
     pub static_payload: Option<serde_json::Value>,
@@ -289,4 +265,20 @@ pub struct ModelSimConfig {
     pub errors: Vec<ErrorInjectConfig>,
     pub streaming: Option<StreamingConfig>,
     pub latency: Option<LatencyConfig>,
+}
+
+impl ModelSimConfig {
+    /// Effective display name: explicit `name` field or the model_id itself.
+    pub fn effective_name<'a>(&'a self, model_id: &'a str) -> &'a str {
+        self.name.as_deref().unwrap_or(model_id)
+    }
+
+    /// Effective provider: explicit `provider` field or the first `.`-delimited
+    /// segment of the model_id (e.g. `"anthropic"` from `"anthropic.claude-…"`).
+    pub fn effective_provider<'a>(&'a self, model_id: &'a str) -> &'a str {
+        if let Some(p) = self.provider.as_deref() {
+            return p;
+        }
+        model_id.split('.').next().unwrap_or("cloudtwin")
+    }
 }

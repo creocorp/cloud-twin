@@ -12,6 +12,7 @@ use axum::{
 };
 
 use super::service::ServiceBusService;
+use crate::telemetry;
 use crate::AppState;
 
 fn svc(state: &Arc<AppState>) -> ServiceBusService {
@@ -79,11 +80,10 @@ async fn create_queue(
     Path((_, queue)): Path<(String, String)>,
 ) -> Response {
     match svc(&state).create_queue(&queue).await {
-        Ok(q) => (
-            StatusCode::CREATED,
-            Json(serde_json::json!({ "name": q.name })),
-        )
-            .into_response(),
+        Ok(q) => {
+            telemetry::emit(&state.db, "azure", "servicebus", "create_queue", &serde_json::json!({"queue": queue}).to_string()).await;
+            (StatusCode::CREATED, Json(serde_json::json!({ "name": q.name }))).into_response()
+        }
         Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
     }
 }
@@ -106,7 +106,10 @@ async fn delete_queue(
     Path((_, queue)): Path<(String, String)>,
 ) -> StatusCode {
     match svc(&state).delete_queue(&queue).await {
-        Ok(_) => StatusCode::OK,
+        Ok(_) => {
+            let _ = telemetry::emit(&state.db, "azure", "servicebus", "delete_queue", &serde_json::json!({"queue": queue}).to_string()).await;
+            StatusCode::OK
+        }
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
@@ -118,11 +121,10 @@ async fn send_message(
 ) -> Response {
     let body_str = String::from_utf8_lossy(&body).to_string();
     match svc(&state).send_message(&queue, &body_str).await {
-        Ok(mid) => (
-            StatusCode::CREATED,
-            Json(serde_json::json!({ "messageId": mid })),
-        )
-            .into_response(),
+        Ok(mid) => {
+            telemetry::emit(&state.db, "azure", "servicebus", "send_message", &serde_json::json!({"queue": queue}).to_string()).await;
+            (StatusCode::CREATED, Json(serde_json::json!({ "messageId": mid }))).into_response()
+        }
         Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
     }
 }
@@ -176,11 +178,10 @@ async fn create_topic(
     Path((_, topic)): Path<(String, String)>,
 ) -> Response {
     match svc(&state).create_topic(&topic).await {
-        Ok(t) => (
-            StatusCode::CREATED,
-            Json(serde_json::json!({ "name": t.name })),
-        )
-            .into_response(),
+        Ok(t) => {
+            telemetry::emit(&state.db, "azure", "servicebus", "create_topic", &serde_json::json!({"topic": topic}).to_string()).await;
+            (StatusCode::CREATED, Json(serde_json::json!({ "name": t.name }))).into_response()
+        }
         Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
     }
 }
@@ -231,11 +232,10 @@ async fn create_subscription(
     Path((_, topic, sub)): Path<(String, String, String)>,
 ) -> Response {
     match svc(&state).create_subscription(&topic, &sub).await {
-        Ok(s) => (
-            StatusCode::CREATED,
-            Json(serde_json::json!({ "name": s.name, "topic": s.topic })),
-        )
-            .into_response(),
+        Ok(s) => {
+            telemetry::emit(&state.db, "azure", "servicebus", "create_subscription", &serde_json::json!({"topic": topic, "subscription": sub}).to_string()).await;
+            (StatusCode::CREATED, Json(serde_json::json!({ "name": s.name, "topic": s.topic }))).into_response()
+        }
         Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
     }
 }

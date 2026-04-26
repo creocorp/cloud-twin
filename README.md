@@ -105,6 +105,25 @@ testing SDK integration, retry logic, streaming handling, and prompt routing.
 | `POST` | `/model/{modelId}/invoke` | `bedrock-runtime.invoke_model()` |
 | `POST` | `/model/{modelId}/invoke-with-response-stream` | `bedrock-runtime.invoke_model_with_response_stream()` |
 
+All three endpoints are served by **both** the Python backend and CloudTwin
+Lite (Rust) with byte-for-byte identical request/response shapes — feature
+parity covers `text` / `schema` / `static` modes, sequence/cycle progressions,
+prompt rules (`contains`), periodic error injection (`every: N`), latency
+simulation, and EventStream streaming with `word` / `char` / `fixed` chunking.
+Responses include `x-cloudtwin-request-count` and `x-cloudtwin-response-source`
+headers so test harnesses can introspect the resolved scenario. The full
+Bedrock integration suite (`tests/integration/providers/aws/test_bedrock_boto3.py`,
+25 tests) passes against both backends.
+
+### Dashboard chat playground
+
+The dashboard's **AWS → Bedrock** page includes an interactive chat window for
+sending prompts to any configured model. It calls the live `/model/{id}/invoke`
+and `/model/{id}/invoke-with-response-stream` endpoints, decodes the EventStream
+binary frames in the browser, and shows the resolution source and request count
+returned by the backend — useful for quickly probing scenario rules and
+streaming behaviour without writing SDK code.
+
 ### Quick example
 
 ```python
@@ -130,40 +149,58 @@ print(result["content"])  # synthetic lorem-ipsum text
 
 ### YAML configuration
 
+The `bedrock:` section in `cloudtwin.yml` has two fields:
+
+- **`defaults:`** — fallback `mode` (and optional `latency`) for any model with no explicit behaviour configured.
+- **`models:`** — every key is a model ID. Each entry appears in `ListFoundationModels` and optionally defines its simulation behaviour. `name:` and `provider:` are optional display metadata; both are derived from the model ID key if omitted.
+
+Both the Python backend and CloudTwin Lite read this from the same `cloudtwin.yml` — there is no separate Bedrock config file.
+
 ```yaml
 bedrock:
   defaults:
-    mode: text
+    mode: text          # text | schema | static
     latency:
       min_ms: 50
       max_ms: 120
 
   models:
+    # Real foundation model — name/provider shown in ListFoundationModels.
+    # No mode set, so it falls back to defaults.mode (lorem-ipsum text).
     anthropic.claude-3-sonnet-20240229-v1:0:
+      name: Claude 3 Sonnet
+      provider: anthropic
+
+    # Return a generated JSON object matching a schema.
+    my-model.schema:
       mode: schema
       schema:
         type: object
         properties:
-          summary:
-            type: string
-          confidence:
-            type: number
-          tags:
-            type: array
-            items:
-              type: string
+          summary:    { type: string }
+          confidence: { type: number }
       streaming:
         enabled: true
         chunk_mode: word
         first_chunk_delay_ms: 150
         chunk_delay_ms: 20
 
-    custom.error-model:
+    # Inject an error every 5th request.
+    my-model.flaky:
       mode: text
       errors:
         - every: 5
           type: ThrottlingException
           message: "Every 5th request is throttled"
+
+    # Match on prompt content.
+    my-model.rules:
+      mode: text
+      rules:
+        - contains: sentiment
+          response: { static: { sentiment: positive, score: 0.9 } }
+        - contains: fail
+          error: { type: ValidationException, message: Rejected by rule }
 ```
 
 See [docs/developer-guide.md](docs/developer-guide.md#aws-bedrock-simulation) for the full reference.
@@ -188,13 +225,23 @@ variables take precedence.
 **Example `cloudtwin.yml`:**
 
 ```yaml
-host: 0.0.0.0
-port: 4793
-storage:
-  mode: sqlite
-  db_path: /data/cloudtwin.db
-dashboard:
-  enabled: true
+cloudtwin:
+  api_port: 4793
+  storage:
+    mode: sqlite
+    path: /data/cloudtwin.db
+  providers:
+    aws:
+      services: ["ses", "s3", "sns", "sqs", "bedrock"]
+  dashboard:
+    enabled: true
+  bedrock:
+    defaults:
+      mode: text
+    models:
+      anthropic.claude-3-sonnet-20240229-v1:0:
+        name: Claude 3 Sonnet
+        provider: anthropic
 ```
 
 ---
@@ -237,6 +284,7 @@ The dashboard provides:
 - **Overview** — live service health and recent event counts
 - **Per-service pages** — browse and inspect resources for each service
   (SES identities and messages, S3 buckets and objects, SNS topics, SQS queues,
+   Bedrock foundation models with an interactive **chat playground**,
    Azure Blob containers, Azure Service Bus queues/topics, GCP Cloud Storage
    buckets, GCP Pub/Sub topics and subscriptions)
 - **Event log** — filterable stream of all actions emitted by the telemetry engine
@@ -257,6 +305,25 @@ make test-integration
 python -m pytest tests/integration/ -q
 ```
 
+### Cross-implementation parity
+
+The Python integration suite can be run against the Rust binary to verify
+feature parity end-to-end. Set `CLOUDTWIN_TEST_URL` to skip spawning the
+in-process Python app and point boto3/Azure/GCP clients at a running
+backend instead:
+
+```bash
+make rust-build           # produce ./rust/cloudtwin-lite/target/release/cloudtwin-lite
+make rust-test-parity     # boots the Rust binary on :47930 and runs the Bedrock suite against it
+```
+
+The Bedrock suite passes 100% against both backends. Other AWS services
+(SES, S3, SNS, SQS, DynamoDB, Secrets Manager) share the same root URL
+layout and are largely parity-tested, with a small number of pre-existing
+edge-case gaps in CloudTwin Lite. Azure and GCP are mounted at different
+paths (`/azure/`, `/gcp/`) in the Rust binary versus root in Python, so
+their SDK fixtures are not directly portable across backends.
+
 ---
 
 ## CloudTwin Lite (Rust)
@@ -266,7 +333,8 @@ for embedding in CI pipelines or resource-constrained environments.
 Source is under [`rust/cloudtwin-lite/`](rust/cloudtwin-lite/).
 
 **Implemented services:** S3, SES (v1 + v2), SNS, SQS, DynamoDB, Secrets Manager,
-Azure Blob Storage, Azure Service Bus, GCP Cloud Storage, GCP Pub/Sub.
+**Bedrock (simulation)**, Azure Blob Storage, Azure Service Bus, GCP Cloud Storage,
+GCP Pub/Sub.
 
 **Run with Docker:**
 
@@ -292,11 +360,16 @@ make rust-run          # build + run
 make rust-check        # cargo check only
 ```
 
-**Configuration (environment variables):**
+**Configuration:**
+
+Both CloudTwin Lite and the Python backend read the same `cloudtwin.yml` file
+(path controlled by `CLOUDTWIN_CONFIG_PATH`, defaulting to `/config/cloudtwin.yml`).
+Environment variables take precedence over YAML values where both apply.
 
 | Variable | Default | Description |
 |---|---|---|
-| `CLOUDTWIN_PORT` | `4793` | Port to listen on |
+| `CLOUDTWIN_CONFIG_PATH` | `/config/cloudtwin.yml` | Path to YAML config file (shared with Python backend) |
+| `CLOUDTWIN_PORT` | `4793` | Port to listen on (overrides `api_port` in YAML) |
 | `CLOUDTWIN_DB_PATH` | `/data/cloudtwin-lite.db` | SQLite database path (`:memory:` for in-memory) |
 
 **Routing:**

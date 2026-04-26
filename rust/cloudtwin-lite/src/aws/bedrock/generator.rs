@@ -119,7 +119,7 @@ pub fn generate_from_schema(
         }
         "boolean" => {
             let seed = compute_seed(model_id, path, request_count);
-            Value::Bool(seed % 2 == 0)
+            Value::Bool(seed.is_multiple_of(2))
         }
         _ => {
             // string

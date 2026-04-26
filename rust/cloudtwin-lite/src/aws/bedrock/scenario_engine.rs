@@ -9,7 +9,7 @@
 use serde_json::Value;
 
 use super::{
-    config::{ResponseEntry, StreamingConfig},
+    config::{LatencyConfig, ResponseEntry, StreamingConfig},
     generator::{generate_from_schema, generate_text},
     state::BedrockState,
 };
@@ -27,12 +27,18 @@ pub struct ResolvedResponse {
     pub json_body: Option<Value>,
     /// Plain text body (text-mode outcomes).
     pub text_body: Option<String>,
+    #[allow(dead_code)]
     pub model_id: String,
+    #[allow(dead_code)]
     pub request_count: u64,
     /// Human-readable label indicating how the response was resolved.
+    #[allow(dead_code)]
     pub source: String,
+    #[allow(dead_code)]
     pub streaming: bool,
     pub streaming_config: Option<StreamingConfig>,
+    /// Effective latency to apply before sending the response.
+    pub latency_config: Option<LatencyConfig>,
     /// Error details when `kind == "error"`.
     pub error_type: Option<String>,
     pub error_message: Option<String>,
@@ -48,11 +54,12 @@ pub fn resolve(state: &BedrockState, model_id: &str, prompt_text: &str) -> Resol
     let request_count = state.increment(model_id);
 
     let streaming_cfg = cfg_ref.streaming().cloned();
-    let streaming_enabled = streaming_cfg.as_ref().map_or(false, |s| s.enabled);
+    let streaming_enabled = streaming_cfg.as_ref().is_some_and(|s| s.enabled);
+    let latency_cfg = cfg_ref.latency().cloned();
 
     // ── 1. Periodic error injection ─────────────────────────────────────────
     for inject in cfg_ref.error_injections() {
-        if inject.every > 0 && request_count % inject.every == 0 {
+        if inject.every > 0 && request_count.is_multiple_of(inject.every) {
             return error_response(
                 model_id,
                 request_count,
@@ -61,6 +68,7 @@ pub fn resolve(state: &BedrockState, model_id: &str, prompt_text: &str) -> Resol
                 "error_injection",
                 streaming_enabled,
                 streaming_cfg,
+                latency_cfg,
             );
         }
     }
@@ -71,7 +79,7 @@ pub fn resolve(state: &BedrockState, model_id: &str, prompt_text: &str) -> Resol
         let matches = rule
             .contains
             .as_ref()
-            .map_or(false, |needle| prompt_lower.contains(needle.as_str()));
+            .is_some_and(|needle| prompt_lower.contains(needle.as_str()));
         if matches {
             if let Some(err) = &rule.error {
                 return error_response(
@@ -82,6 +90,7 @@ pub fn resolve(state: &BedrockState, model_id: &str, prompt_text: &str) -> Resol
                     "rule_error",
                     streaming_enabled,
                     streaming_cfg,
+                    latency_cfg,
                 );
             }
             if let Some(resp) = &rule.response {
@@ -92,6 +101,7 @@ pub fn resolve(state: &BedrockState, model_id: &str, prompt_text: &str) -> Resol
                     "rule",
                     streaming_enabled,
                     streaming_cfg,
+                    latency_cfg,
                 );
             }
         }
@@ -114,6 +124,7 @@ pub fn resolve(state: &BedrockState, model_id: &str, prompt_text: &str) -> Resol
                 &format!("sequence[{idx}]"),
                 streaming_enabled,
                 streaming_cfg,
+                latency_cfg,
             );
         }
     }
@@ -134,6 +145,7 @@ pub fn resolve(state: &BedrockState, model_id: &str, prompt_text: &str) -> Resol
                 source: "schema".into(),
                 streaming: streaming_enabled,
                 streaming_config: streaming_cfg,
+                latency_config: latency_cfg,
                 error_type: None,
                 error_message: None,
             }
@@ -149,6 +161,7 @@ pub fn resolve(state: &BedrockState, model_id: &str, prompt_text: &str) -> Resol
                 source: "static".into(),
                 streaming: streaming_enabled,
                 streaming_config: streaming_cfg,
+                latency_config: latency_cfg,
                 error_type: None,
                 error_message: None,
             }
@@ -165,6 +178,7 @@ pub fn resolve(state: &BedrockState, model_id: &str, prompt_text: &str) -> Resol
                 source: "text".into(),
                 streaming: streaming_enabled,
                 streaming_config: streaming_cfg,
+                latency_config: latency_cfg,
                 error_type: None,
                 error_message: None,
             }
@@ -176,6 +190,7 @@ pub fn resolve(state: &BedrockState, model_id: &str, prompt_text: &str) -> Resol
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 fn error_response(
     model_id: &str,
     request_count: u64,
@@ -184,6 +199,7 @@ fn error_response(
     source: &str,
     streaming: bool,
     streaming_config: Option<StreamingConfig>,
+    latency_config: Option<LatencyConfig>,
 ) -> ResolvedResponse {
     ResolvedResponse {
         kind: "error".into(),
@@ -194,11 +210,13 @@ fn error_response(
         source: source.to_string(),
         streaming,
         streaming_config,
+        latency_config,
         error_type: Some(error_type.to_string()),
         error_message: Some(error_message.to_string()),
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn resolve_response_entry(
     entry: &ResponseEntry,
     model_id: &str,
@@ -206,6 +224,7 @@ fn resolve_response_entry(
     source: &str,
     streaming: bool,
     streaming_config: Option<StreamingConfig>,
+    latency_config: Option<LatencyConfig>,
 ) -> ResolvedResponse {
     if let Some(err) = &entry.error {
         return error_response(
@@ -216,6 +235,7 @@ fn resolve_response_entry(
             source,
             streaming,
             streaming_config,
+            latency_config,
         );
     }
 
@@ -229,6 +249,7 @@ fn resolve_response_entry(
             source: source.to_string(),
             streaming,
             streaming_config,
+            latency_config,
             error_type: None,
             error_message: None,
         };
@@ -245,6 +266,7 @@ fn resolve_response_entry(
         source: source.to_string(),
         streaming,
         streaming_config,
+        latency_config,
         error_type: None,
         error_message: None,
     }

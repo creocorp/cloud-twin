@@ -37,53 +37,6 @@ from cloudtwin.providers.aws.bedrock.streaming import stream_response
 log = logging.getLogger("cloudtwin.bedrock")
 
 # ---------------------------------------------------------------------------
-# Minimal foundation-model catalogue returned by ListFoundationModels
-# ---------------------------------------------------------------------------
-
-_FOUNDATION_MODELS = [
-    {
-        "modelId": "anthropic.claude-3-sonnet-20240229-v1:0",
-        "modelName": "Claude 3 Sonnet",
-        "providerName": "Anthropic",
-        "inputModalities": ["TEXT"],
-        "outputModalities": ["TEXT"],
-        "responseStreamingSupported": True,
-    },
-    {
-        "modelId": "anthropic.claude-3-haiku-20240307-v1:0",
-        "modelName": "Claude 3 Haiku",
-        "providerName": "Anthropic",
-        "inputModalities": ["TEXT"],
-        "outputModalities": ["TEXT"],
-        "responseStreamingSupported": True,
-    },
-    {
-        "modelId": "meta.llama3-70b-instruct-v1:0",
-        "modelName": "Llama 3 70B Instruct",
-        "providerName": "Meta",
-        "inputModalities": ["TEXT"],
-        "outputModalities": ["TEXT"],
-        "responseStreamingSupported": True,
-    },
-    {
-        "modelId": "amazon.titan-text-express-v1",
-        "modelName": "Titan Text Express",
-        "providerName": "Amazon",
-        "inputModalities": ["TEXT"],
-        "outputModalities": ["TEXT"],
-        "responseStreamingSupported": True,
-    },
-    {
-        "modelId": "cohere.command-r-v1:0",
-        "modelName": "Command R",
-        "providerName": "Cohere",
-        "inputModalities": ["TEXT"],
-        "outputModalities": ["TEXT"],
-        "responseStreamingSupported": True,
-    },
-]
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -123,12 +76,25 @@ def _error_response(error_type: str, message: str, status: int = 400) -> Respons
 def make_bedrock_router(engine: ScenarioEngine, telemetry: TelemetryEngine) -> APIRouter:
     router = APIRouter()
 
+    sim_config = engine._config
+
     # ------------------------------------------------------------------
     # ListFoundationModels  GET /foundation-models
     # ------------------------------------------------------------------
     @router.get("/foundation-models")
     async def list_foundation_models(request: Request) -> Response:
-        return JSONResponse({"modelSummaries": _FOUNDATION_MODELS})
+        summaries = [
+            {
+                "modelId": model_id,
+                "modelName": m.name or model_id,
+                "providerName": m.provider or model_id.split(".")[0],
+                "inputModalities": ["TEXT"],
+                "outputModalities": ["TEXT"],
+                "responseStreamingSupported": True,
+            }
+            for model_id, m in sim_config.models.items()
+        ]
+        return JSONResponse({"modelSummaries": summaries})
 
     # ------------------------------------------------------------------
     # InvokeModel  POST /model/{model_id}/invoke

@@ -7,6 +7,7 @@ use axum::{http::StatusCode, response::Response};
 
 use super::service::SnsService;
 use crate::proto::{wrap_xml, xml_error_response, xml_escape, xml_ok};
+use crate::telemetry;
 use crate::AppState;
 
 fn svc(state: &Arc<AppState>) -> SnsService {
@@ -40,14 +41,17 @@ pub async fn handle_query(
                 );
             }
             match svc(state).create_topic(name).await {
-                Ok(arn) => xml_ok(wrap_xml(
+                Ok(arn) => {
+                    telemetry::emit(&state.db, "aws", "sns", "create_topic", &serde_json::json!({"topic_arn": arn}).to_string()).await;
+                    xml_ok(wrap_xml(
                     "CreateTopic",
                     NS,
                     &format!(
                         "<CreateTopicResult><TopicArn>{}</TopicArn></CreateTopicResult>",
                         xml_escape(&arn)
                     ),
-                )),
+                ))
+                }
                 Err(e) => xml_error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "InternalError",
@@ -81,7 +85,10 @@ pub async fn handle_query(
         "DeleteTopic" => {
             let arn = params.get("TopicArn").map(|s| s.as_str()).unwrap_or("");
             match svc(state).delete_topic(arn).await {
-                Ok(_) => xml_ok(wrap_xml("DeleteTopic", NS, "<DeleteTopicResult/>")),
+                Ok(_) => {
+                    telemetry::emit(&state.db, "aws", "sns", "delete_topic", &serde_json::json!({"topic_arn": arn}).to_string()).await;
+                    xml_ok(wrap_xml("DeleteTopic", NS, "<DeleteTopicResult/>"))
+                }
                 Err(e) => xml_error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "InternalError",
@@ -94,14 +101,17 @@ pub async fn handle_query(
             let protocol = params.get("Protocol").map(|s| s.as_str()).unwrap_or("");
             let endpoint = params.get("Endpoint").map(|s| s.as_str()).unwrap_or("");
             match svc(state).subscribe(topic_arn, protocol, endpoint).await {
-                Ok(sub_arn) => xml_ok(wrap_xml(
+                Ok(sub_arn) => {
+                    telemetry::emit(&state.db, "aws", "sns", "subscribe", &serde_json::json!({"topic_arn": topic_arn}).to_string()).await;
+                    xml_ok(wrap_xml(
                     "Subscribe",
                     NS,
                     &format!(
                         "<SubscribeResult><SubscriptionArn>{}</SubscriptionArn></SubscribeResult>",
                         xml_escape(&sub_arn)
                     ),
-                )),
+                ))
+                }
                 Err(e) if e.to_string().contains("NotFound") => {
                     xml_error_response(StatusCode::NOT_FOUND, "NotFound", &e.to_string())
                 }
@@ -151,14 +161,17 @@ pub async fn handle_query(
             let message = params.get("Message").map(|s| s.as_str()).unwrap_or("");
             let subject = params.get("Subject").map(|s| s.as_str());
             match svc(state).publish(topic_arn, message, subject).await {
-                Ok(mid) => xml_ok(wrap_xml(
+                Ok(mid) => {
+                    telemetry::emit(&state.db, "aws", "sns", "publish", &serde_json::json!({"topic_arn": topic_arn}).to_string()).await;
+                    xml_ok(wrap_xml(
                     "Publish",
                     NS,
                     &format!(
                         "<PublishResult><MessageId>{}</MessageId></PublishResult>",
                         xml_escape(&mid)
                     ),
-                )),
+                ))
+                }
                 Err(e) => xml_error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "InternalError",

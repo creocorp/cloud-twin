@@ -10,7 +10,6 @@ Test model IDs are configured in conftest.py's server_url fixture.
 
 from __future__ import annotations
 
-import base64
 import json
 
 import pytest
@@ -67,7 +66,7 @@ class TestListFoundationModels:
     def test_known_model_present(self, bedrock_mgmt):
         resp = bedrock_mgmt.list_foundation_models()
         ids = {m["modelId"] for m in resp["modelSummaries"]}
-        assert "anthropic.claude-3-sonnet-20240229-v1:0" in ids
+        assert "test.text" in ids
 
 
 # ---------------------------------------------------------------------------
