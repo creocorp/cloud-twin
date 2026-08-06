@@ -12,6 +12,7 @@
 const ROUTES = {
   '/':                 { page: 'page-overview',         load: loadOverview,   poll: 10000 },
   '/events':           { page: 'page-events',           load: loadEvents,     poll: 3000  },
+  '/mailbox':          { page: 'page-mailbox',          load: loadMailbox,    poll: 5000  },
   '/aws/ses':          { page: 'page-aws-ses',          load: loadSES,        poll: null  },
   '/aws/s3':           { page: 'page-aws-s3',           load: loadS3,         poll: null  },
   '/aws/sns':          { page: 'page-aws-sns',          load: loadSNS,        poll: null  },

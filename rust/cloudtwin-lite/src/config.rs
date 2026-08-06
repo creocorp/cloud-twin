@@ -28,6 +28,10 @@ pub struct Config {
     pub azure_namespace: String,
     pub gcp_project: String,
     pub dashboard_static_path: Option<String>,
+    /// TCP port for the Mailpit-style mailbox SMTP listener.
+    pub smtp_port: u16,
+    /// Whether the mailbox feature is enabled.
+    pub mailbox_enabled: bool,
     /// Bedrock simulation config loaded from the `bedrock:` YAML section.
     pub bedrock: BedrockSimConfig,
 }
@@ -80,6 +84,17 @@ impl Config {
 
         let dashboard_static_path = env::var("CLOUDTWIN_DASHBOARD_STATIC").ok();
 
+        let smtp_port: u16 = env::var("CLOUDTWIN_SMTP_PORT")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(yaml.mailbox.as_ref().and_then(|m| m.smtp_port).unwrap_or(1025));
+
+        // Default to disabled (false) for mailbox
+        let mailbox_enabled: bool = env::var("CLOUDTWIN_MAILBOX_ENABLED")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(yaml.mailbox.as_ref().and_then(|m| m.enabled).unwrap_or(false));
+
         let bedrock = yaml.bedrock.unwrap_or_default();
 
         Config {
@@ -90,6 +105,8 @@ impl Config {
             azure_namespace,
             gcp_project,
             dashboard_static_path,
+            smtp_port,
+            mailbox_enabled,
             bedrock,
         }
     }
@@ -110,6 +127,7 @@ struct YamlRoot {
     logging: Option<YamlLogging>,
     api_port: Option<u16>,
     bedrock: Option<BedrockSimConfig>,
+    mailbox: Option<YamlMailbox>,
 }
 
 impl YamlRoot {
@@ -191,4 +209,11 @@ struct YamlDashboard {
 #[allow(dead_code)]
 struct YamlLogging {
     level: Option<String>,
+}
+
+/// The `mailbox:` block — configures the Mailpit-style SMTP capture server.
+#[derive(Debug, Default, Deserialize)]
+struct YamlMailbox {
+    enabled: Option<bool>,
+    smtp_port: Option<u16>,
 }

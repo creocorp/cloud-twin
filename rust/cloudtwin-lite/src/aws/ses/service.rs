@@ -160,6 +160,22 @@ impl SesService {
         let dest_json = serde_json::to_string(&destinations).unwrap_or_else(|_| "[]".into());
         let subj = subject.to_string();
         let now = Utc::now().to_rfc3339();
+
+        // Also capture into the standalone mailbox so SES sends appear in the
+        // Mailpit-style inbox alongside messages received over SMTP.
+        if let Err(e) = crate::mailbox::service::capture_from_ses(
+            &self.db,
+            source,
+            &destinations,
+            subject,
+            text_body.as_deref(),
+            html_body.as_deref(),
+        )
+        .await
+        {
+            tracing::warn!("mailbox capture of SES message failed: {e}");
+        }
+
         let mid = message_id.clone();
         self.db.conn.call(move |conn| {
             conn.execute(

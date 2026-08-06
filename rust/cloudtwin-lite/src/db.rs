@@ -261,4 +261,28 @@ CREATE TABLE IF NOT EXISTS events (
     payload    TEXT    NOT NULL DEFAULT '{}',
     created_at TEXT    NOT NULL
 );
-";
+-- ─── Mailbox (Mailpit-style email capture) ───────────────────────────
+CREATE TABLE IF NOT EXISTS mailbox_messages (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id TEXT    NOT NULL UNIQUE,
+    from_addr  TEXT    NOT NULL DEFAULT '',
+    to_addrs   TEXT    NOT NULL DEFAULT '[]',
+    cc_addrs   TEXT    NOT NULL DEFAULT '[]',
+    bcc_addrs  TEXT    NOT NULL DEFAULT '[]',
+    subject    TEXT    NOT NULL DEFAULT '',
+    text_body  TEXT,
+    html_body  TEXT,
+    raw        TEXT    NOT NULL DEFAULT '',
+    source     TEXT    NOT NULL DEFAULT 'smtp',
+    size       INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT    NOT NULL
+);
+CREATE TABLE IF NOT EXISTS mailbox_attachments (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id   TEXT    NOT NULL,
+    filename     TEXT    NOT NULL DEFAULT '',
+    content_type TEXT    NOT NULL DEFAULT 'application/octet-stream',
+    size         INTEGER NOT NULL DEFAULT 0,
+    content      BLOB    NOT NULL DEFAULT X'',
+    created_at   TEXT    NOT NULL
+);";

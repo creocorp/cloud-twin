@@ -14,6 +14,9 @@ const api = {
   health:  ()        => get('/health'),
   events:  (n = 100) => get(`/events?limit=${n}`),
 
+  mailbox:        ()   => get('/mailbox'),
+  mailboxMessage: (id) => get(`/mailbox/${encodeURIComponent(id)}`),
+
   aws: {
     ses:            () => get('/aws/ses'),
     s3:             () => get('/aws/s3'),

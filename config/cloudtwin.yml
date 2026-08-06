@@ -29,6 +29,9 @@ cloudtwin:
   dashboard:
     enabled: true
 
+  mailbox:
+    smtp_port: 1025       # Mailpit-style SMTP capture server (inbound, no relay)
+
   logging:
     level: info
 

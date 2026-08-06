@@ -7,12 +7,14 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
     routing::get,
     Json, Router,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
+
+use rusqlite::OptionalExtension;
 
 use crate::AppState;
 
@@ -21,6 +23,8 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/health", get(health))
         .route("/events", get(events))
+        .route("/mailbox", get(mailbox))
+        .route("/mailbox/:id", get(mailbox_message))
         .route("/aws/ses", get(aws_ses))
         .route("/aws/s3", get(aws_s3))
         .route("/aws/sns", get(aws_sns))
@@ -189,6 +193,121 @@ async fn aws_ses(State(state): State<Arc<AppState>>) -> Json<Value> {
         .unwrap_or_default();
 
     Json(json!({"identities": identities, "messages": messages}))
+}
+
+/// `GET /api/dashboard/mailbox` — list captured messages (newest first).
+async fn mailbox(State(state): State<Arc<AppState>>) -> Json<Value> {
+    let messages: Vec<Value> = state
+        .db
+        .conn
+        .call(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT m.message_id, m.from_addr, m.to_addrs, m.subject, m.source, m.size, \
+                        m.text_body IS NOT NULL, m.html_body IS NOT NULL, m.created_at, \
+                        (SELECT COUNT(*) FROM mailbox_attachments a WHERE a.message_id = m.message_id) \
+                 FROM mailbox_messages m ORDER BY m.created_at DESC LIMIT 200",
+            )?;
+            let rows = stmt
+                .query_map([], |row| {
+                    let to_json: String = row.get(2)?;
+                    let to: Vec<String> = serde_json::from_str(&to_json).unwrap_or_default();
+                    Ok(json!({
+                        "id": row.get::<_, String>(0)?,
+                        "from": row.get::<_, String>(1)?,
+                        "to": to.join(", "),
+                        "subject": row.get::<_, String>(3)?,
+                        "source": row.get::<_, String>(4)?,
+                        "size": row.get::<_, i64>(5)?,
+                        "has_text": row.get::<_, i64>(6)? != 0,
+                        "has_html": row.get::<_, i64>(7)? != 0,
+                        "created_at": row.get::<_, String>(8)?,
+                        "attachments": row.get::<_, i64>(9)?,
+                    }))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(rows)
+        })
+        .await
+        .unwrap_or_default();
+
+    Json(json!({ "messages": messages, "smtp_port": state.cfg.smtp_port }))
+}
+
+/// `GET /api/dashboard/mailbox/:id` — full detail for a single captured message.
+async fn mailbox_message(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Json<Value> {
+    let mid = id.clone();
+    let message: Option<Value> = state
+        .db
+        .conn
+        .call(move |conn| {
+            Ok(conn
+                .query_row(
+                    "SELECT message_id, from_addr, to_addrs, cc_addrs, bcc_addrs, subject, \
+                            text_body, html_body, raw, source, size, created_at \
+                     FROM mailbox_messages WHERE message_id = ?1",
+                    rusqlite::params![mid],
+                    |row| {
+                        let to: Vec<String> =
+                            serde_json::from_str(&row.get::<_, String>(2)?).unwrap_or_default();
+                        let cc: Vec<String> =
+                            serde_json::from_str(&row.get::<_, String>(3)?).unwrap_or_default();
+                        let bcc: Vec<String> =
+                            serde_json::from_str(&row.get::<_, String>(4)?).unwrap_or_default();
+                        Ok(json!({
+                            "id": row.get::<_, String>(0)?,
+                            "from": row.get::<_, String>(1)?,
+                            "to": to,
+                            "cc": cc,
+                            "bcc": bcc,
+                            "subject": row.get::<_, String>(5)?,
+                            "text_body": row.get::<_, Option<String>>(6)?,
+                            "html_body": row.get::<_, Option<String>>(7)?,
+                            "raw": row.get::<_, String>(8)?,
+                            "source": row.get::<_, String>(9)?,
+                            "size": row.get::<_, i64>(10)?,
+                            "created_at": row.get::<_, String>(11)?,
+                        }))
+                    },
+                )
+                .optional()?)
+        })
+        .await
+        .unwrap_or_default();
+
+    let attachments: Vec<Value> = state
+        .db
+        .conn
+        .call(move |conn| {
+            let mut stmt = conn.prepare(
+                "SELECT filename, content_type, size FROM mailbox_attachments \
+                 WHERE message_id = ?1 ORDER BY id",
+            )?;
+            let rows = stmt
+                .query_map(rusqlite::params![id], |row| {
+                    Ok(json!({
+                        "filename": row.get::<_, String>(0)?,
+                        "content_type": row.get::<_, String>(1)?,
+                        "size": row.get::<_, i64>(2)?,
+                    }))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(rows)
+        })
+        .await
+        .unwrap_or_default();
+
+    match message {
+        Some(mut m) => {
+            if let Value::Object(ref mut obj) = m {
+                obj.insert("attachments".into(), json!(attachments));
+            }
+            Json(m)
+        }
+        None => Json(json!({ "error": "not found" })),
+    }
 }
 
 async fn aws_sns(State(state): State<Arc<AppState>>) -> Json<Value> {

@@ -11,6 +11,7 @@ mod config;
 mod dashboard;
 mod db;
 mod gcp;
+mod mailbox;
 mod proto;
 mod telemetry;
 
@@ -67,6 +68,13 @@ async fn main() -> Result<()> {
         cfg: cfg.clone(),
         bedrock: bedrock_state,
     });
+
+    // Spawn the standalone SMTP capture server (Mailpit-style mailbox). It runs
+    // independently of the HTTP server and funnels captured mail into SQLite.
+    if cfg.mailbox_enabled {
+        let smtp_addr = format!("0.0.0.0:{}", cfg.smtp_port);
+        tokio::spawn(mailbox::smtp::serve(state.clone(), smtp_addr));
+    }
 
     // Build the router:
     // – Sub-routers that already consumed state via with_state() (Router<()>)
@@ -126,6 +134,7 @@ async fn main() -> Result<()> {
     info!("  AWS   → http://{addr}/          (S3, SES, SNS, SQS, DynamoDB, SecretsManager)");
     info!("  Azure → http://{addr}/azure/    (Blob Storage, Service Bus)");
     info!("  GCP   → http://{addr}/gcp/      (Cloud Storage, Pub/Sub)");
+    info!("  Mail  → smtp://0.0.0.0:{}   (Mailpit-style capture mailbox)", cfg.smtp_port);
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;
