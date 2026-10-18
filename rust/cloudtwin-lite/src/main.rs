@@ -134,7 +134,9 @@ async fn main() -> Result<()> {
     info!("  AWS   → http://{addr}/          (S3, SES, SNS, SQS, DynamoDB, SecretsManager)");
     info!("  Azure → http://{addr}/azure/    (Blob Storage, Service Bus)");
     info!("  GCP   → http://{addr}/gcp/      (Cloud Storage, Pub/Sub)");
-    info!("  Mail  → smtp://0.0.0.0:{}   (Mailpit-style capture mailbox)", cfg.smtp_port);
+    if cfg.mailbox_enabled {
+        info!("  Mail  → smtp://0.0.0.0:{}   (Mailpit-style capture mailbox)", cfg.smtp_port);
+    }
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;

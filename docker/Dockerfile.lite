@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Cache dependency compilation separately from source compilation.
 # Copy only the manifest first, build a dummy binary, then replace with real src.
-COPY rust/cloudtwin-lite/Cargo.toml ./
+COPY rust/cloudtwin-lite/Cargo.toml rust/cloudtwin-lite/Cargo.lock ./
 RUN mkdir src && echo "fn main(){}" > src/main.rs
 RUN cargo build --release 2>&1 | tail -5
 RUN rm -f src/main.rs
@@ -41,9 +41,12 @@ COPY config/cloudtwin.yml /config/cloudtwin.yml
 
 VOLUME ["/data"]
 EXPOSE 4793
+# Mailpit-style SMTP capture mailbox (CLOUDTWIN_SMTP_PORT / mailbox.smtp_port)
+EXPOSE 1025
 
 # CLOUDTWIN_PORT and CLOUDTWIN_DB_PATH are the two runtime env vars.
 # Defaults: port=4793, db=/data/cloudtwin-lite.db
+# Mailbox: CLOUDTWIN_MAILBOX_ENABLED (default from config), CLOUDTWIN_SMTP_PORT (1025)
 ENV CLOUDTWIN_DB_PATH=/data/cloudtwin-lite.db
 ENV CLOUDTWIN_DASHBOARD_STATIC=/app/dashboard/static
 ENV CLOUDTWIN_CONFIG_PATH=/config/cloudtwin.yml

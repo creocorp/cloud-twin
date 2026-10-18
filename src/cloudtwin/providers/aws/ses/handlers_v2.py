@@ -6,6 +6,7 @@ Mounted at /v2 – backed by the same SesService as the v1 Query handlers.
 Routes (matching botocore sesv2 service model):
   POST   /v2/email/identities              → CreateEmailIdentity
   GET    /v2/email/identities              → ListEmailIdentities
+  POST   /v2/email/list-identities         → ListEmailIdentities (newer botocore)
   GET    /v2/email/identities/{identity}   → GetEmailIdentity
   DELETE /v2/email/identities/{identity}   → DeleteEmailIdentity
   POST   /v2/email/outbound-emails         → SendEmail
@@ -63,8 +64,10 @@ def make_sesv2_router(config: SesConfig, service: SesService) -> APIRouter:
 
     # ------------------------------------------------------------------
     # ListEmailIdentities  GET /v2/email/identities
+    #                      POST /v2/email/list-identities (newer botocore)
     # ------------------------------------------------------------------
     @router.get("/email/identities", status_code=200)
+    @router.post("/email/list-identities", status_code=200)
     async def list_email_identities():
         records = await service.list_all_identities()
         return JSONResponse(

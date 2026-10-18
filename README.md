@@ -543,13 +543,33 @@ Source is under [`rust/cloudtwin-lite/`](rust/cloudtwin-lite/).
 
 **Implemented services:** S3, SES (v1 + v2), SNS, SQS, DynamoDB, Secrets Manager,
 **Bedrock (simulation)**, Azure Blob Storage, Azure Service Bus, GCP Cloud Storage,
-GCP Pub/Sub.
+GCP Pub/Sub, plus a **Mailpit-style SMTP capture mailbox**.
 
 **Run with Docker:**
 
 ```bash
-docker pull creogroup/cloudtwin-lite:latest
-docker run -p 4793:4793 creogroup/cloudtwin-lite
+docker pull creogroup/cloudtwin:lite-latest
+docker run -p 4793:4793 -p 1025:1025 creogroup/cloudtwin:lite-latest
+```
+
+**Mailbox (email capture):**
+
+CloudTwin Lite runs an SMTP sink on port `1025` that stores every inbound
+message (headers, text/HTML bodies, attachments) in SQLite. Mail sent through
+SES v1 `SendEmail` or SES v2 `SendEmail` is captured into the same inbox.
+Browse it at `http://localhost:4793/dashboard` → **Mailbox**, or via
+`GET /api/dashboard/mailbox` and `GET /api/dashboard/mailbox/{id}`. It is a
+capture-only sink: no TLS, no auth, and nothing is relayed.
+
+```python
+import smtplib
+from email.message import EmailMessage
+
+msg = EmailMessage()
+msg["From"], msg["To"], msg["Subject"] = "app@example.com", "user@example.com", "Hi"
+msg.set_content("Hello from my app")
+with smtplib.SMTP("localhost", 1025) as smtp:
+    smtp.send_message(msg)
 ```
 
 **Build from source:**
@@ -580,6 +600,8 @@ Environment variables take precedence over YAML values where both apply.
 | `CLOUDTWIN_CONFIG_PATH` | `/config/cloudtwin.yml` | Path to YAML config file (shared with Python backend) |
 | `CLOUDTWIN_PORT` | `4793` | Port to listen on (overrides `api_port` in YAML) |
 | `CLOUDTWIN_DB_PATH` | `/data/cloudtwin-lite.db` | SQLite database path (`:memory:` for in-memory) |
+| `CLOUDTWIN_MAILBOX_ENABLED` | `false` (`true` in the shipped `cloudtwin.yml`) | Start the SMTP capture mailbox (overrides `mailbox.enabled`) |
+| `CLOUDTWIN_SMTP_PORT` | `1025` | Mailbox SMTP port (overrides `mailbox.smtp_port`) |
 
 **Routing:**
 

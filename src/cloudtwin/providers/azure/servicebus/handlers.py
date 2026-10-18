@@ -30,7 +30,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from cloudtwin.core.errors import NotFoundError
 from cloudtwin.providers.azure.servicebus.service import ServiceBusService
@@ -96,7 +96,7 @@ def make_router(service: ServiceBusService, namespace: str) -> APIRouter:
             await service.delete_queue(queue_name)
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
-        return JSONResponse({}, status_code=204)
+        return Response(status_code=204)
 
     @router.post(f"/{namespace}/queues/{{queue_name}}/messages")
     async def send_queue_message(queue_name: str, request: Request) -> JSONResponse:
@@ -126,7 +126,7 @@ def make_router(service: ServiceBusService, namespace: str) -> APIRouter:
             await service.complete_message(lock_token)
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
-        return JSONResponse({}, status_code=204)
+        return Response(status_code=204)
 
     @router.post(f"/{namespace}/queues/{{queue_name}}/messages/{{lock_token}}/abandon")
     async def abandon_queue_message(queue_name: str, lock_token: str) -> JSONResponse:
@@ -177,7 +177,7 @@ def make_router(service: ServiceBusService, namespace: str) -> APIRouter:
             await service.delete_topic(topic_name)
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
-        return JSONResponse({}, status_code=204)
+        return Response(status_code=204)
 
     # ------------------------------------------------------------------
     # Subscriptions
@@ -244,6 +244,6 @@ def make_router(service: ServiceBusService, namespace: str) -> APIRouter:
             await service.complete_message(lock_token)
         except NotFoundError as exc:
             return JSONResponse({"error": exc.message}, status_code=404)
-        return JSONResponse({}, status_code=204)
+        return Response(status_code=204)
 
     return router

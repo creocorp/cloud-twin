@@ -239,6 +239,8 @@ pub fn router_v2() -> Router<Arc<AppState>> {
             "/v2/email/identities/:identity",
             get(v2_get_identity).delete(v2_delete_identity),
         )
+        // Newer botocore sends ListEmailIdentities as POST /v2/email/list-identities
+        .route("/v2/email/list-identities", post(v2_list_identities))
 }
 
 #[derive(serde::Deserialize)]

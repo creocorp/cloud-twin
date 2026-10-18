@@ -25,7 +25,10 @@ pub async fn capture_raw(db: &Database, raw: &[u8], source: &str) -> Result<Stri
     let (from_addr, to_addrs, cc_addrs, bcc_addrs, subject, text_body, html_body, attachments) =
         match parsed.as_ref() {
             Some(m) => {
-                let from = collect_addrs(m.from()).into_iter().next().unwrap_or_default();
+                let from = collect_addrs(m.from())
+                    .into_iter()
+                    .next()
+                    .unwrap_or_default();
                 let to = collect_addrs(m.to());
                 let cc = collect_addrs(m.cc());
                 let bcc = collect_addrs(m.bcc());
@@ -44,10 +47,7 @@ pub async fn capture_raw(db: &Database, raw: &[u8], source: &str) -> Result<Stri
                             })
                             .unwrap_or_else(|| "application/octet-stream".to_string());
                         MailboxAttachment {
-                            filename: p
-                                .attachment_name()
-                                .unwrap_or("attachment")
-                                .to_string(),
+                            filename: p.attachment_name().unwrap_or("attachment").to_string(),
                             content_type,
                             size: content.len() as i64,
                             content,
@@ -86,8 +86,8 @@ pub async fn capture_raw(db: &Database, raw: &[u8], source: &str) -> Result<Stri
                   text_body, html_body, raw, source, size, created_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                 rusqlite::params![
-                    mid, from_addr, to_json, cc_json, bcc_json, subject, text_body,
-                    html_body, raw_str, src, size, now
+                    mid, from_addr, to_json, cc_json, bcc_json, subject, text_body, html_body,
+                    raw_str, src, size, now
                 ],
             )?;
             for att in &attachments {
@@ -148,9 +148,8 @@ fn build_raw(
     html: Option<&str>,
 ) -> String {
     let to_hdr = to.join(", ");
-    let header = format!(
-        "From: {from}\r\nTo: {to_hdr}\r\nSubject: {subject}\r\nMIME-Version: 1.0\r\n"
-    );
+    let header =
+        format!("From: {from}\r\nTo: {to_hdr}\r\nSubject: {subject}\r\nMIME-Version: 1.0\r\n");
     match (text, html) {
         (Some(t), Some(h)) => {
             let boundary = "----=_CloudTwinBoundary";

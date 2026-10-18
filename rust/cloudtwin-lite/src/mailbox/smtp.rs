@@ -51,7 +51,9 @@ async fn handle_session(state: Arc<AppState>, sock: TcpStream) -> std::io::Resul
     let (read_half, mut write) = sock.into_split();
     let mut reader = BufReader::new(read_half);
 
-    write.write_all(b"220 cloudtwin-lite ESMTP ready\r\n").await?;
+    write
+        .write_all(b"220 cloudtwin-lite ESMTP ready\r\n")
+        .await?;
 
     let mut line = String::new();
     let mut rcpts: Vec<String> = Vec::new();
@@ -111,7 +113,9 @@ async fn handle_session(state: Arc<AppState>, sock: TcpStream) -> std::io::Resul
         } else if upper.starts_with("VRFY") || upper.starts_with("EXPN") {
             write.write_all(b"252 2.5.2 Cannot verify\r\n").await?;
         } else {
-            write.write_all(b"500 5.5.2 Command unrecognized\r\n").await?;
+            write
+                .write_all(b"500 5.5.2 Command unrecognized\r\n")
+                .await?;
         }
     }
 

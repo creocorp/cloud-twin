@@ -275,9 +275,29 @@ The tables below list every operation currently implemented per service.
 |---|---|
 | `POST /v2/email/identities` | Create an email identity |
 | `GET /v2/email/identities` | List all email identities |
+| `POST /v2/email/list-identities` | List all email identities (route used by newer botocore) |
 | `GET /v2/email/identities/{identity}` | Get a single identity |
 | `DELETE /v2/email/identities/{identity}` | Delete an identity |
 | `POST /v2/email/outbound-emails` | Send an email |
+
+### Mailbox — SMTP capture (CloudTwin Lite only, `smtp://:1025`)
+
+A Mailpit-style SMTP sink implemented in `rust/cloudtwin-lite/src/mailbox/`.
+`smtp.rs` is a minimal hand-rolled SMTP state machine (EHLO/HELO, MAIL, RCPT,
+DATA, RSET, NOOP, QUIT; no TLS/auth, no relay). `service.rs::capture_raw` is
+the single ingestion path: it parses the RFC 822 message with `mail-parser`
+and writes to `mailbox_messages` / `mailbox_attachments`. SES v1 and v2
+`SendEmail` also call `capture_from_ses`, so sent mail shows up in the same inbox.
+
+| Setting | YAML | Env | Default |
+|---|---|---|---|
+| Enable | `mailbox.enabled` | `CLOUDTWIN_MAILBOX_ENABLED` | `false` (shipped config: `true`) |
+| Port | `mailbox.smtp_port` | `CLOUDTWIN_SMTP_PORT` | `1025` |
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/dashboard/mailbox` | List captured messages (newest first, max 200) |
+| `GET /api/dashboard/mailbox/{id}` | Full message detail including attachment metadata |
 
 ### AWS S3 (REST, `/{bucket}/...`)
 
