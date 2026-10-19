@@ -41,7 +41,7 @@ COPY config/cloudtwin.yml /config/cloudtwin.yml
 
 VOLUME ["/data"]
 EXPOSE 4793
-# Mailpit-style SMTP capture mailbox (CLOUDTWIN_SMTP_PORT / mailbox.smtp_port)
+# Built-in SMTP capture mailbox (CLOUDTWIN_SMTP_PORT / mailbox.smtp_port)
 EXPOSE 1025
 
 # CLOUDTWIN_PORT and CLOUDTWIN_DB_PATH are the two runtime env vars.

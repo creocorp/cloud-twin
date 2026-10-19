@@ -28,7 +28,7 @@ pub struct Config {
     pub azure_namespace: String,
     pub gcp_project: String,
     pub dashboard_static_path: Option<String>,
-    /// TCP port for the Mailpit-style mailbox SMTP listener.
+    /// TCP port for the mailbox SMTP capture listener.
     pub smtp_port: u16,
     /// Whether the mailbox feature is enabled.
     pub mailbox_enabled: bool,
@@ -211,7 +211,7 @@ struct YamlLogging {
     level: Option<String>,
 }
 
-/// The `mailbox:` block — configures the Mailpit-style SMTP capture server.
+/// The `mailbox:` block — configures the built-in SMTP capture server.
 #[derive(Debug, Default, Deserialize)]
 struct YamlMailbox {
     enabled: Option<bool>,

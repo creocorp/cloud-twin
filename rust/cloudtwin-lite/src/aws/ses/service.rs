@@ -162,7 +162,7 @@ impl SesService {
         let now = Utc::now().to_rfc3339();
 
         // Also capture into the standalone mailbox so SES sends appear in the
-        // Mailpit-style inbox alongside messages received over SMTP.
+        // inbox alongside messages received over SMTP.
         if let Err(e) = crate::mailbox::service::capture_from_ses(
             &self.db,
             source,

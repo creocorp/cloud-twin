@@ -282,12 +282,13 @@ The tables below list every operation currently implemented per service.
 
 ### Mailbox — SMTP capture (CloudTwin Lite only, `smtp://:1025`)
 
-A Mailpit-style SMTP sink implemented in `rust/cloudtwin-lite/src/mailbox/`.
-`smtp.rs` is a minimal hand-rolled SMTP state machine (EHLO/HELO, MAIL, RCPT,
-DATA, RSET, NOOP, QUIT; no TLS/auth, no relay). `service.rs::capture_raw` is
-the single ingestion path: it parses the RFC 822 message with `mail-parser`
-and writes to `mailbox_messages` / `mailbox_attachments`. SES v1 and v2
-`SendEmail` also call `capture_from_ses`, so sent mail shows up in the same inbox.
+A built-in SMTP sink that captures mail for local inspection, implemented in
+`rust/cloudtwin-lite/src/mailbox/`. `smtp.rs` is a minimal hand-rolled SMTP
+state machine (EHLO/HELO, MAIL, RCPT, DATA, RSET, NOOP, QUIT; no TLS/auth, no
+relay). `service.rs::capture_raw` is the single ingestion path: it parses the
+RFC 822 message with `mail-parser` and writes to `mailbox_messages` /
+`mailbox_attachments`. SES v1 and v2 `SendEmail` also call `capture_from_ses`,
+so sent mail shows up in the same inbox.
 
 | Setting | YAML | Env | Default |
 |---|---|---|---|

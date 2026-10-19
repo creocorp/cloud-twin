@@ -543,7 +543,7 @@ Source is under [`rust/cloudtwin-lite/`](rust/cloudtwin-lite/).
 
 **Implemented services:** S3, SES (v1 + v2), SNS, SQS, DynamoDB, Secrets Manager,
 **Bedrock (simulation)**, Azure Blob Storage, Azure Service Bus, GCP Cloud Storage,
-GCP Pub/Sub, plus a **Mailpit-style SMTP capture mailbox**.
+GCP Pub/Sub, plus a **built-in SMTP capture mailbox**.
 
 **Run with Docker:**
 

@@ -1,4 +1,4 @@
-// ─── Page: Mailbox (Mailpit-style email capture) ──────────────────────────────
+// ─── Page: Mailbox (local email capture) ────────────────────────────────────
 // Depends on: api, components, utils
 //
 // Top-level feature (not tied to a cloud provider). Lists every email captured

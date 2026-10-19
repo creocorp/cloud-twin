@@ -1,4 +1,4 @@
-//! Mailbox — a Mailpit-style inbound email capture and viewer.
+//! Mailbox — built-in inbound email capture and viewer.
 //!
 //! This is a top-level feature that lives *outside* the cloud provider modules
 //! (`aws`, `azure`, `gcp`). It runs a standalone SMTP server that accepts mail

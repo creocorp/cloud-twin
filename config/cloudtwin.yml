@@ -9,7 +9,7 @@ cloudtwin:
       ses:
         strict_verification: false
         smtp:
-          host: null          # set to enable SMTP relay, e.g. smtp.mailpit.local
+          host: null          # set to enable SMTP relay, e.g. smtp.example.local
           port: 1025
           username: null
           password: null
@@ -31,7 +31,7 @@ cloudtwin:
 
   mailbox:
     enabled: true
-    smtp_port: 1025       # Mailpit-style SMTP capture server (inbound, no relay)
+    smtp_port: 1025       # Built-in SMTP capture server (inbound, no relay)
 
   logging:
     level: info

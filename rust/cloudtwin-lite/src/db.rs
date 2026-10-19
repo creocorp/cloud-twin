@@ -261,7 +261,7 @@ CREATE TABLE IF NOT EXISTS events (
     payload    TEXT    NOT NULL DEFAULT '{}',
     created_at TEXT    NOT NULL
 );
--- ─── Mailbox (Mailpit-style email capture) ───────────────────────────
+-- ─── Mailbox (local email capture) ─────────────────────────────────
 CREATE TABLE IF NOT EXISTS mailbox_messages (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     message_id TEXT    NOT NULL UNIQUE,

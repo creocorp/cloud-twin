@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
         bedrock: bedrock_state,
     });
 
-    // Spawn the standalone SMTP capture server (Mailpit-style mailbox). It runs
+    // Spawn the standalone SMTP capture server (mailbox). It runs
     // independently of the HTTP server and funnels captured mail into SQLite.
     if cfg.mailbox_enabled {
         let smtp_addr = format!("0.0.0.0:{}", cfg.smtp_port);
@@ -135,7 +135,7 @@ async fn main() -> Result<()> {
     info!("  Azure → http://{addr}/azure/    (Blob Storage, Service Bus)");
     info!("  GCP   → http://{addr}/gcp/      (Cloud Storage, Pub/Sub)");
     if cfg.mailbox_enabled {
-        info!("  Mail  → smtp://0.0.0.0:{}   (Mailpit-style capture mailbox)", cfg.smtp_port);
+        info!("  Mail  → smtp://0.0.0.0:{}   (SMTP capture mailbox)", cfg.smtp_port);
     }
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
