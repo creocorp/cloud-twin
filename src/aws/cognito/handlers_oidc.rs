@@ -147,10 +147,10 @@ fn json_no_store(value: Value) -> Response {
 
 // ─── Discovery / JWKS ───────────────────────────────────────────────────────
 
-async fn pool_exists(state: &AppState, id: String) -> Result<bool, Response> {
+async fn pool_exists(state: &AppState, id: String) -> Result<bool, Box<Response>> {
     run(state, move |c| Ok(svc::find_pool(c, &id)?.is_some()))
         .await
-        .map_err(internal)
+        .map_err(|e| Box::new(internal(e)))
 }
 
 fn not_found(pool_id: &str) -> Response {
@@ -163,7 +163,7 @@ fn not_found(pool_id: &str) -> Response {
 
 async fn discovery(State(state): State<Arc<AppState>>, Path(pool_id): Path<String>) -> Response {
     match pool_exists(&state, pool_id.clone()).await {
-        Err(r) => return r,
+        Err(r) => return *r,
         Ok(false) => return not_found(&pool_id),
         Ok(true) => {}
     }
@@ -194,7 +194,7 @@ async fn discovery(State(state): State<Arc<AppState>>, Path(pool_id): Path<Strin
 
 async fn jwks(State(state): State<Arc<AppState>>, Path(pool_id): Path<String>) -> Response {
     match pool_exists(&state, pool_id.clone()).await {
-        Err(r) => return r,
+        Err(r) => return *r,
         Ok(false) => return not_found(&pool_id),
         Ok(true) => {}
     }
@@ -261,12 +261,12 @@ impl AuthReq {
 
 /// Validate authorize parameters. Errors before the redirect URI is trusted
 /// render an error page; later errors redirect back with `error=`.
-async fn prepare(state: &AppState, q: &Params) -> Result<AuthReq, Response> {
+async fn prepare(state: &AppState, q: &Params) -> Result<AuthReq, Box<Response>> {
     let Some(client_id) = p(q, "client_id").map(String::from) else {
-        return Err(error_page(
+        return Err(Box::new(error_page(
             "Invalid request",
             "Required String parameter 'client_id' is not present",
-        ));
+        )));
     };
     let found = run(state, move |c| {
         let Some(client) = svc::find_client(c, &client_id)? else {
@@ -276,9 +276,12 @@ async fn prepare(state: &AppState, q: &Params) -> Result<AuthReq, Response> {
         Ok(Some((client, pool)))
     })
     .await
-    .map_err(internal)?;
+    .map_err(|e| Box::new(internal(e)))?;
     let Some((client, pool)) = found else {
-        return Err(error_page("Invalid request", "Client does not exist."));
+        return Err(Box::new(error_page(
+            "Invalid request",
+            "Client does not exist.",
+        )));
     };
     let redirect_uri = match p(q, "redirect_uri") {
         Some(r) => r.to_string(),
@@ -288,11 +291,11 @@ async fn prepare(state: &AppState, q: &Params) -> Result<AuthReq, Response> {
             .and_then(|v| v.as_str())
         {
             Some(d) => d.to_string(),
-            None => return Err(error_page("Invalid request", "redirect_mismatch")),
+            None => return Err(Box::new(error_page("Invalid request", "redirect_mismatch"))),
         },
     };
     if !client.list("CallbackURLs").contains(&redirect_uri) {
-        return Err(error_page("Invalid request", "redirect_mismatch"));
+        return Err(Box::new(error_page("Invalid request", "redirect_mismatch")));
     }
     let allowed = client.list("AllowedOAuthScopes");
     let mut req = AuthReq {
@@ -314,10 +317,10 @@ async fn prepare(state: &AppState, q: &Params) -> Result<AuthReq, Response> {
         "token" => "implicit",
         _ => {
             req.response_type = "code".into();
-            return Err(req.error_redirect(
+            return Err(Box::new(req.error_redirect(
                 "unsupported_response_type",
                 "response_type must be code or token",
-            ));
+            )));
         }
     };
     if !req.client.oauth_enabled()
@@ -327,23 +330,28 @@ async fn prepare(state: &AppState, q: &Params) -> Result<AuthReq, Response> {
             .iter()
             .any(|f| f == flow)
     {
-        return Err(req.error_redirect(
+        return Err(Box::new(req.error_redirect(
             "unauthorized_client",
             "Client is not enabled for this OAuth flow",
-        ));
+        )));
     }
     if req.scopes.is_empty() || req.scopes.iter().any(|s| !allowed.contains(s)) {
-        return Err(req.error_redirect(
+        return Err(Box::new(req.error_redirect(
             "invalid_scope",
             "Requested scope is not allowed for this client",
-        ));
+        )));
     }
     if let Some(m) = &req.code_challenge_method {
         if m != "S256" && m != "plain" {
-            return Err(req.error_redirect("invalid_request", "Unsupported code_challenge_method"));
+            return Err(Box::new(req.error_redirect(
+                "invalid_request",
+                "Unsupported code_challenge_method",
+            )));
         }
         if req.code_challenge.is_none() {
-            return Err(req.error_redirect("invalid_request", "code_challenge is required"));
+            return Err(Box::new(
+                req.error_redirect("invalid_request", "code_challenge is required"),
+            ));
         }
     }
     if req.code_challenge.is_some() && req.code_challenge_method.is_none() {
@@ -485,7 +493,7 @@ async fn authorize(
 ) -> Response {
     let req = match prepare(&state, &q).await {
         Ok(r) => r,
-        Err(resp) => return resp,
+        Err(resp) => return *resp,
     };
     let force_login = p(&q, "prompt") == Some("login");
     if !force_login {
@@ -507,7 +515,7 @@ async fn login_post(State(state): State<Arc<AppState>>, body: Bytes) -> Response
     let f = form(&body);
     let req = match prepare(&state, &f).await {
         Ok(r) => r,
-        Err(resp) => return resp,
+        Err(resp) => return *resp,
     };
     let client = req.client.clone();
     let pool = req.pool.clone();
@@ -590,7 +598,7 @@ async fn client_auth(
     state: &AppState,
     headers: &HeaderMap,
     f: &Params,
-) -> Result<Client, Response> {
+) -> Result<Client, Box<Response>> {
     let invalid = || oauth_error(StatusCode::UNAUTHORIZED, "invalid_client", None);
     let basic = headers
         .get(header::AUTHORIZATION)
@@ -618,16 +626,16 @@ async fn client_auth(
         Some((id, secret)) => (id, Some(secret).filter(|s| !s.is_empty())),
         None => match p(f, "client_id") {
             Some(id) => (id.to_string(), p(f, "client_secret").map(String::from)),
-            None => return Err(invalid()),
+            None => return Err(Box::new(invalid())),
         },
     };
     let client = run(state, move |c| Ok(svc::find_client(c, &id)?))
         .await
-        .map_err(internal)?
-        .ok_or_else(invalid)?;
+        .map_err(|e| Box::new(internal(e)))?
+        .ok_or_else(|| Box::new(invalid()))?;
     if let Some(expected) = &client.secret {
         if secret.as_deref() != Some(expected.as_str()) {
-            return Err(invalid());
+            return Err(Box::new(invalid()));
         }
     }
     Ok(client)
@@ -672,7 +680,7 @@ async fn token(State(state): State<Arc<AppState>>, headers: HeaderMap, body: Byt
     }
     let client = match client_auth(&state, &headers, &f).await {
         Ok(c) => c,
-        Err(r) => return r,
+        Err(r) => return *r,
     };
     let ctx = match Ctx::load(&state).await {
         Ok(c) => c,
@@ -845,7 +853,7 @@ async fn revoke(State(state): State<Arc<AppState>>, headers: HeaderMap, body: By
     };
     let client = match client_auth(&state, &headers, &f).await {
         Ok(c) => c,
-        Err(r) => return r,
+        Err(r) => return *r,
     };
     if tok.split('.').count() == 3 {
         return oauth_error(StatusCode::BAD_REQUEST, "unsupported_token_type", None);

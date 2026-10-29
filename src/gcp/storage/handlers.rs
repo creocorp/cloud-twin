@@ -681,15 +681,14 @@ async fn fetch_object(
     bucket: &str,
     name: &str,
     params: &Params,
-) -> Result<GcsObject, Response> {
+) -> Result<GcsObject, Box<Response>> {
     let obj = svc(state)
         .get_object(bucket, name)
         .await
-        .map_err(error_response)?;
+        .map_err(|e| Box::new(error_response(e)))?;
     match param_i64(params, "generation") {
-        Some(g) if g != obj.generation() => Err(error_response(GcsError::ObjectNotFound(
-            bucket.to_string(),
-            name.to_string(),
+        Some(g) if g != obj.generation() => Err(Box::new(error_response(
+            GcsError::ObjectNotFound(bucket.to_string(), name.to_string()),
         ))),
         _ => Ok(obj),
     }
@@ -704,7 +703,7 @@ async fn get_object(
     let name = object_name(object);
     let obj = match fetch_object(&state, &bucket, &name, &params).await {
         Ok(o) => o,
-        Err(r) => return r,
+        Err(r) => return *r,
     };
     if params.get("alt").map(String::as_str) == Some("media") {
         return media_response(obj, &headers);
@@ -721,7 +720,7 @@ async fn download_object(
     let name = object_name(object);
     match fetch_object(&state, &bucket, &name, &params).await {
         Ok(o) => media_response(o, &headers),
-        Err(r) => r,
+        Err(r) => *r,
     }
 }
 
