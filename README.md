@@ -541,9 +541,26 @@ A single statically-linked binary with no Python runtime dependency, suitable
 for embedding in CI pipelines or resource-constrained environments.
 Source is under [`rust/cloudtwin-lite/`](rust/cloudtwin-lite/).
 
-**Implemented services:** S3, SES (v1 + v2), SNS, SQS, DynamoDB, Secrets Manager,
-**Bedrock (simulation)**, Azure Blob Storage, Azure Service Bus, GCP Cloud Storage,
-GCP Pub/Sub, plus a **built-in SMTP capture mailbox**.
+CloudTwin Lite is the runtime going forward; the Python backend is being phased out
+and new features land in Lite only.
+
+**Implemented services:** S3, SES (v1 + v2, including receiving), SNS, SQS,
+DynamoDB, Secrets Manager, **KMS**, **Cognito user pools (OIDC + hosted UI)**,
+**Bedrock (simulation)**, Azure Blob Storage, Azure Service Bus, GCP Cloud
+Storage, GCP Pub/Sub, plus a **built-in SMTP capture mailbox**.
+
+Highlights beyond basic CRUD:
+
+| Area | What works |
+|---|---|
+| SES identities | DKIM tokens, `VerificationStatus`, controllable verification (`auto` / `manual` / `after_checks` / `delay`), custom MAIL FROM, `GetAccount`, AWS-typed errors (`NotFoundException`, `AlreadyExistsException`, ...) |
+| SES sending | Simple and raw MIME, sender verification (`MessageRejected`), sandbox mode, configuration sets with SNS event destinations, mailbox simulator (`bounce@`, `complaint@`, ...), account suppression list |
+| SES receiving | Receipt rule sets/rules; mail to the SMTP listener runs S3/SNS/AddHeader/Bounce/Stop actions |
+| S3 | ListObjectsV2 paging/delimiters, metadata, tagging, copy, ranges, DeleteObjects, versioning, SSE headers, lifecycle/public-access-block configs, multipart upload, CORS, presigned POST, event notifications to SQS/SNS, virtual-hosted `{bucket}.s3.localhost` |
+| SQS / SNS | Long polling, visibility timeouts, DLQ redrive, batch APIs, message attributes, FIFO; SNS delivery to SQS (envelope or raw), HTTP(S) and email, filter policies |
+| KMS | Symmetric keys with real AES-GCM, aliases, data keys, encryption context |
+| Cognito | Admin API, hosted login with Authorization Code + PKCE, RS256 tokens with Cognito claims, JWKS/discovery, refresh/revoke/logout |
+| Testing | `POST /_cloudtwin/reset`, `POST /_cloudtwin/seed`, YAML `seed:` block for a reproducible local stack |
 
 **Run with Docker:**
 
@@ -556,7 +573,9 @@ docker run -p 4793:4793 -p 1025:1025 creogroup/cloudtwin:lite-latest
 
 CloudTwin Lite runs an SMTP sink on port `1025` that stores every inbound
 message (headers, text/HTML bodies, attachments) in SQLite. Mail sent through
-SES v1 `SendEmail` or SES v2 `SendEmail` is captured into the same inbox.
+SES v1/v2 `SendEmail` and `SendRawEmail` is captured into the same inbox. When
+an SES receipt rule set is active, recipients matched by its rules are handled
+by the rules (e.g. written to S3) instead of the inbox.
 Browse it at `http://localhost:4793/dashboard` → **Mailbox**, or via
 `GET /api/dashboard/mailbox` and `GET /api/dashboard/mailbox/{id}`. It is a
 capture-only sink: no TLS, no auth, and nothing is relayed.
@@ -602,12 +621,32 @@ Environment variables take precedence over YAML values where both apply.
 | `CLOUDTWIN_DB_PATH` | `/data/cloudtwin-lite.db` | SQLite database path (`:memory:` for in-memory) |
 | `CLOUDTWIN_MAILBOX_ENABLED` | `false` (`true` in the shipped `cloudtwin.yml`) | Start the SMTP capture mailbox (overrides `mailbox.enabled`) |
 | `CLOUDTWIN_SMTP_PORT` | `1025` | Mailbox SMTP port (overrides `mailbox.smtp_port`) |
+| `CLOUDTWIN_BASE_URL` | `http://localhost:{port}` | Public URL used in queue URLs, verification links, and the Cognito issuer |
+| `CLOUDTWIN_SEED_PATH` | — | YAML/JSON seed document applied at startup (alternative to the `seed:` block) |
+| `CLOUDTWIN_SES_STRICT_VERIFICATION` | `true` | Reject sends from unverified identities (`providers.aws.ses.strict_verification`) |
+| `CLOUDTWIN_SES_VERIFICATION_MODE` | `auto` | `auto`, `manual`, `after_checks`, or `delay` (`providers.aws.ses.verification.mode`) |
+| `CLOUDTWIN_SES_PRODUCTION_ACCESS` | `true` | `false` puts SES in sandbox mode |
+| `CLOUDTWIN_S3_VIRTUAL_HOST_SUFFIX` | `s3.localhost` | Host suffix for virtual-hosted-style S3 (empty disables) |
+| `CLOUDTWIN_COGNITO_SIGNING_KEY_PATH` | generated | RSA PEM used to sign Cognito tokens |
+
+The full list of settings, the seed document format, and per-service details are
+in [docs/developer-guide.md](docs/developer-guide.md#cloudtwin-lite-rust).
+
+**Test isolation:**
+
+```bash
+curl -X POST localhost:4793/_cloudtwin/reset                                  # everything
+curl -X POST localhost:4793/_cloudtwin/reset -d '{"services": ["ses","sqs"]}'  # selected services
+curl -X POST localhost:4793/_cloudtwin/seed  -d '{"s3": {"buckets": ["mail"]}}'
+```
 
 **Routing:**
 
 | Provider | Base path |
 |---|---|
-| AWS (S3, SES, SNS, SQS, DynamoDB, Secrets Manager) | `/` |
+| AWS (S3, SES, SNS, SQS, DynamoDB, Secrets Manager, KMS, Cognito) | `/` |
+| Cognito OIDC / hosted UI | `/{userPoolId}/.well-known/*`, `/oauth2/*`, `/login`, `/logout` |
+| CloudTwin test controls | `/_cloudtwin/*` |
 | Azure (Blob Storage, Service Bus) | `/azure/` |
 | GCP (Cloud Storage, Pub/Sub) | `/gcp/` |
 

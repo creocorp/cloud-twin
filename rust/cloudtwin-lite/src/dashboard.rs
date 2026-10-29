@@ -365,7 +365,8 @@ async fn aws_sqs(State(state): State<Arc<AppState>>) -> Json<Value> {
             let mut stmt = conn.prepare(
                 "SELECT q.name, q.url, q.created_at, COUNT(m.id) AS msg_count \
                  FROM sqs_queues q \
-                 LEFT JOIN sqs_messages m ON m.queue_id = q.id AND m.visible = 1 \
+                 LEFT JOIN sqs_messages m ON m.queue_id = q.id \
+                   AND m.visible_at <= CAST(strftime('%s','now') AS INTEGER) * 1000 \
                  GROUP BY q.id \
                  ORDER BY q.created_at DESC",
             )?;

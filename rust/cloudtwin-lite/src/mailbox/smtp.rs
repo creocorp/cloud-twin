@@ -5,6 +5,9 @@
 //! captures mail rather than relaying it. It implements just enough of RFC 5321
 //! (EHLO/HELO, MAIL, RCPT, DATA, RSET, NOOP, QUIT) to accept messages from
 //! common SMTP clients and test tooling.
+//!
+//! Every message first runs through the active SES receipt rule set; recipients
+//! no enabled rule matches are captured in the local inbox.
 
 use std::sync::Arc;
 
@@ -17,8 +20,8 @@ use crate::AppState;
 
 /// Hard cap on a single command line, to bound memory per connection.
 const MAX_LINE: usize = 8 * 1024;
-/// Hard cap on a single message body (25 MiB), to bound memory per connection.
-const MAX_MESSAGE: usize = 25 * 1024 * 1024;
+/// Hard cap on a single message body: SES's 40 MB receiving limit.
+const MAX_MESSAGE: usize = crate::aws::ses::MAX_INBOUND_BYTES;
 
 /// Bind and serve the SMTP listener forever. Intended to be `tokio::spawn`-ed.
 pub async fn serve(state: Arc<AppState>, addr: String) {
@@ -56,6 +59,7 @@ async fn handle_session(state: Arc<AppState>, sock: TcpStream) -> std::io::Resul
         .await?;
 
     let mut line = String::new();
+    let mut mail_from = String::new();
     let mut rcpts: Vec<String> = Vec::new();
 
     loop {
@@ -71,6 +75,7 @@ async fn handle_session(state: Arc<AppState>, sock: TcpStream) -> std::io::Resul
             write.write_all(b"250 cloudtwin-lite\r\n").await?;
         } else if upper.starts_with("MAIL FROM") {
             rcpts.clear();
+            mail_from = extract_angle(trimmed);
             write.write_all(b"250 2.1.0 OK\r\n").await?;
         } else if upper.starts_with("RCPT TO") {
             rcpts.push(extract_angle(trimmed));
@@ -84,14 +89,14 @@ async fn handle_session(state: Arc<AppState>, sock: TcpStream) -> std::io::Resul
                 .write_all(b"354 End data with <CR><LF>.<CR><LF>\r\n")
                 .await?;
             match read_data(&mut reader).await? {
-                Some(data) => match service::capture_raw(&state.db, &data, "smtp").await {
+                Some(data) => match deliver(&state, &mail_from, &rcpts, &data).await {
                     Ok(id) => {
                         write
                             .write_all(format!("250 2.0.0 OK: queued as {id}\r\n").as_bytes())
                             .await?;
                     }
                     Err(e) => {
-                        tracing::warn!("mailbox capture failed: {e}");
+                        tracing::warn!("SMTP delivery failed: {e}");
                         write
                             .write_all(b"451 4.3.0 Failed to store message\r\n")
                             .await?;
@@ -120,6 +125,23 @@ async fn handle_session(state: Arc<AppState>, sock: TcpStream) -> std::io::Resul
     }
 
     Ok(())
+}
+
+/// Run SES receipt rules, then capture recipients no rule handled in the inbox.
+async fn deliver(
+    state: &Arc<AppState>,
+    mail_from: &str,
+    rcpts: &[String],
+    data: &[u8],
+) -> anyhow::Result<String> {
+    let res = crate::aws::ses::receive_inbound(state, mail_from, rcpts, data)
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e.message))?;
+    let mut id = res.message_id.clone();
+    if !res.unhandled.is_empty() {
+        id = Some(service::capture_raw(&state.db, data, "smtp").await?);
+    }
+    Ok(id.unwrap_or_default())
 }
 
 /// Read a single CRLF-terminated command line, capped at [`MAX_LINE`] bytes.

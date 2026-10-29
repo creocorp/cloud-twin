@@ -257,7 +257,9 @@ raise IdentityNotVerifiedError("sender@example.com")    # → HTTP 400 (code Mes
 
 ## Supported Operations
 
-The tables below list every operation currently implemented per service.
+The tables below list every operation currently implemented per service in the
+Python backend. CloudTwin Lite implements a superset for SES, S3, SNS, and SQS,
+plus KMS and Cognito — see [CloudTwin Lite (Rust)](#cloudtwin-lite-rust).
 
 ### AWS SES (v1 — Query protocol, `POST /`)
 
@@ -287,8 +289,11 @@ A built-in SMTP sink that captures mail for local inspection, implemented in
 state machine (EHLO/HELO, MAIL, RCPT, DATA, RSET, NOOP, QUIT; no TLS/auth, no
 relay). `service.rs::capture_raw` is the single ingestion path: it parses the
 RFC 822 message with `mail-parser` and writes to `mailbox_messages` /
-`mailbox_attachments`. SES v1 and v2 `SendEmail` also call `capture_from_ses`,
-so sent mail shows up in the same inbox.
+`mailbox_attachments`. SES v1/v2 `SendEmail` and `SendRawEmail` also capture
+through it, so sent mail shows up in the same inbox. Before capture, each
+message runs through the active SES receipt rule set; recipients matched by an
+enabled rule are handled by its actions instead (see
+[AWS SES (Lite)](#aws-ses-lite)).
 
 | Setting | YAML | Env | Default |
 |---|---|---|---|
@@ -816,99 +821,6 @@ Also add the service name to the `services=[...]` list in the `server_url` fixtu
 
 ### Coding conventions
 
----
-
-## CloudTwin Lite (Rust)
-
-The `rust/cloudtwin-lite/` directory contains a Rust reimplementation of CloudTwin.
-The goal is a single statically-linked binary with no Python runtime dependency —
-smaller, faster cold-starts, and easier to embed in CI containers.
-
-> **Status:** Early development. Currently only S3 is implemented. Not at feature
-> parity with the Python version. The Python build remains the primary runtime until
-> parity is reached.
-
-### Directory layout
-
-```
-rust/cloudtwin-lite/
-  Cargo.toml          # Package manifest and dependencies
-  src/
-    main.rs           # Entry point — config, DB init, Axum router setup
-    config.rs         # Config struct populated from environment variables
-    db.rs             # SQLite connection pool (tokio-rusqlite) + migrations
-    s3/
-      mod.rs          # Re-exports router()
-      handlers.rs     # Axum HTTP handlers — S3 REST endpoints
-      service.rs      # S3 business logic (pure Rust, no HTTP)
-      models.rs       # S3Bucket, S3Object structs
-```
-
-### Stack
-
-| Concern | Crate |
-|---|---|
-| HTTP server | `axum` 0.7 |
-| Async runtime | `tokio` |
-| SQLite | `rusqlite` (bundled) + `tokio-rusqlite` |
-| Serialisation | `serde` + `serde_json` |
-| Logging | `tracing` + `tracing-subscriber` |
-
-### Architecture
-
-The Lite binary follows the same service/handler separation as the Python version:
-
-- `handlers.rs` — HTTP only. Parses request, calls service, formats XML response.
-- `service.rs` — Business logic only. No HTTP, no XML. Calls the DB directly.
-- `db.rs` — Connection pool and DDL migrations. Each service module owns its own
-  `migrate()` call that runs `CREATE TABLE IF NOT EXISTS` statements.
-
-Shared application state (`AppState`) is wrapped in `Arc` and injected into every
-handler via Axum's `State` extractor.
-
-### Configuration
-
-Configuration is resolved from environment variables at startup — no YAML file
-support yet.
-
-| Variable | Default | Description |
-|---|---|---|
-| `CLOUDTWIN_PORT` | `4793` | TCP port |
-| `CLOUDTWIN_DB_PATH` | `/data/cloudtwin-lite.db` | SQLite file path; use `:memory:` for ephemeral |
-
-### Building
-
-```bash
-cd rust/cloudtwin-lite
-
-# Debug
-cargo build
-
-# Release (optimised, ~8 MB binary)
-cargo build --release
-
-# Run
-./target/release/cloudtwin-lite
-```
-
-### Adding a new service to Lite
-
-1. Create `src/<service>/` with `mod.rs`, `handlers.rs`, `service.rs`, `models.rs`.
-2. Add the migration SQL to a `migrate()` async fn in `service.rs` (or `db.rs`) and
-   call it from `main.rs` after `db.migrate()`.
-3. Expose a `pub fn router(state: Arc<AppState>) -> Router` from `mod.rs`.
-4. Merge the router in `main.rs`: `app = app.merge(<service>::router(Arc::clone(&state)))`.
-5. Add the module declaration in `main.rs`: `mod <service>;`.
-
-### Known gaps vs Python version
-
-- Only S3 is implemented (no SES, SNS, SQS, DynamoDB, Azure, or GCP services)
-- No dashboard support
-- No YAML config file — env vars only
-- No telemetry / event log
-- No Docker image published yet
-- No integration test suite
-
 - `from __future__ import annotations` at the top of every file
 - Async throughout — all repository methods and service methods are `async`
 - Dataclasses for all models — no ORM, no Pydantic in the persistence layer
@@ -916,6 +828,424 @@ cargo build --release
   never for instantiation or side effects
 - Logger names follow the module hierarchy: `logging.getLogger("cloudtwin.ses")`
 - ISO 8601 UTC strings for all timestamps: `datetime.now(timezone.utc).isoformat()`
+
+---
+
+## CloudTwin Lite (Rust)
+
+`rust/cloudtwin-lite/` is a single statically linked binary with no Python
+runtime. It is the runtime going forward: new AWS features (SES receiving and
+events, S3 notifications/multipart/versioning, worker-grade SQS, SNS fan-out,
+KMS, Cognito) exist only here, and the Python backend is being phased out.
+
+### Directory layout
+
+```
+rust/cloudtwin-lite/
+  Cargo.toml
+  src/
+    main.rs            # Entry point — load config, build state, seed, serve HTTP + SMTP
+    app.rs             # AppState, build_router(), AWS `POST /` dispatcher, virtual-host rewrite
+    config.rs          # YAML + env config (module configs live in each module)
+    db.rs              # SQLite connection, shared DDL, ensure_column(), cloudtwin_meta
+    proto.rs           # AWS wire helpers: Query/JSON parsing, XML/JSON errors, query_to_json
+    xml.rs             # Minimal XML DOM for request bodies (S3 configs, multipart, ...)
+    control.rs         # /_cloudtwin/reset and /_cloudtwin/seed
+    seed.rs            # Seed document dispatcher (startup, POST /_cloudtwin/seed, reset)
+    telemetry.rs       # events table writer
+    testutil.rs        # In-process test harness (cfg(test))
+    mailbox/           # SMTP listener + capture inbox
+    aws/
+      <service>/       # mod.rs · handlers.rs · service.rs · models.rs · schema.rs · tests.rs
+                       # (+ config.rs where the service is configurable)
+      ses/  s3/  sns/  sqs/  kms/  cognito/  dynamodb/  secretsmanager/  bedrock/
+    azure/  gcp/
+```
+
+### Architecture
+
+- **`handlers.rs`** — protocol only (Query/XML, JSON, REST). Parses requests,
+  calls the service, maps typed errors to AWS error codes.
+- **`service.rs`** — business logic only; talks to SQLite through `state.db.call(...)`.
+- **`schema.rs`** — each module owns its tables: `CREATE TABLE IF NOT EXISTS`
+  plus `db::ensure_column` for columns added later, so old database files
+  upgrade in place. Table names start with the module prefix (`ses_`, `s3_`,
+  `sqs_`, `sns_`, `kms_`, `cognito_`) so `/_cloudtwin/reset` can find them.
+- **Cross-service calls** go through small internal APIs rather than HTTP:
+  `aws::sqs::send_internal`, `aws::sns::publish_internal`,
+  `aws::s3::put_object_internal`, `mailbox::service::capture_raw`. This is how
+  SNS fans out to SQS, S3 emits event notifications, SES receipt rules write to
+  S3, and SES/Cognito drop mail in the inbox.
+- **`seed(state, doc)`** — each module provisions its own section of a seed
+  document idempotently.
+
+`POST /` routes JSON-protocol requests by `X-Amz-Target` prefix (`AmazonSQS.`,
+`DynamoDB_`, `secretsmanager.`, `TrentService.` for KMS,
+`AWSCognitoIdentityProviderService.`) and form-encoded Query requests by
+`Action` (SES v1, then SNS). Both `application/x-amz-json-1.0` and `-1.1` are
+accepted.
+
+### Configuration
+
+Lite reads the shared `cloudtwin.yml` (`CLOUDTWIN_CONFIG_PATH`); env vars win.
+
+| YAML | Env | Default | Purpose |
+|---|---|---|---|
+| `api_port` | `CLOUDTWIN_PORT` | `4793` | HTTP port |
+| `storage.path` | `CLOUDTWIN_DB_PATH` | `/data/cloudtwin-lite.db` | SQLite file (`:memory:` for ephemeral) |
+| — | `CLOUDTWIN_BASE_URL` | `http://localhost:{port}` | Public URL used in queue URLs, links, OIDC issuer |
+| `mailbox.enabled` / `mailbox.smtp_port` | `CLOUDTWIN_MAILBOX_ENABLED` / `CLOUDTWIN_SMTP_PORT` | `false` / `1025` | SMTP listener (capture inbox + SES receiving) |
+| `seed:` | `CLOUDTWIN_SEED_PATH` | — | Resources to provision at startup (YAML/JSON file) |
+| `providers.aws.ses.strict_verification` | `CLOUDTWIN_SES_STRICT_VERIFICATION` | `true` | Reject sends from unverified identities |
+| `providers.aws.ses.verification.mode` | `CLOUDTWIN_SES_VERIFICATION_MODE` | `auto` | `auto`, `manual`, `after_checks`, `delay` |
+| `providers.aws.ses.verification.checks` | `CLOUDTWIN_SES_VERIFICATION_CHECKS` | `3` | Reads before `after_checks` resolves |
+| `providers.aws.ses.verification.delay_seconds` | `CLOUDTWIN_SES_VERIFICATION_DELAY_SECONDS` | `30` | Delay before `delay` resolves |
+| `providers.aws.ses.verification.outcome` | `CLOUDTWIN_SES_VERIFICATION_OUTCOME` | `SUCCESS` | `SUCCESS`, `FAILED`, `TEMPORARY_FAILURE` |
+| `providers.aws.ses.verification.overrides` | — | `{}` | Per-identity rules (exact or `*.domain` / `*@domain`) |
+| `providers.aws.ses.account.production_access_enabled` | `CLOUDTWIN_SES_PRODUCTION_ACCESS` | `true` | `false` = sandbox (recipients must be verified) |
+| `providers.aws.ses.account.sending_enabled` | `CLOUDTWIN_SES_SENDING_ENABLED` | `true` | Account-level sending switch |
+| `providers.aws.ses.account.{max_24_hour_send,max_send_rate,enforcement_status,suppressed_reasons}` | — | `50000`, `14`, `HEALTHY`, `[BOUNCE, COMPLAINT]` | `GetAccount` values |
+| `providers.aws.s3.virtual_host_suffix` | `CLOUDTWIN_S3_VIRTUAL_HOST_SUFFIX` | `s3.localhost` | `{bucket}.s3.localhost:4793` → path style; empty disables |
+| `providers.aws.cognito.issuer_base_url` | `CLOUDTWIN_COGNITO_ISSUER_BASE_URL` | `base_url` | OIDC issuer prefix |
+| `providers.aws.cognito.signing_key_path` | `CLOUDTWIN_COGNITO_SIGNING_KEY_PATH` | generated + persisted | RSA PEM for RS256 tokens |
+| `providers.aws.cognito.{id,access,refresh}_token_ttl_seconds` | `CLOUDTWIN_COGNITO_*_TTL_SECONDS` | 3600 / 3600 / 30 days | Defaults when a client sets none |
+
+### Test control plane (`/_cloudtwin`)
+
+CloudTwin-specific endpoints for integration tests (not AWS APIs):
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /_cloudtwin/reset` | Clear state. Body (optional): `{"services": ["ses","s3","sqs",...], "reseed": true}`. Services: `s3 ses sqs sns kms cognito dynamodb secretsmanager mailbox events azure gcp`. The startup seed is re-applied unless `reseed: false`. Signing keys survive. |
+| `POST /_cloudtwin/seed` | Apply a seed document (same shape as YAML `seed:`) |
+| `POST /_cloudtwin/ses/identities/{identity}/verification` | Force `{"status": "SUCCESS|PENDING|FAILED|TEMPORARY_FAILURE", "mail_from_status": ...}` |
+| `GET /_cloudtwin/ses/verify-email?identity=` | Verification link included in captured "Email Address Verification Request" mails |
+| `GET|POST /_cloudtwin/ses/account` | Read / override `GetAccount` values (`null` reverts a key) |
+| `GET /_cloudtwin/ses/events?message_id=&type=` | Every SES event emitted (Send, Delivery, Bounce, ...) |
+| `GET /_cloudtwin/ses/messages` | Outbound messages with raw MIME and per-recipient outcome |
+| `POST /_cloudtwin/ses/inbound?from=&to=a,b` | Deliver a raw RFC 822 body through the receipt rules (no SMTP needed) |
+
+Seed documents combine module sections, applied in dependency order
+(KMS → S3 → SQS → SNS → SES → Cognito):
+
+```yaml
+seed:
+  s3:
+    buckets: [mail-inbound]
+  sqs:
+    queues: [inbound-mail, ses-events]
+  sns:
+    topics:
+      - name: ses-events
+        subscriptions: [{protocol: sqs, endpoint: ses-events, attributes: {RawMessageDelivery: "true"}}]
+  ses:
+    identities: [example.com]
+    configuration_sets:
+      - name: outbound
+        event_destinations:
+          - {name: sns, matching_event_types: [SEND, DELIVERY, BOUNCE, COMPLAINT],
+             sns_topic_arn: "arn:aws:sns:us-east-1:000000000000:ses-events"}
+    receipt_rule_sets:
+      - name: inbound
+        active: true
+        rules:
+          - {Name: store, Enabled: true, Recipients: [example.com],
+             Actions: [{S3Action: {BucketName: mail-inbound, ObjectKeyPrefix: raw/}}]}
+```
+
+### AWS SES (Lite)
+
+**Identities.** `CreateEmailIdentity` / `GetEmailIdentity` return
+`DkimAttributes` (three generated `Tokens`, `Status`,
+`SigningAttributesOrigin: AWS_SES`, key lengths), `VerificationStatus`,
+`VerificationInfo`, `MailFromAttributes`, `FeedbackForwardingStatus`, and
+`ConfigurationSetName`. Domains verify every subdomain and address under them.
+Creating an existing identity → `AlreadyExistsException`; reading/deleting a
+missing one → `NotFoundException`. REST errors carry `x-amzn-ErrorType` and
+`__type`, so boto3 and the Rust SDK raise typed exceptions.
+
+**Verification lifecycle.** New identities follow
+`providers.aws.ses.verification`: `auto` resolves immediately, `manual` stays
+`PENDING` until the control endpoint is called, `after_checks` resolves after N
+`GetEmailIdentity` (or v1 `GetIdentity*Attributes`) reads, `delay` after N
+seconds. `outcome` picks the final status, `overrides` per identity. Pending
+email identities get a verification email in the inbox whose link verifies them.
+
+**Sending.** `SendEmail` (v1, v2) and `SendRawEmail` / v2 `Content.Raw`
+(full MIME with attachments and threading headers), `ReplyToAddresses`,
+`EmailTags`, `ConfigurationSetName`, `FeedbackForwardingEmailAddress`, and
+v2 `Content.Simple.Headers`. Checks, in SES order: account sending enabled
+(`SendingPausedException`), configuration set exists, sender verified
+(`MessageRejected`, when `strict_verification`), sandbox recipients
+(`production_access_enabled: false`), custom MAIL FROM status with
+`REJECT_MESSAGE` (`MailFromDomainNotVerifiedException`), ≤ 50 recipients,
+≤ 40 MB. Accepted mail lands in the local inbox (Bcc kept visible there).
+
+**Events.** Configuration sets (`CreateConfigurationSet`, event destinations
+CRUD, option PUTs; v1 equivalents) publish SES-shaped JSON events
+(`eventType`, `mail`, and `send` / `delivery` / `bounce` / `complaint` /
+`reject` / `deliveryDelay`) to SNS destinations. Every event is also logged at
+`/_cloudtwin/ses/events`.
+
+**Mailbox simulator.** `success@`, `bounce@` (Permanent/General),
+`complaint@`, `suppressionlist@` (Permanent/Suppressed) and `ooto@` (delivery
+plus an auto-reply) at `simulator.amazonses.com`, including `+label` variants.
+CloudTwin extensions: `delay@` (DeliveryDelay) and `reject@` (Reject).
+Bounces and complaints forward a feedback notification to the inbox unless
+feedback forwarding is disabled for the identity.
+
+**Suppression list.** `Put/Get/List/DeleteSuppressedDestination`; sends to a
+listed address produce a `Bounce` event with `bounceSubType:
+OnAccountSuppressionList` and are not delivered.
+
+**Account.** `GetAccount` (`SendQuota` with real `SentLast24Hours`,
+`ProductionAccessEnabled`, `SendingEnabled`, `EnforcementStatus`,
+`SuppressionAttributes`), `PutAccountSendingAttributes`,
+`PutAccountSuppressionAttributes`; v1 `GetSendQuota`,
+`GetAccountSendingEnabled`, `UpdateAccountSendingEnabled`.
+
+**Custom MAIL FROM.** `PutEmailIdentityMailFromAttributes` (must be a
+subdomain of the identity), v1 `SetIdentityMailFromDomain` /
+`GetIdentityMailFromDomainAttributes`. Its status follows the same
+verification policy and can be forced via `mail_from_status`.
+
+**Receiving.** v1 receipt rule sets and rules (`Create/Delete/List/Describe/
+CloneReceiptRuleSet`, `Set/DescribeActiveReceiptRuleSet`,
+`ReorderReceiptRuleSet`, `Create/Update/Delete/DescribeReceiptRule`,
+`SetReceiptRulePosition`). Mail arriving on the SMTP listener (or
+`POST /_cloudtwin/ses/inbound`) for recipients matched by an enabled rule in
+the active set (`user@domain`, `domain`, `.subdomain`; no recipients = all)
+runs the rule's actions; everything else goes to the capture inbox. Actions:
+`S3Action` (writes `{prefix}{messageId}` with SES receiving headers prepended,
+40 MB limit, optional SNS notification), `SNSAction` (UTF-8/Base64 content,
+150 KB), `AddHeaderAction`, `BounceAction` (DSN to the inbox), `StopAction`;
+`LambdaAction`/`WorkmailAction` only send their SNS notification. S3 writes
+fire S3 event notifications, so `MX → receipt rule → S3 → SQS` works end to end.
+
+```python
+import boto3, smtplib
+kw = dict(endpoint_url="http://localhost:4793", region_name="us-east-1",
+          aws_access_key_id="test", aws_secret_access_key="test")
+ses, sesv2, s3 = (boto3.client(n, **kw) for n in ("ses", "sesv2", "s3"))
+
+dkim = sesv2.create_email_identity(EmailIdentity="example.com")["DkimAttributes"]["Tokens"]
+s3.create_bucket(Bucket="mail-inbound")
+ses.create_receipt_rule_set(RuleSetName="inbound")
+ses.create_receipt_rule(RuleSetName="inbound", Rule={
+    "Name": "store", "Enabled": True, "Recipients": ["example.com"],
+    "Actions": [{"S3Action": {"BucketName": "mail-inbound", "ObjectKeyPrefix": "raw/"}}]})
+ses.set_active_receipt_rule_set(RuleSetName="inbound")
+with smtplib.SMTP("localhost", 1025) as smtp:      # mailbox.enabled: true
+    smtp.sendmail("someone@else.net", ["team@example.com"], "Subject: hi\r\n\r\nhello")
+```
+
+### AWS S3 (Lite)
+
+Path-style (`/{bucket}/{key}`, with or without the trailing slash the Rust SDK
+sends) and virtual-hosted-style (`{bucket}.s3.localhost:4793`) addressing.
+
+- **Buckets & listing:** bucket CRUD (`BucketNotEmpty` on non-empty delete),
+  ListObjects V1/V2 (prefix, delimiter → `CommonPrefixes`, `max-keys`,
+  continuation tokens / markers with real `IsTruncated`, `start-after`,
+  `encoding-type=url`), ListObjectVersions, ListMultipartUploads.
+- **Objects:** Put/Get/Head/Copy/Delete, `DeleteObjects`, user metadata
+  (`x-amz-meta-*`) and standard headers, ranged GET (206 / 416), conditional
+  requests, object tagging (`?tagging`, `x-amz-tagging`), GetObjectAttributes.
+- **Bucket settings:** versioning (version ids, delete markers, `?versionId=`),
+  SSE headers (`AES256`, `aws:kms` + key id, bucket-key) echoed on every
+  response, default encryption, Block Public Access, lifecycle, policy, CORS,
+  ownership controls, tagging, website/replication/object-lock stored and echoed.
+  Lifecycle rules are stored, not enforced; encryption is header-only.
+- **Multipart:** Create/UploadPart/UploadPartCopy/Complete/Abort/ListParts with
+  AWS-style `"md5-of-md5s-N"` ETags.
+- **Browser uploads:** CORS preflight (`OPTIONS`) and CORS response headers;
+  presigned GET/PUT URLs; presigned POST policies (`${filename}`,
+  `content-length-range`, `eq`/`starts-with`, `success_action_*`).
+- **SDK streaming:** `Content-Encoding: aws-chunked` bodies with trailing
+  checksums (Rust SDK, newer boto3) are decoded; CRC32/SHA256/Content-MD5 are
+  validated and `x-amz-checksum-*` echoed.
+- **Event notifications:** `PutBucketNotificationConfiguration` with queue and
+  topic configurations (prefix/suffix filters). Destinations are validated and
+  sent an `s3:TestEvent`, like AWS. `ObjectCreated:{Put,Post,Copy,CompleteMultipartUpload}`
+  and `ObjectRemoved:{Delete,DeleteMarkerCreated}` records use the AWS shape
+  (`Records[].s3.bucket.name`, `object.key` URL-encoded, `size`, `eTag`, `sequencer`).
+
+```python
+s3.put_bucket_notification_configuration(Bucket="uploads", NotificationConfiguration={
+    "QueueConfigurations": [{"QueueArn": "arn:aws:sqs:us-east-1:000000000000:uploads-events",
+                             "Events": ["s3:ObjectCreated:*"],
+                             "Filter": {"Key": {"FilterRules": [{"Name": "prefix", "Value": "raw/"}]}}}]})
+s3.put_object(Bucket="uploads", Key="raw/a.eml", Body=b"...", Metadata={"org": "o1"},
+              ServerSideEncryption="aws:kms", SSEKMSKeyId="alias/mail")
+post = s3.generate_presigned_post("uploads", "in/${filename}",
+                                  Conditions=[["content-length-range", 1, 10_000_000]])
+```
+
+Seed: `s3: {buckets: [name | {name, versioning, cors: [CORSRule], notifications:
+{queues: [{queue, events, prefix, suffix}], topics: [{topic, ...}]}, lifecycle,
+public_access_block, encryption, policy, tags}]}` (seeding does not send
+`s3:TestEvent`).
+
+### AWS SQS & SNS (Lite)
+
+**SQS** (AWS JSON, `X-Amz-Target: AmazonSQS.*`) supports queue attributes
+(VisibilityTimeout, DelaySeconds, MessageRetentionPeriod, ReceiveMessageWaitTimeSeconds,
+MaximumMessageSize, RedrivePolicy, Policy, KMS/SSE echo), FIFO queues (`.fifo` +
+`FifoQueue=true`, MessageGroupId, 5-minute dedup, SequenceNumber, per-group ordering),
+visibility timeouts with fresh receipt handles, long polling (WaitTimeSeconds ≤ 20),
+dead-letter redrive after `maxReceiveCount`, message attributes with AWS-exact
+`MD5OfMessageAttributes`, system attributes (`SentTimestamp`, `ApproximateReceiveCount`, ...),
+batch APIs, SetQueueAttributes, tags and PurgeQueue. Errors include `x-amzn-query-error`,
+so SDKs raise modeled exceptions (`QueueDoesNotExist`).
+
+**SNS** (AWS Query) delivers on Publish/PublishBatch:
+- `sqs`: standard notification JSON envelope, or the raw message when
+  `RawMessageDelivery=true` (SNS message attributes become SQS message attributes).
+- `http`/`https`: background POST of the envelope with `x-amz-sns-*` headers.
+- `email`/`email-json`: captured in the local inbox.
+- Subscriptions are **auto-confirmed** (`PendingConfirmation=false`); no confirmation
+  message is sent. `FilterPolicy` (MessageAttributes or MessageBody scope) supports exact
+  values, `prefix`, `suffix`, `anything-but`, `exists`, `numeric`, `$or`.
+- Also: `MessageStructure=json`, `TargetArn`, Get/SetSubscriptionAttributes,
+  Get/SetTopicAttributes, Unsubscribe, ListSubscriptions, tagging.
+
+```python
+dlq = sqs.create_queue(QueueName="orders-dlq")["QueueUrl"]
+q = sqs.create_queue(QueueName="orders", Attributes={"RedrivePolicy": json.dumps(
+    {"deadLetterTargetArn": "arn:aws:sqs:us-east-1:000000000000:orders-dlq", "maxReceiveCount": 3})})["QueueUrl"]
+topic = sns.create_topic(Name="order-events")["TopicArn"]
+sns.subscribe(TopicArn=topic, Protocol="sqs",
+              Endpoint="arn:aws:sqs:us-east-1:000000000000:orders",
+              Attributes={"RawMessageDelivery": "true",
+                          "FilterPolicy": json.dumps({"type": ["created"]})})
+sns.publish(TopicArn=topic, Message='{"id": 1}',
+            MessageAttributes={"type": {"DataType": "String", "StringValue": "created"}})
+msgs = sqs.receive_message(QueueUrl=q, WaitTimeSeconds=5, MessageAttributeNames=["All"])["Messages"]
+```
+
+Seed: `sqs: {queues: [name | {name, attributes, tags}]}` (`RedrivePolicy` may be a map and
+`deadLetterTargetArn` a bare queue name); `sns: {topics: [name | {name, attributes, tags,
+subscriptions: [{protocol, endpoint, attributes}]}]}` (a bare queue name is accepted as an
+`sqs` endpoint).
+
+### AWS KMS (Lite)
+
+AWS JSON 1.1 (`X-Amz-Target: TrentService.*`) on `POST /`. Symmetric keys hold real
+256-bit AES-GCM material, so ciphertexts are genuine and tamper-evident; the
+`EncryptionContext` is bound as AAD.
+
+Operations: CreateKey, DescribeKey, ListKeys, Create/Update/Delete/ListAliases, Encrypt,
+Decrypt, ReEncrypt, GenerateDataKey, GenerateDataKeyWithoutPlaintext, GenerateRandom,
+Enable/DisableKey, Schedule/CancelKeyDeletion, Enable/Disable/GetKeyRotationStatus,
+Tag/Untag/ListResourceTags, UpdateKeyDescription, Get/Put/ListKeyPolicies. Key id, key ARN,
+`alias/name`, and alias ARN are accepted wherever `KeyId` is. Disabled keys raise
+`DisabledException`, keys pending deletion `KMSInvalidStateException`. Asymmetric/HMAC keys can
+be created and described but not used; policies are stored, not enforced.
+
+```python
+key_id = kms.create_key(Description="mail secrets")["KeyMetadata"]["KeyId"]
+kms.create_alias(AliasName="alias/mail", TargetKeyId=key_id)
+blob = kms.encrypt(KeyId="alias/mail", Plaintext=b"app-password",
+                   EncryptionContext={"org": "o1"})["CiphertextBlob"]
+kms.decrypt(CiphertextBlob=blob, EncryptionContext={"org": "o1"})["Plaintext"]
+```
+
+Seed: `kms: {keys: [{id?: <uuid>, alias? | aliases?, description?, enabled?, tags?}]}`.
+Keys seeded with a fixed `id` derive their key material from that id, so ciphertexts survive
+restarts and `/_cloudtwin/reset` (local development only — the material is not secret).
+
+### AWS Cognito user pools (Lite)
+
+Admin/user JSON API (`AWSCognitoIdentityProviderService.*` on `POST /`), OIDC discovery +
+JWKS, a hosted login page, and the `/oauth2/*` endpoints. Tokens are RS256 JWTs with
+Cognito's claim shapes — ID token: `sub`, `email`, `email_verified`, `cognito:username`,
+`aud`, `token_use: id`, `nonce`; access token: `client_id` (no `aud`), `scope`,
+`token_use: access`, `username` — so APIs validate them exactly like real Cognito tokens.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /{poolId}/.well-known/openid-configuration` | OIDC discovery |
+| `GET /{poolId}/.well-known/jwks.json` | Signing keys |
+| `GET /oauth2/authorize`, `GET/POST /login` | Hosted UI (code + PKCE S256/plain, session cookie) |
+| `POST /oauth2/token` | `authorization_code`, `refresh_token`, `client_credentials` |
+| `GET/POST /oauth2/userInfo`, `POST /oauth2/revoke`, `GET /logout` | userinfo, revocation, sign-out (`client_id` + `logout_uri`) |
+
+Issuer: `{issuer_base_url or base_url}/{poolId}`. The signing key is generated once and
+stored in the DB (it survives `/_cloudtwin/reset`), or loaded from a PEM file.
+
+API: pool/client/domain CRUD, AdminCreateUser (temporary password, invite email captured in
+the inbox), AdminGetUser, ListUsers (`attr = "v"` / `attr ^= "v"`),
+Admin{Disable,Enable,Delete}User, AdminSetUserPassword, AdminUserGlobalSignOut,
+Admin{Update,Delete}UserAttributes, AdminConfirmSignUp, AdminResetUserPassword,
+(Admin)InitiateAuth (USER_PASSWORD, ADMIN_USER_PASSWORD, REFRESH_TOKEN),
+(Admin)RespondToAuthChallenge (NEW_PASSWORD_REQUIRED), GetUser, GlobalSignOut, RevokeToken,
+ChangePassword, SignUp/ConfirmSignUp, ForgotPassword/ConfirmForgotPassword (codes emailed to
+the inbox). Not supported: SRP, MFA (TOTP), groups, resource servers, federation, Lambda
+triggers.
+
+Seed a stable local pool (idempotent):
+
+```yaml
+seed:
+  cognito:
+    user_pools:
+      - id: us-east-1_localpool
+        name: orkystra
+        username_attributes: [email]
+        clients:
+          - client_id: fixedclientid      # public client, code flow, openid/email/profile
+            name: web
+            callback_urls: [http://localhost:3000/callback]
+            logout_urls: [http://localhost:3000/]
+        users:
+          - email: dev@example.com
+            password: Passw0rd!
+            attributes: { name: Dev User }
+```
+
+```python
+cog = boto3.client("cognito-idp", **kw)
+cog.admin_create_user(UserPoolId="us-east-1_localpool", Username="new@example.com",
+                      DesiredDeliveryMediums=["EMAIL"])   # invite lands in the local mailbox
+r = cog.initiate_auth(ClientId="fixedclientid", AuthFlow="USER_PASSWORD_AUTH",
+                      AuthParameters={"USERNAME": "dev@example.com", "PASSWORD": "Passw0rd!"})
+id_token = r["AuthenticationResult"]["IdToken"]
+```
+
+The static routes `/login`, `/logout`, and `/oauth2/*` shadow S3 buckets with those names,
+and `GET /{x}/.well-known/{openid-configuration,jwks.json}` is answered by Cognito.
+
+### Building and testing
+
+```bash
+make rust-build        # release build
+make rust-run          # run with in-memory storage
+make rust-test         # cargo test — in-process tests for every module
+```
+
+In-process tests use `crate::testutil::TestApp` (real router, in-memory DB)
+and drive the app over HTTP exactly like an SDK. The boto3 integration suite
+can also target a running Lite binary with
+`CLOUDTWIN_TEST_URL=http://127.0.0.1:47930` (see `make rust-test-parity`).
+
+### Adding a new service to Lite
+
+1. Create `src/aws/<service>/` with `mod.rs`, `handlers.rs`, `service.rs`,
+   `models.rs`, `schema.rs` (`pub fn migrate(conn)`), and `tests.rs`.
+2. Call `<service>::schema::migrate(conn)` from `Database::migrate` in `db.rs`.
+3. Wire the protocol: an `X-Amz-Target` prefix or Query `Action` list in
+   `app.rs::aws_post`, or merge a REST router in `app::build_router`.
+4. Expose `pub async fn seed(state, doc)` and add it to `seed.rs`; add the
+   table prefix to `SERVICE_TABLES` in `control.rs`.
+5. If other services need to call it, expose a small `*_internal` function
+   from `mod.rs` instead of going through HTTP.
+
+### Known gaps vs the Python version
+
+- Lambda, Azure Queue/Event Grid/Key Vault/Functions, and GCP Firestore/Cloud
+  Tasks/Secret Manager/Cloud Functions are not implemented in Lite yet.
+- Request signatures are never validated (presigned URLs and POST policies
+  work because of this).
 
 ---
 

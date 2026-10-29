@@ -11,6 +11,11 @@ application code during local development and CI.
 **Ports:** `4793` → Cloud API
 **Primary goal:** SDK-compatible endpoints, not a full cloud replica.
 
+> **Runtime direction:** CloudTwin Lite (`rust/cloudtwin-lite/`, Rust) is the
+> runtime going forward and the Python backend (`src/cloudtwin/`) is being
+> phased out. Implement new features and fixes in Lite only unless asked
+> otherwise. See [CloudTwin Lite (Rust)](#cloudtwin-lite-rust) below.
+
 ---
 
 ## Repository Layout
@@ -343,6 +348,54 @@ await self._telemetry.emit("aws", "ses", "send_email", {"source": source, ...})
 
 Events are written to the `events` table and will be consumed by the future
 dashboard. The format is `provider.service.action`.
+
+---
+
+## CloudTwin Lite (Rust)
+
+Layout and patterns for `rust/cloudtwin-lite/src/` (details in
+`docs/developer-guide.md#cloudtwin-lite-rust`):
+
+- `app.rs` — `AppState { db, cfg, bedrock, http }`, `build_router()`, and the AWS
+  `POST /` dispatcher (JSON protocol by `X-Amz-Target` prefix: `AmazonSQS.`,
+  `DynamoDB_`, `secretsmanager.`, `TrentService.`, `AWSCognitoIdentityProviderService.`;
+  Query protocol by `Action`: SES v1, then SNS). It also rewrites
+  virtual-hosted S3 hosts (`{bucket}.s3.localhost`) before routing.
+- `aws/<service>/` — `mod.rs` (public surface), `handlers.rs` (protocol only),
+  `service.rs` (logic only), `models.rs`, `schema.rs`, `tests.rs`, optional
+  `config.rs` (`providers.aws.<service>` YAML + `CLOUDTWIN_*` env via `apply_env`).
+- **Schema ownership:** each module's `schema.rs::migrate(conn)` creates its own
+  tables (`CREATE TABLE IF NOT EXISTS`) and adds later columns with
+  `db::ensure_column` so existing database files upgrade in place. Table names
+  must start with the module prefix (`ses_`, `s3_`, `sqs_`, `sns_`, `kms_`,
+  `cognito_`, ...) so `/_cloudtwin/reset` can clear them. State that must
+  survive resets (e.g. signing keys) goes in `cloudtwin_meta` via `db::meta_get/meta_set`.
+- **Cross-service calls** use internal functions, never HTTP:
+  `aws::sqs::send_internal`, `aws::sns::publish_internal`,
+  `aws::s3::put_object_internal`, `mailbox::service::capture_raw`. Keep their
+  signatures stable; other modules depend on them.
+- **Seeding:** each module exposes `pub async fn seed(state, doc)` that
+  provisions its section of a seed document idempotently. `seed.rs` applies
+  sections in dependency order at startup (`seed:` YAML / `CLOUDTWIN_SEED_PATH`),
+  on `POST /_cloudtwin/seed`, and after `POST /_cloudtwin/reset`.
+- **Test control plane:** CloudTwin-only endpoints live under `/_cloudtwin/*`
+  (`control.rs`, plus per-module routers such as `aws::ses::control_router()`).
+  Never put test hooks on AWS API paths.
+- **Wire fidelity:** match AWS exactly — error codes and headers
+  (`proto::rest_json_error` sets `x-amzn-ErrorType`; JSON errors use `__type`;
+  Query errors are XML), timestamp formats (restJson/awsJson epoch seconds,
+  S3 XML `%Y-%m-%dT%H:%M:%S%.3fZ`, S3 headers RFC 7231), and request shapes from
+  both boto3 and the AWS Rust SDK (e.g. trailing-slash bucket paths,
+  `aws-chunked` uploads). Prefer AWS behaviour over convenience (e.g.
+  `AlreadyExistsException` on duplicate creates).
+- **Tests:** in-process tests use `crate::testutil::TestApp` (real router,
+  in-memory DB) and drive the app over HTTP like an SDK. The boto3 suite can
+  target a running binary via `CLOUDTWIN_TEST_URL`. Run `make rust-test` and
+  `make rust-clippy` (`-D warnings`).
+
+To add a Lite service: create the module folder, call its `schema::migrate`
+from `Database::migrate`, wire its protocol in `app.rs`, add its `seed` to
+`seed.rs` and its table prefix to `SERVICE_TABLES` in `control.rs`.
 
 ---
 

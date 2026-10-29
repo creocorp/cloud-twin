@@ -7,7 +7,7 @@ cloudtwin:
     aws:
       services: ["ses", "sns", "sqs", "bedrock", "s3", "lambda", "dynamodb", "secretsmanager"]
       ses:
-        strict_verification: false
+        strict_verification: true    # reject sends from unverified identities (MessageRejected), like SES
         smtp:
           host: null          # set to enable SMTP relay, e.g. smtp.example.local
           port: 1025

@@ -40,94 +40,84 @@ impl Database {
         self.conn
             .call(|conn| {
                 conn.execute_batch(DDL)?;
+                // Each AWS module owns its tables and additive migrations.
+                crate::aws::s3::schema::migrate(conn)?;
+                crate::aws::ses::schema::migrate(conn)?;
+                crate::aws::sqs::schema::migrate(conn)?;
+                crate::aws::sns::schema::migrate(conn)?;
+                crate::aws::kms::schema::migrate(conn)?;
+                crate::aws::cognito::schema::migrate(conn)?;
                 Ok(())
             })
             .await?;
         Ok(())
     }
+
+    /// Run a closure on the connection thread, mapping errors to `anyhow`.
+    pub async fn call<F, R>(&self, f: F) -> Result<R>
+    where
+        F: FnOnce(&mut rusqlite::Connection) -> rusqlite::Result<R> + Send + 'static,
+        R: Send + 'static,
+    {
+        self.conn
+            .call(move |conn| f(conn).map_err(tokio_rusqlite::Error::from))
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))
+    }
 }
 
-/// Entire schema bootstrapped on startup.
+/// Add `column` to `table` when an older database file predates it.
 ///
-/// Keeping the DDL in one place makes the binary easy to reason about: every
-/// supported service is visible in a single schema block.
+/// `CREATE TABLE IF NOT EXISTS` never alters existing tables, so modules call
+/// this for every column added after a table first shipped.
+pub fn ensure_column(
+    conn: &rusqlite::Connection,
+    table: &str,
+    column: &str,
+    decl: &str,
+) -> rusqlite::Result<()> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let exists = stmt
+        .query_map([], |r| r.get::<_, String>(1))?
+        .filter_map(|r| r.ok())
+        .any(|c| c == column);
+    if !exists {
+        conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {column} {decl}"))?;
+    }
+    Ok(())
+}
+
+/// Read a value from the `cloudtwin_meta` key/value table (never reset).
+pub fn meta_get(conn: &rusqlite::Connection, key: &str) -> rusqlite::Result<Option<String>> {
+    use rusqlite::OptionalExtension;
+    conn.query_row(
+        "SELECT value FROM cloudtwin_meta WHERE key = ?1",
+        rusqlite::params![key],
+        |r| r.get(0),
+    )
+    .optional()
+}
+
+/// Write a value to the `cloudtwin_meta` key/value table.
+pub fn meta_set(conn: &rusqlite::Connection, key: &str, value: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO cloudtwin_meta (key, value) VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        rusqlite::params![key, value],
+    )?;
+    Ok(())
+}
+
+/// Shared schema bootstrapped on startup. AWS S3/SES/SQS/SNS/KMS/Cognito
+/// tables live in each module's `schema.rs`.
 const DDL: &str = "
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
--- ─── AWS S3 ───────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS s3_buckets (
-    name       TEXT PRIMARY KEY,
-    created_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS s3_objects (
-    bucket       TEXT    NOT NULL,
-    key          TEXT    NOT NULL,
-    content      BLOB    NOT NULL DEFAULT X'',
-    content_type TEXT    NOT NULL DEFAULT 'application/octet-stream',
-    size         INTEGER NOT NULL DEFAULT 0,
-    etag         TEXT    NOT NULL DEFAULT '',
-    created_at   TEXT    NOT NULL,
-    PRIMARY KEY (bucket, key)
-);
-
--- ─── AWS SES ──────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS ses_identities (
-    identity   TEXT PRIMARY KEY,
-    kind       TEXT    NOT NULL DEFAULT 'email',
-    verified   INTEGER NOT NULL DEFAULT 1,
-    token      TEXT,
-    created_at TEXT    NOT NULL
-);
-CREATE TABLE IF NOT EXISTS ses_messages (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    message_id   TEXT    NOT NULL UNIQUE,
-    source       TEXT    NOT NULL,
-    destinations TEXT    NOT NULL DEFAULT '[]',
-    subject      TEXT    NOT NULL DEFAULT '',
-    text_body    TEXT,
-    html_body    TEXT,
-    status       TEXT    NOT NULL DEFAULT 'sent',
-    created_at   TEXT    NOT NULL
-);
-
--- ─── AWS SQS ──────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS sqs_queues (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    name       TEXT    NOT NULL UNIQUE,
-    url        TEXT    NOT NULL,
-    created_at TEXT    NOT NULL
-);
-CREATE TABLE IF NOT EXISTS sqs_messages (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    message_id     TEXT    NOT NULL,
-    queue_id       INTEGER NOT NULL,
-    body           TEXT    NOT NULL,
-    receipt_handle TEXT    NOT NULL UNIQUE,
-    visible        INTEGER NOT NULL DEFAULT 1,
-    created_at     TEXT    NOT NULL
-);
-
--- ─── AWS SNS ──────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS sns_topics (
-    arn        TEXT PRIMARY KEY,
-    name       TEXT NOT NULL UNIQUE,
-    created_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS sns_subscriptions (
-    arn        TEXT PRIMARY KEY,
-    topic_arn  TEXT NOT NULL,
-    protocol   TEXT NOT NULL,
-    endpoint   TEXT NOT NULL,
-    created_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS sns_messages (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    message_id TEXT    NOT NULL,
-    topic_arn  TEXT    NOT NULL,
-    subject    TEXT,
-    body       TEXT    NOT NULL,
-    created_at TEXT    NOT NULL
+-- Internal key/value state that survives `/_cloudtwin/reset` (e.g. signing keys).
+CREATE TABLE IF NOT EXISTS cloudtwin_meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
 );
 
 -- ─── AWS DynamoDB ─────────────────────────────────────────────────────────────

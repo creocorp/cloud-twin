@@ -13,6 +13,21 @@ use std::env;
 use serde::Deserialize;
 
 use crate::aws::bedrock::BedrockSimConfig;
+use crate::aws::cognito::CognitoConfig;
+use crate::aws::s3::S3Config;
+use crate::aws::ses::SesConfig;
+
+/// Environment lookup used while building config (swappable in tests).
+pub type EnvFn<'a> = &'a dyn Fn(&str) -> Option<String>;
+
+/// Parse a boolean env value (`true/false/1/0/yes/no`).
+pub fn parse_bool(s: &str) -> Option<bool> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Some(true),
+        "0" | "false" | "no" | "off" => Some(false),
+        _ => None,
+    }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Resolved (post-merge) config handed to AppState
@@ -34,19 +49,38 @@ pub struct Config {
     pub mailbox_enabled: bool,
     /// Bedrock simulation config loaded from the `bedrock:` YAML section.
     pub bedrock: BedrockSimConfig,
+    /// `providers.aws.ses` — verification, sending account, enforcement.
+    pub ses: SesConfig,
+    /// `providers.aws.s3` — addressing options.
+    pub s3: S3Config,
+    /// `providers.aws.cognito` — OIDC issuer, signing key, token lifetimes.
+    pub cognito: CognitoConfig,
+    /// Resources to provision at startup (`seed:` block or `CLOUDTWIN_SEED_PATH`).
+    pub seed: Option<serde_json::Value>,
 }
 
 impl Config {
     /// Load configuration: env vars override YAML values which override defaults.
     pub fn load() -> Self {
-        let yaml = YamlRoot::load();
+        let env_fn = |k: &str| env::var(k).ok();
+        Self::build(YamlRoot::load(), &env_fn)
+    }
 
-        let port: u16 = env::var("CLOUDTWIN_PORT")
-            .ok()
+    /// Defaults only — no YAML file, no environment. Used by tests.
+    #[cfg(test)]
+    pub fn test_defaults() -> Self {
+        let mut cfg = Self::build(YamlRoot::default(), &|_| None);
+        cfg.db_path = ":memory:".into();
+        cfg.base_url = "http://localhost:4793".into();
+        cfg
+    }
+
+    fn build(yaml: YamlRoot, env: EnvFn) -> Self {
+        let port: u16 = env("CLOUDTWIN_PORT")
             .and_then(|s| s.parse().ok())
             .unwrap_or(yaml.api_port.unwrap_or(4793));
 
-        let db_path = env::var("CLOUDTWIN_DB_PATH").unwrap_or_else(|_| {
+        let db_path = env("CLOUDTWIN_DB_PATH").unwrap_or_else(|| {
             yaml.storage
                 .as_ref()
                 .and_then(|s| s.path.clone())
@@ -54,9 +88,9 @@ impl Config {
         });
 
         let base_url =
-            env::var("CLOUDTWIN_BASE_URL").unwrap_or_else(|_| format!("http://localhost:{port}"));
+            env("CLOUDTWIN_BASE_URL").unwrap_or_else(|| format!("http://localhost:{port}"));
 
-        let azure_account = env::var("CLOUDTWIN_AZURE_ACCOUNT").unwrap_or_else(|_| {
+        let azure_account = env("CLOUDTWIN_AZURE_ACCOUNT").unwrap_or_else(|| {
             yaml.providers
                 .as_ref()
                 .and_then(|p| p.azure.as_ref())
@@ -65,7 +99,7 @@ impl Config {
                 .unwrap_or_else(|| "devstoreaccount1".to_string())
         });
 
-        let azure_namespace = env::var("CLOUDTWIN_AZURE_NAMESPACE").unwrap_or_else(|_| {
+        let azure_namespace = env("CLOUDTWIN_AZURE_NAMESPACE").unwrap_or_else(|| {
             yaml.providers
                 .as_ref()
                 .and_then(|p| p.azure.as_ref())
@@ -74,7 +108,7 @@ impl Config {
                 .unwrap_or_else(|| "cloudtwin".to_string())
         });
 
-        let gcp_project = env::var("CLOUDTWIN_GCP_PROJECT").unwrap_or_else(|_| {
+        let gcp_project = env("CLOUDTWIN_GCP_PROJECT").unwrap_or_else(|| {
             yaml.providers
                 .as_ref()
                 .and_then(|p| p.gcp.as_ref())
@@ -82,20 +116,31 @@ impl Config {
                 .unwrap_or_else(|| "cloudtwin".to_string())
         });
 
-        let dashboard_static_path = env::var("CLOUDTWIN_DASHBOARD_STATIC").ok();
+        let dashboard_static_path = env("CLOUDTWIN_DASHBOARD_STATIC");
 
-        let smtp_port: u16 = env::var("CLOUDTWIN_SMTP_PORT")
-            .ok()
+        let smtp_port: u16 = env("CLOUDTWIN_SMTP_PORT")
             .and_then(|s| s.parse().ok())
             .unwrap_or(yaml.mailbox.as_ref().and_then(|m| m.smtp_port).unwrap_or(1025));
 
         // Default to disabled (false) for mailbox
-        let mailbox_enabled: bool = env::var("CLOUDTWIN_MAILBOX_ENABLED")
-            .ok()
-            .and_then(|s| s.parse().ok())
+        let mailbox_enabled: bool = env("CLOUDTWIN_MAILBOX_ENABLED")
+            .and_then(|s| parse_bool(&s))
             .unwrap_or(yaml.mailbox.as_ref().and_then(|m| m.enabled).unwrap_or(false));
 
         let bedrock = yaml.bedrock.unwrap_or_default();
+
+        let aws = yaml.providers.as_ref().and_then(|p| p.aws.clone()).unwrap_or_default();
+        let mut ses = aws.ses.unwrap_or_default();
+        ses.apply_env(env);
+        let mut s3 = aws.s3.unwrap_or_default();
+        s3.apply_env(env);
+        let mut cognito = aws.cognito.unwrap_or_default();
+        cognito.apply_env(env);
+
+        let seed = match env("CLOUDTWIN_SEED_PATH") {
+            Some(path) => load_seed_file(&path).or(yaml.seed),
+            None => yaml.seed,
+        };
 
         Config {
             port,
@@ -108,6 +153,28 @@ impl Config {
             smtp_port,
             mailbox_enabled,
             bedrock,
+            ses,
+            s3,
+            cognito,
+            seed,
+        }
+    }
+}
+
+/// Read a YAML or JSON seed document (optionally wrapped in `seed:`).
+fn load_seed_file(path: &str) -> Option<serde_json::Value> {
+    let text = match std::fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::warn!("Failed to read seed file {path}: {e}");
+            return None;
+        }
+    };
+    match serde_yaml::from_str::<serde_json::Value>(&text) {
+        Ok(v) => Some(v.get("seed").cloned().unwrap_or(v)),
+        Err(e) => {
+            tracing::warn!("Failed to parse seed file {path}: {e}");
+            None
         }
     }
 }
@@ -128,6 +195,7 @@ struct YamlRoot {
     api_port: Option<u16>,
     bedrock: Option<BedrockSimConfig>,
     mailbox: Option<YamlMailbox>,
+    seed: Option<serde_json::Value>,
 }
 
 impl YamlRoot {
@@ -174,8 +242,16 @@ struct YamlStorage {
 
 #[derive(Debug, Default, Deserialize)]
 struct YamlProviders {
+    aws: Option<YamlAws>,
     azure: Option<YamlAzure>,
     gcp: Option<YamlGcp>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+struct YamlAws {
+    ses: Option<SesConfig>,
+    s3: Option<S3Config>,
+    cognito: Option<CognitoConfig>,
 }
 
 #[derive(Debug, Default, Deserialize)]

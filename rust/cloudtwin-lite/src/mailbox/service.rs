@@ -2,8 +2,8 @@
 //!
 //! `capture_raw` is the single ingestion path: it parses a raw RFC 822 message
 //! with `mail-parser`, extracts headers/bodies/attachments, and writes them to
-//! SQLite. The SMTP listener and the SES integration both funnel through here so
-//! the inbox stays uniform.
+//! SQLite. The SMTP listener, SES sends, and other services' notification
+//! emails all funnel through here so the inbox stays uniform.
 
 use anyhow::Result;
 use chrono::Utc;
@@ -121,53 +121,6 @@ pub async fn capture_raw(db: &Database, raw: &[u8], source: &str) -> Result<Stri
     .await;
 
     Ok(message_id)
-}
-
-/// Capture a message originating from an AWS SES send.
-///
-/// SES gives us already-structured fields, so we synthesize a minimal RFC 822
-/// document and reuse [`capture_raw`] for a single, uniform ingestion path.
-pub async fn capture_from_ses(
-    db: &Database,
-    source_addr: &str,
-    destinations: &[String],
-    subject: &str,
-    text_body: Option<&str>,
-    html_body: Option<&str>,
-) -> Result<String> {
-    let raw = build_raw(source_addr, destinations, subject, text_body, html_body);
-    capture_raw(db, raw.as_bytes(), "ses").await
-}
-
-/// Build a simple RFC 822 message from structured fields.
-fn build_raw(
-    from: &str,
-    to: &[String],
-    subject: &str,
-    text: Option<&str>,
-    html: Option<&str>,
-) -> String {
-    let to_hdr = to.join(", ");
-    let header =
-        format!("From: {from}\r\nTo: {to_hdr}\r\nSubject: {subject}\r\nMIME-Version: 1.0\r\n");
-    match (text, html) {
-        (Some(t), Some(h)) => {
-            let boundary = "----=_CloudTwinBoundary";
-            format!(
-                "{header}Content-Type: multipart/alternative; boundary=\"{boundary}\"\r\n\r\n\
-                 --{boundary}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{t}\r\n\
-                 --{boundary}\r\nContent-Type: text/html; charset=utf-8\r\n\r\n{h}\r\n\
-                 --{boundary}--\r\n"
-            )
-        }
-        (None, Some(h)) => {
-            format!("{header}Content-Type: text/html; charset=utf-8\r\n\r\n{h}\r\n")
-        }
-        (Some(t), None) => {
-            format!("{header}Content-Type: text/plain; charset=utf-8\r\n\r\n{t}\r\n")
-        }
-        (None, None) => format!("{header}\r\n"),
-    }
 }
 
 /// Flatten a parsed address header into a list of bare email addresses.
