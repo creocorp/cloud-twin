@@ -29,11 +29,11 @@ def test_create_email_address_identity(sesv2):
     assert resp["VerifiedForSendingStatus"] is True
 
 
-def test_create_identity_idempotent(sesv2):
-    """Creating the same identity twice should succeed and be consistent."""
+def test_create_identity_twice_raises_already_exists(sesv2):
+    """Like SES, creating an existing identity raises AlreadyExistsException."""
     sesv2.create_email_identity(EmailIdentity="idempotent-v2.example.com")
-    resp = sesv2.create_email_identity(EmailIdentity="idempotent-v2.example.com")
-    assert resp["ResponseMetadata"]["HTTPStatusCode"] == 200
+    with pytest.raises(sesv2.exceptions.AlreadyExistsException):
+        sesv2.create_email_identity(EmailIdentity="idempotent-v2.example.com")
 
 
 # ---------------------------------------------------------------------------
@@ -110,10 +110,10 @@ def test_delete_identity(sesv2):
     assert exc_info.value.response["ResponseMetadata"]["HTTPStatusCode"] == 404
 
 
-def test_delete_nonexistent_identity_is_idempotent(sesv2):
-    """Deleting an identity that doesn't exist should not raise."""
-    resp = sesv2.delete_email_identity(EmailIdentity="ghost-v2.example.com")
-    assert resp["ResponseMetadata"]["HTTPStatusCode"] == 200
+def test_delete_nonexistent_identity_raises_not_found(sesv2):
+    """Like SES, deleting a missing identity raises NotFoundException."""
+    with pytest.raises(sesv2.exceptions.NotFoundException):
+        sesv2.delete_email_identity(EmailIdentity="ghost-v2.example.com")
 
 
 # ---------------------------------------------------------------------------

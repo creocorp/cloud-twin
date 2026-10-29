@@ -1,7 +1,7 @@
 """
 Integration tests: AWS S3 via boto3.
 
-Tests exercise the full HTTP + XML stack against a real uvicorn server.
+Tests exercise the full HTTP + XML stack against the CloudTwin binary.
 Bucket names are unique per test to avoid cross-test state conflicts
 (all tests share a single in-memory server via the session fixture).
 """

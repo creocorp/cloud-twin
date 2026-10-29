@@ -1,7 +1,7 @@
 """
 SQS integration tests using boto3.
 
-Uses a real uvicorn server (in-memory mode) via the session-scoped
+Uses the CloudTwin binary (in-memory mode) via the session-scoped
 server_url fixture from conftest.py.
 
 SQS protocol: AWS JSON (application/x-amz-json-1.0 at POST /)

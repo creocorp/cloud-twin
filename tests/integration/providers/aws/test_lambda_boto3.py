@@ -7,6 +7,10 @@ import uuid
 
 import pytest
 
+pytestmark = pytest.mark.skip(
+    reason="AWS Lambda is not implemented in the Rust runtime yet"
+)
+
 
 def _name() -> str:
     return f"fn-{uuid.uuid4().hex[:8]}"

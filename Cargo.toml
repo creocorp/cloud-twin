@@ -1,0 +1,67 @@
+[package]
+name        = "cloudtwin"
+version     = "0.4.0"
+edition     = "2021"
+description = "CloudTwin — lightweight, self-contained multi-cloud local runtime"
+license     = "Apache-2.0"
+repository  = "https://github.com/creocorp/cloud-twin"
+
+[[bin]]
+name = "cloudtwin"
+path = "src/main.rs"
+
+[dependencies]
+# HTTP server
+axum             = { version = "0.7", features = ["macros", "multipart"] }
+tokio            = { version = "1",   features = ["full"] }
+tower-http       = { version = "0.5", features = ["cors", "trace", "fs"] }
+tower            = { version = "0.4", features = ["util"] }
+
+# SQLite (bundled = statically linked, no system libsqlite3 needed)
+rusqlite         = { version = "0.31", features = ["bundled"] }
+tokio-rusqlite   = "0.5"
+
+# Serialization
+serde            = { version = "1", features = ["derive"] }
+serde_json       = "1"
+serde_urlencoded = "0.7"
+serde_yaml       = "0.9"
+
+# Email (MIME) parsing for the mailbox feature
+mail-parser      = "0.11"
+
+# Utilities
+uuid             = { version = "1", features = ["v4"] }
+chrono           = "0.4"
+bytes            = "1"
+md-5             = "0.10"
+hex              = "0.4"
+base64           = "0.22"
+crc32fast        = "1"
+anyhow           = "1"
+rand             = "0.8"
+percent-encoding = "2"
+quick-xml        = "0.36"
+
+# Outbound HTTP (SNS HTTP/S subscriptions)
+reqwest          = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# Crypto (KMS envelope encryption, Cognito RS256 token signing)
+aes-gcm          = "0.10"
+rsa              = { version = "0.9", features = ["sha2"] }
+sha2             = "0.10"
+
+# Logging
+tracing              = "0.1"
+tracing-subscriber   = { version = "0.3", features = ["env-filter", "fmt"] }
+
+[dev-dependencies]
+tower            = { version = "0.4", features = ["util"] }
+http             = "1"
+http-body-util   = "0.1"
+
+# RSA key generation is very slow without optimizations; keep debug builds usable.
+[profile.dev.package.num-bigint-dig]
+opt-level = 3
+[profile.dev.package.rsa]
+opt-level = 3

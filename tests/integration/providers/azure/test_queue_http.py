@@ -1,6 +1,11 @@
 """Integration tests for Azure Queue Storage (httpx)."""
 
 from __future__ import annotations
+import pytest
+
+pytestmark = pytest.mark.skip(
+    reason="Azure Queue Storage is not implemented in the Rust runtime yet"
+)
 
 _ACCOUNT = "testaccount"
 

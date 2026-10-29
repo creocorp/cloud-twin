@@ -1,7 +1,7 @@
 """
 Integration tests: AWS SES via boto3.
 
-These tests hit a real uvicorn server and use the boto3 SES client
+These tests hit the CloudTwin binary and use the boto3 SES client
 exactly as application code would – no mocks, no monkeypatching.
 """
 

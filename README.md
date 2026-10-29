@@ -1,14 +1,14 @@
 # CloudTwin
 
 CloudTwin is a lightweight, self-contained local runtime for multi-cloud services.
-It emulates AWS, Azure, and GCP service APIs inside a single process with no
+It emulates AWS, Azure, and GCP service APIs in a single Rust binary with no
 external dependencies — no MinIO, no RabbitMQ, no real cloud accounts required.
 
 State is persisted in SQLite by default, or kept entirely in-memory for CI and
 ephemeral test sessions. CloudTwin is designed to be a drop-in local replacement
 for cloud services during development.
 
-**Port:** `4793` → Cloud API and dashboard UI (`/dashboard` when enabled)
+**Ports:** `4793` → cloud APIs and dashboard UI (`/dashboard`) · `1025` → SMTP (capture mailbox + SES receiving)
 
 ![CloudTwin dashboard overview](docs/screenshots/overview.png)
 
@@ -18,51 +18,66 @@ for cloud services during development.
 
 | Provider | Service |
 |---|---|
-| AWS | SES (v1 + v2) |
+| AWS | SES (v1 + v2, including receiving) |
 | AWS | S3 |
 | AWS | SNS |
 | AWS | SQS |
-| AWS | Lambda |
 | AWS | DynamoDB |
 | AWS | Secrets Manager |
+| AWS | KMS |
+| AWS | Cognito user pools (OIDC + hosted UI) |
 | AWS | Bedrock (simulation) |
 | Azure | Blob Storage |
 | Azure | Service Bus |
-| Azure | Queue Storage |
-| Azure | Event Grid |
-| Azure | Key Vault |
-| Azure | Functions |
 | GCP | Cloud Storage |
 | GCP | Pub/Sub |
-| GCP | Firestore |
-| GCP | Cloud Tasks |
-| GCP | Secret Manager |
-| GCP | Cloud Functions |
+| — | SMTP capture mailbox |
+
+Highlights beyond basic CRUD:
+
+| Area | What works |
+|---|---|
+| SES identities | DKIM tokens, `VerificationStatus`, controllable verification (`auto` / `manual` / `after_checks` / `delay`), custom MAIL FROM, `GetAccount`, AWS-typed errors (`NotFoundException`, `AlreadyExistsException`, ...) |
+| SES sending | Simple and raw MIME, sender verification (`MessageRejected`), sandbox mode, configuration sets with SNS event destinations, mailbox simulator (`bounce@`, `complaint@`, ...), account suppression list |
+| SES receiving | Receipt rule sets/rules; mail to the SMTP listener runs S3/SNS/AddHeader/Bounce/Stop actions |
+| S3 | ListObjectsV2 paging/delimiters, metadata, tagging, copy, ranges, DeleteObjects, versioning, SSE headers, lifecycle/public-access-block configs, multipart upload, CORS, presigned POST, event notifications to SQS/SNS, virtual-hosted `{bucket}.s3.localhost` |
+| SQS / SNS | Long polling, visibility timeouts, DLQ redrive, batch APIs, message attributes, FIFO; SNS delivery to SQS (envelope or raw), HTTP(S) and email, filter policies |
+| KMS | Symmetric keys with real AES-GCM, aliases, data keys, encryption context |
+| Cognito | Admin API, hosted login with Authorization Code + PKCE, RS256 tokens with Cognito claims, JWKS/discovery, refresh/revoke/logout |
+| Testing | `POST /_cloudtwin/reset`, `POST /_cloudtwin/seed`, YAML `seed:` block for a reproducible local stack |
 
 For the full list of supported operations per service, see
 [docs/developer-guide.md](docs/developer-guide.md#supported-operations).
+
+> **Upgrading from 0.3.x:** CloudTwin 0.4 is the former *CloudTwin Lite* Rust
+> runtime; the Python backend has been retired (its source is preserved on the
+> [`archive/python`](https://github.com/creocorp/cloud-twin/tree/archive/python)
+> branch). Lambda, Azure Queue Storage / Event Grid / Key Vault / Functions,
+> and GCP Firestore / Cloud Tasks / Secret Manager / Cloud Functions are not
+> available yet. Database files written by the Python backend are not
+> compatible — start with a fresh volume. Users of the `lite-*` image tags
+> should switch to the regular tags (`latest`, `0.4`, ...); the default
+> database file is now `/data/cloudtwin.db`.
 
 ---
 
 ## Running with Docker
 
-The easiest way to get started is with the pre-built image from Docker Hub:
-
 ```bash
 docker pull creogroup/cloudtwin:latest
-docker run -p 4793:4793 creogroup/cloudtwin
+docker run -p 4793:4793 -p 1025:1025 creogroup/cloudtwin
 ```
 
 To persist data across restarts, mount a volume at `/data`:
 
 ```bash
-docker run -p 4793:4793 -v cloudtwin-data:/data creogroup/cloudtwin
+docker run -p 4793:4793 -p 1025:1025 -v cloudtwin-data:/data creogroup/cloudtwin
 ```
 
-To use an optional config file, mount it at `/config/cloudtwin.yml`:
+To use your own config file, mount it at `/config/cloudtwin.yml`:
 
 ```bash
-docker run -p 4793:4793 \
+docker run -p 4793:4793 -p 1025:1025 \
   -v cloudtwin-data:/data \
   -v $(pwd)/config/cloudtwin.yml:/config/cloudtwin.yml \
   creogroup/cloudtwin
@@ -72,12 +87,46 @@ docker run -p 4793:4793 \
 
 ## Running from Source
 
+Requires a recent stable Rust toolchain.
+
 ```bash
 git clone https://github.com/creocorp/cloud-twin.git
 cd cloud-twin
-pip install -e ".[dev]"
-python -m cloudtwin
-# Listening on http://0.0.0.0:4793
+make run                  # in-memory storage on http://localhost:4793
+make run-with-dashboard   # SQLite in ./data + dashboard at /dashboard
+make build                # release binary at target/release/cloudtwin
+```
+
+Point any SDK at `http://localhost:4793` with dummy credentials:
+
+```python
+import boto3
+s3 = boto3.client("s3", endpoint_url="http://localhost:4793", region_name="us-east-1",
+                  aws_access_key_id="test", aws_secret_access_key="test")
+```
+
+---
+
+## Mailbox (email capture)
+
+CloudTwin runs an SMTP sink on port `1025` that stores every inbound
+message (headers, text/HTML bodies, attachments) in SQLite. Mail sent through
+SES v1/v2 `SendEmail` and `SendRawEmail` is captured into the same inbox. When
+an SES receipt rule set is active, recipients matched by its rules are handled
+by the rules (e.g. written to S3) instead of the inbox.
+Browse it at `http://localhost:4793/dashboard` → **Mailbox**, or via
+`GET /api/dashboard/mailbox` and `GET /api/dashboard/mailbox/{id}`. It is a
+capture-only sink: no TLS, no auth, and nothing is relayed.
+
+```python
+import smtplib
+from email.message import EmailMessage
+
+msg = EmailMessage()
+msg["From"], msg["To"], msg["Subject"] = "app@example.com", "user@example.com", "Hi"
+msg.set_content("Hello from my app")
+with smtplib.SMTP("localhost", 1025) as smtp:
+    smtp.send_message(msg)
 ```
 
 ---
@@ -100,8 +149,7 @@ snapshot assertions.
 | `POST` | `/model/{modelId}/invoke` | `bedrock-runtime.invoke_model()` |
 | `POST` | `/model/{modelId}/invoke-with-response-stream` | `bedrock-runtime.invoke_model_with_response_stream()` |
 
-All three endpoints are served by **both** the Python backend and CloudTwin
-Lite (Rust). Responses include introspection headers:
+Responses include introspection headers:
 
 | Header | Value |
 |---|---|
@@ -341,7 +389,7 @@ bedrock:
 #### Streaming (`InvokeModelWithResponseStream`)
 
 Control how the response is chunked into the AWS EventStream binary frames.
-All chunk modes are supported by both Python and Rust backends.
+All chunk modes are supported.
 
 ```yaml
 my-model.stream:
@@ -410,56 +458,61 @@ See [docs/developer-guide.md](docs/developer-guide.md#aws-bedrock-simulation) fo
 
 ## Configuration
 
-CloudTwin is configured via environment variables or a YAML file at
-`CLOUDTWIN_CONFIG_PATH` (default `/config/cloudtwin.yml`). Environment
-variables take precedence.
+CloudTwin reads a YAML file at `CLOUDTWIN_CONFIG_PATH` (default
+`/config/cloudtwin.yml`, optionally wrapped in a top-level `cloudtwin:` key).
+Environment variables take precedence over YAML values.
 
 | Variable | Default | Description |
 |---|---|---|
-| `CLOUDTWIN_HOST` | `0.0.0.0` | Bind address |
-| `CLOUDTWIN_API_PORT` | `4793` | API port used for both cloud endpoints and the dashboard UI |
-| `CLOUDTWIN_STORAGE_MODE` | `sqlite` | `sqlite` or `memory` |
-| `CLOUDTWIN_STORAGE_PATH` | `./data/cloudtwin.db` | SQLite database path |
-| `CLOUDTWIN_CONFIG_PATH` | `/config/cloudtwin.yml` | Path to YAML config file |
-| `CLOUDTWIN_DASHBOARD_ENABLED` | `true` | Mount the dashboard UI at `/dashboard` |
+| `CLOUDTWIN_CONFIG_PATH` | `/config/cloudtwin.yml` | Path to the YAML config file |
+| `CLOUDTWIN_PORT` | `4793` | Port to listen on (overrides `api_port` in YAML) |
+| `CLOUDTWIN_DB_PATH` | `/data/cloudtwin.db` | SQLite database path (`:memory:` for in-memory) |
+| `CLOUDTWIN_MAILBOX_ENABLED` | `false` (`true` in the shipped `cloudtwin.yml`) | Start the SMTP capture mailbox (overrides `mailbox.enabled`) |
+| `CLOUDTWIN_SMTP_PORT` | `1025` | Mailbox SMTP port (overrides `mailbox.smtp_port`) |
+| `CLOUDTWIN_BASE_URL` | `http://localhost:{port}` | Public URL used in queue URLs, verification links, and the Cognito issuer |
+| `CLOUDTWIN_SEED_PATH` | — | YAML/JSON seed document applied at startup (alternative to the `seed:` block) |
+| `CLOUDTWIN_SES_STRICT_VERIFICATION` | `true` | Reject sends from unverified identities (`providers.aws.ses.strict_verification`) |
+| `CLOUDTWIN_SES_VERIFICATION_MODE` | `auto` | `auto`, `manual`, `after_checks`, or `delay` (`providers.aws.ses.verification.mode`) |
+| `CLOUDTWIN_SES_PRODUCTION_ACCESS` | `true` | `false` puts SES in sandbox mode |
+| `CLOUDTWIN_S3_VIRTUAL_HOST_SUFFIX` | `s3.localhost` | Host suffix for virtual-hosted-style S3 (empty disables) |
+| `CLOUDTWIN_COGNITO_SIGNING_KEY_PATH` | generated | RSA PEM used to sign Cognito tokens |
 
-**Example `cloudtwin.yml`:**
+The full list of settings, the seed document format, and per-service details are
+in [docs/developer-guide.md](docs/developer-guide.md#configuration).
 
-```yaml
-cloudtwin:
-  api_port: 4793
-  storage:
-    mode: sqlite
-    path: /data/cloudtwin.db
-  providers:
-    aws:
-      services: ["ses", "s3", "sns", "sqs", "bedrock"]
-  dashboard:
-    enabled: true
-  bedrock:
-    defaults:
-      mode: text
-    models:
-      anthropic.claude-3-sonnet-20240229-v1:0:
-        name: Claude 3 Sonnet
-        provider: anthropic
+### Storage
+
+State lives in SQLite at `CLOUDTWIN_DB_PATH` (`storage.path` in YAML). Use
+`:memory:` for ephemeral runs such as CI — nothing is written to disk.
+
+### Test isolation
+
+```bash
+curl -X POST localhost:4793/_cloudtwin/reset                                  # everything
+curl -X POST localhost:4793/_cloudtwin/reset -d '{"services": ["ses","sqs"]}'  # selected services
+curl -X POST localhost:4793/_cloudtwin/seed  -d '{"s3": {"buckets": ["mail"]}}'
 ```
 
----
+### Routing
 
-## Storage Modes
+| Provider | Base path |
+|---|---|
+| AWS (S3, SES, SNS, SQS, DynamoDB, Secrets Manager, KMS, Cognito) | `/` |
+| Cognito OIDC / hosted UI | `/{userPoolId}/.well-known/*`, `/oauth2/*`, `/login`, `/logout` |
+| CloudTwin test controls | `/_cloudtwin/*` |
+| Azure (Blob Storage, Service Bus) | `/azure/` |
+| GCP (Cloud Storage, Pub/Sub) | `/gcp/` |
 
-| Mode | How to enable | Notes |
-|---|---|---|
-| `sqlite` (default) | `CLOUDTWIN_STORAGE_MODE=sqlite` | State persists across restarts |
-| `memory` | `CLOUDTWIN_STORAGE_MODE=memory` | No file I/O — ideal for CI and ephemeral test runs |
+For compatibility with SDK defaults, Azure Blob (`/{account}/...`), Service Bus
+(`/{namespace}/queues|topics/...`), GCS (`/storage/v1/...`) and Pub/Sub
+(`/v1/projects/...`) are also served at the root.
 
 ---
 
 ## Dashboard
 
-The dashboard is served by the same FastAPI process and API port as CloudTwin.
-When enabled, open `http://localhost:4793/dashboard`.
+The dashboard is served by the same process and port as the cloud APIs. The
+Docker image enables it by default; open `http://localhost:4793/dashboard`.
 
 The UI route and backing endpoints are:
 
@@ -467,17 +520,11 @@ The UI route and backing endpoints are:
 - Static assets: `/dashboard/static/...`
 - JSON API: `/api/dashboard/*`
 
-Enable or disable the UI mount via environment variable or config:
+The UI is mounted when `CLOUDTWIN_DASHBOARD_STATIC` (or `dashboard.static_path`
+in `cloudtwin.yml`) points at the built assets in `dashboard/static`:
 
 ```bash
-CLOUDTWIN_DASHBOARD_ENABLED=true python -m cloudtwin
-```
-
-Or in `cloudtwin.yml`:
-
-```yaml
-dashboard:
-  enabled: true
+make run-with-dashboard
 ```
 
 The dashboard provides:
@@ -498,159 +545,22 @@ The dashboard provides:
 |---|---|
 | ![SES](docs/screenshots/ses.png) | ![SNS](docs/screenshots/sns.png) |
 
-The dashboard auto-polls the `/api/dashboard/*` endpoints. The backend router
-for those endpoints is part of the main app; enabling the dashboard controls
-whether the browser UI is mounted at `/dashboard`.
+The dashboard auto-polls the `/api/dashboard/*` endpoints, which are always
+available; the static-path setting only controls whether the browser UI is mounted.
 
 ---
 
 ## Testing
 
 ```bash
-# All integration tests (in-memory, no external services required)
-make test-integration
-
-# Directly
-python -m pytest tests/integration/ -q
+make test-unit            # cargo test — in-process tests for every module
+make test-integration     # boto3 / Azure / GCP SDK suites against target/debug/cloudtwin
+make lint                 # cargo fmt --check + clippy
 ```
 
-### Cross-implementation parity
-
-The Python integration suite can be run against the Rust binary to verify
-feature parity end-to-end. Set `CLOUDTWIN_TEST_URL` to skip spawning the
-in-process Python app and point boto3/Azure/GCP clients at a running
-backend instead:
-
-```bash
-make rust-build           # produce ./rust/cloudtwin-lite/target/release/cloudtwin-lite
-make rust-test-parity     # boots the Rust binary on :47930 and runs the Bedrock suite against it
-```
-
-The Bedrock suite passes 100% against both backends. Other AWS services
-(SES, S3, SNS, SQS, DynamoDB, Secrets Manager) share the same root URL
-layout and are largely parity-tested, with a small number of pre-existing
-edge-case gaps in CloudTwin Lite. Azure and GCP are mounted at different
-paths (`/azure/`, `/gcp/`) in the Rust binary versus root in Python, so
-their SDK fixtures are not directly portable across backends.
-
----
-
-## CloudTwin Lite (Rust)
-
-A single statically-linked binary with no Python runtime dependency, suitable
-for embedding in CI pipelines or resource-constrained environments.
-Source is under [`rust/cloudtwin-lite/`](rust/cloudtwin-lite/).
-
-CloudTwin Lite is the runtime going forward; the Python backend is being phased out
-and new features land in Lite only.
-
-**Implemented services:** S3, SES (v1 + v2, including receiving), SNS, SQS,
-DynamoDB, Secrets Manager, **KMS**, **Cognito user pools (OIDC + hosted UI)**,
-**Bedrock (simulation)**, Azure Blob Storage, Azure Service Bus, GCP Cloud
-Storage, GCP Pub/Sub, plus a **built-in SMTP capture mailbox**.
-
-Highlights beyond basic CRUD:
-
-| Area | What works |
-|---|---|
-| SES identities | DKIM tokens, `VerificationStatus`, controllable verification (`auto` / `manual` / `after_checks` / `delay`), custom MAIL FROM, `GetAccount`, AWS-typed errors (`NotFoundException`, `AlreadyExistsException`, ...) |
-| SES sending | Simple and raw MIME, sender verification (`MessageRejected`), sandbox mode, configuration sets with SNS event destinations, mailbox simulator (`bounce@`, `complaint@`, ...), account suppression list |
-| SES receiving | Receipt rule sets/rules; mail to the SMTP listener runs S3/SNS/AddHeader/Bounce/Stop actions |
-| S3 | ListObjectsV2 paging/delimiters, metadata, tagging, copy, ranges, DeleteObjects, versioning, SSE headers, lifecycle/public-access-block configs, multipart upload, CORS, presigned POST, event notifications to SQS/SNS, virtual-hosted `{bucket}.s3.localhost` |
-| SQS / SNS | Long polling, visibility timeouts, DLQ redrive, batch APIs, message attributes, FIFO; SNS delivery to SQS (envelope or raw), HTTP(S) and email, filter policies |
-| KMS | Symmetric keys with real AES-GCM, aliases, data keys, encryption context |
-| Cognito | Admin API, hosted login with Authorization Code + PKCE, RS256 tokens with Cognito claims, JWKS/discovery, refresh/revoke/logout |
-| Testing | `POST /_cloudtwin/reset`, `POST /_cloudtwin/seed`, YAML `seed:` block for a reproducible local stack |
-
-**Run with Docker:**
-
-```bash
-docker pull creogroup/cloudtwin:lite-latest
-docker run -p 4793:4793 -p 1025:1025 creogroup/cloudtwin:lite-latest
-```
-
-**Mailbox (email capture):**
-
-CloudTwin Lite runs an SMTP sink on port `1025` that stores every inbound
-message (headers, text/HTML bodies, attachments) in SQLite. Mail sent through
-SES v1/v2 `SendEmail` and `SendRawEmail` is captured into the same inbox. When
-an SES receipt rule set is active, recipients matched by its rules are handled
-by the rules (e.g. written to S3) instead of the inbox.
-Browse it at `http://localhost:4793/dashboard` → **Mailbox**, or via
-`GET /api/dashboard/mailbox` and `GET /api/dashboard/mailbox/{id}`. It is a
-capture-only sink: no TLS, no auth, and nothing is relayed.
-
-```python
-import smtplib
-from email.message import EmailMessage
-
-msg = EmailMessage()
-msg["From"], msg["To"], msg["Subject"] = "app@example.com", "user@example.com", "Hi"
-msg.set_content("Hello from my app")
-with smtplib.SMTP("localhost", 1025) as smtp:
-    smtp.send_message(msg)
-```
-
-**Build from source:**
-
-```bash
-cd rust/cloudtwin-lite
-cargo build --release
-./target/release/cloudtwin-lite
-# Listening on http://0.0.0.0:4793
-```
-
-Or via Make from the repo root:
-
-```bash
-make rust-build        # release build
-make rust-run          # build + run
-make rust-check        # cargo check only
-```
-
-**Configuration:**
-
-Both CloudTwin Lite and the Python backend read the same `cloudtwin.yml` file
-(path controlled by `CLOUDTWIN_CONFIG_PATH`, defaulting to `/config/cloudtwin.yml`).
-Environment variables take precedence over YAML values where both apply.
-
-| Variable | Default | Description |
-|---|---|---|
-| `CLOUDTWIN_CONFIG_PATH` | `/config/cloudtwin.yml` | Path to YAML config file (shared with Python backend) |
-| `CLOUDTWIN_PORT` | `4793` | Port to listen on (overrides `api_port` in YAML) |
-| `CLOUDTWIN_DB_PATH` | `/data/cloudtwin-lite.db` | SQLite database path (`:memory:` for in-memory) |
-| `CLOUDTWIN_MAILBOX_ENABLED` | `false` (`true` in the shipped `cloudtwin.yml`) | Start the SMTP capture mailbox (overrides `mailbox.enabled`) |
-| `CLOUDTWIN_SMTP_PORT` | `1025` | Mailbox SMTP port (overrides `mailbox.smtp_port`) |
-| `CLOUDTWIN_BASE_URL` | `http://localhost:{port}` | Public URL used in queue URLs, verification links, and the Cognito issuer |
-| `CLOUDTWIN_SEED_PATH` | — | YAML/JSON seed document applied at startup (alternative to the `seed:` block) |
-| `CLOUDTWIN_SES_STRICT_VERIFICATION` | `true` | Reject sends from unverified identities (`providers.aws.ses.strict_verification`) |
-| `CLOUDTWIN_SES_VERIFICATION_MODE` | `auto` | `auto`, `manual`, `after_checks`, or `delay` (`providers.aws.ses.verification.mode`) |
-| `CLOUDTWIN_SES_PRODUCTION_ACCESS` | `true` | `false` puts SES in sandbox mode |
-| `CLOUDTWIN_S3_VIRTUAL_HOST_SUFFIX` | `s3.localhost` | Host suffix for virtual-hosted-style S3 (empty disables) |
-| `CLOUDTWIN_COGNITO_SIGNING_KEY_PATH` | generated | RSA PEM used to sign Cognito tokens |
-
-The full list of settings, the seed document format, and per-service details are
-in [docs/developer-guide.md](docs/developer-guide.md#cloudtwin-lite-rust).
-
-**Test isolation:**
-
-```bash
-curl -X POST localhost:4793/_cloudtwin/reset                                  # everything
-curl -X POST localhost:4793/_cloudtwin/reset -d '{"services": ["ses","sqs"]}'  # selected services
-curl -X POST localhost:4793/_cloudtwin/seed  -d '{"s3": {"buckets": ["mail"]}}'
-```
-
-**Routing:**
-
-| Provider | Base path |
-|---|---|
-| AWS (S3, SES, SNS, SQS, DynamoDB, Secrets Manager, KMS, Cognito) | `/` |
-| Cognito OIDC / hosted UI | `/{userPoolId}/.well-known/*`, `/oauth2/*`, `/login`, `/logout` |
-| CloudTwin test controls | `/_cloudtwin/*` |
-| Azure (Blob Storage, Service Bus) | `/azure/` |
-| GCP (Cloud Storage, Pub/Sub) | `/gcp/` |
-
-See [docs/developer-guide.md](docs/developer-guide.md) for architecture and contribution notes.
+The SDK suites in [`tests/`](tests/) start the debug binary on a free port with
+in-memory storage. Set `CLOUDTWIN_TEST_URL=http://host:port` to run them against
+an already-running server instead (for example a Docker container).
 
 ---
 
@@ -658,4 +568,3 @@ See [docs/developer-guide.md](docs/developer-guide.md) for architecture and cont
 
 See [docs/developer-guide.md](docs/developer-guide.md) for architecture,
 design patterns, and instructions for adding new services or providers.
-

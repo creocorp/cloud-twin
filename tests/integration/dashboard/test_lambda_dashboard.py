@@ -1,11 +1,8 @@
 """
 Dashboard endpoint tests: GET /api/dashboard/aws/lambda
 
-These tests run over real HTTP against whichever backend is active:
-- Python (FastAPI/uvicorn) — default, started in-process by conftest.py
-- Rust  (cloudtwin-lite)  — set CLOUDTWIN_TEST_URL=http://localhost:4793
-
-The test expectations are identical for both backends.
+These tests run over real HTTP against the CloudTwin binary started by
+tests/conftest.py (or the server at CLOUDTWIN_TEST_URL).
 """
 
 from __future__ import annotations

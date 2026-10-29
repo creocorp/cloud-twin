@@ -18,11 +18,11 @@ class TestCreateSecret:
         assert resp["Name"] == name
         assert "ARN" in resp
 
-    def test_create_idempotent(self, secretsmanager):
+    def test_create_duplicate_raises(self, secretsmanager):
         name = _name()
-        r1 = secretsmanager.create_secret(Name=name, SecretString="v1")
-        r2 = secretsmanager.create_secret(Name=name, SecretString="v2")
-        assert r1["ARN"] == r2["ARN"]
+        secretsmanager.create_secret(Name=name, SecretString="v1")
+        with pytest.raises(secretsmanager.exceptions.ResourceExistsException):
+            secretsmanager.create_secret(Name=name, SecretString="v2")
 
     def test_create_without_value(self, secretsmanager):
         name = _name()

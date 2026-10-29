@@ -1,11 +1,11 @@
 """
 Bedrock simulation integration tests.
 
-Start a real uvicorn server (in-memory mode) with a known bedrock sim config,
+Start the CloudTwin binary (in-memory mode) with a known bedrock sim config,
 then exercise every major feature path via the boto3 bedrock-runtime and
 bedrock clients.  No mocks — full HTTP + JSON / EventStream stack.
 
-Test model IDs are configured in conftest.py's server_url fixture.
+Test model IDs come from the `bedrock:` section of tests/cloudtwin-test.yml.
 """
 
 from __future__ import annotations

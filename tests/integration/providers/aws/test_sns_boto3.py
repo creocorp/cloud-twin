@@ -1,7 +1,7 @@
 """
 SNS integration tests using boto3.
 
-Uses a real uvicorn server (in-memory mode) via the session-scoped
+Uses the CloudTwin binary (in-memory mode) via the session-scoped
 server_url fixture from conftest.py.
 
 SNS protocol: AWS Query (form-urlencoded at POST /)

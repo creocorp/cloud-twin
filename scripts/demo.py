@@ -91,7 +91,6 @@ def seed_aws(base: str) -> None:
     _seed_sqs(base, boto3)
     _seed_bedrock(base, boto3)
     _seed_dynamodb(base)
-    _seed_lambda(base)
     _seed_secretsmanager(base)
 
 
@@ -265,38 +264,6 @@ def _seed_dynamodb(base: str) -> None:
     _ok("DynamoDB — 3 tables, 5 items")
 
 
-def _seed_lambda(base: str) -> None:
-    http = httpx.Client(base_url=base, timeout=10.0)
-
-    functions = [
-        {
-            "FunctionName": "process-order",
-            "Runtime": "python3.12",
-            "Handler": "app.handler",
-        },
-        {
-            "FunctionName": "resize-image",
-            "Runtime": "nodejs20.x",
-            "Handler": "index.handler",
-        },
-        {
-            "FunctionName": "send-notification",
-            "Runtime": "python3.12",
-            "Handler": "notify.main",
-        },
-    ]
-    created = 0
-    for fn in functions:
-        try:
-            r = http.post("/2015-03-31/functions", json=fn)
-            if r.status_code in (200, 201):
-                created += 1
-        except Exception:
-            pass
-
-    _ok(f"Lambda — {created} functions")
-
-
 def _seed_secretsmanager(base: str) -> None:
     http = httpx.Client(base_url=base, timeout=10.0)
     headers = {"Content-Type": "application/x-amz-json-1.0"}
@@ -331,10 +298,6 @@ def seed_azure(base: str) -> None:
     print("\n── Azure ────────────────────────────────────────────────────────────")
     _seed_azure_blob(base)
     _seed_azure_servicebus(base)
-    _seed_azure_eventgrid(base)
-    _seed_azure_functions(base)
-    _seed_azure_keyvault(base)
-    _seed_azure_queue(base)
 
 
 def _seed_azure_blob(base: str) -> None:
@@ -400,93 +363,6 @@ def _seed_azure_servicebus(base: str) -> None:
     _ok("Azure Service Bus — 2 queues, 2 topics, 6 messages")
 
 
-def _seed_azure_eventgrid(base: str) -> None:
-    http = httpx.Client(base_url=base, timeout=10.0)
-
-    topics = [
-        ("resource-changes", "https://hooks.example.com/resources"),
-        ("user-activity", "https://hooks.example.com/users"),
-    ]
-    for name, endpoint in topics:
-        try:
-            http.put(f"/azure/eventgrid/topics/{name}", json={"endpoint": endpoint})
-            http.post(
-                f"/azure/eventgrid/topics/{name}/events",
-                json=[
-                    {
-                        "eventType": "Microsoft.Resources.ResourceWriteSuccess",
-                        "subject": f"/subscriptions/demo/{name}/item-1",
-                        "data": {"resourceProvider": "demo"},
-                    },
-                    {
-                        "eventType": "Microsoft.Resources.ResourceDeleteSuccess",
-                        "subject": f"/subscriptions/demo/{name}/item-2",
-                        "data": {"resourceProvider": "demo"},
-                    },
-                ],
-            )
-        except Exception:
-            pass
-
-    _ok(f"Event Grid — {len(topics)} topics, {len(topics) * 2} events")
-
-
-def _seed_azure_functions(base: str) -> None:
-    http = httpx.Client(base_url=base, timeout=10.0)
-
-    functions = [
-        ("demo-app", "HttpTrigger"),
-        ("demo-app", "TimerTrigger"),
-        ("backend-api", "ProcessQueue"),
-    ]
-    for app, fn_name in functions:
-        try:
-            http.put(f"/azure/functions/{app}/functions/{fn_name}", json={})
-        except Exception:
-            pass
-
-    _ok(f"Azure Functions — {len(functions)} functions")
-
-
-def _seed_azure_keyvault(base: str) -> None:
-    http = httpx.Client(base_url=base, timeout=10.0)
-
-    secrets = [
-        ("demo-vault", "db-connection-string", "Server=localhost;Database=demo"),
-        ("demo-vault", "api-secret", "sk_live_demo_9876"),
-        (
-            "demo-vault",
-            "storage-key",
-            "DefaultEndpointsProtocol=https;AccountName=demo",
-        ),
-    ]
-    for vault, name, value in secrets:
-        try:
-            http.put(f"/azure/keyvault/{vault}/secrets/{name}", json={"value": value})
-        except Exception:
-            pass
-
-    _ok(f"Key Vault — {len(secrets)} secrets")
-
-
-def _seed_azure_queue(base: str) -> None:
-    http = httpx.Client(base_url=base, timeout=10.0)
-    account = _AZURE_ACCOUNT
-
-    for queue_name in ("task-queue", "email-queue"):
-        try:
-            http.put(f"/azure/queue/{account}/{queue_name}")
-            for i in range(3):
-                http.post(
-                    f"/azure/queue/{account}/{queue_name}/messages",
-                    content=f"queue message {i}",
-                )
-        except Exception:
-            pass
-
-    _ok("Azure Queue Storage — 2 queues, 6 messages")
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # GCP
 # ─────────────────────────────────────────────────────────────────────────────
@@ -496,10 +372,6 @@ def seed_gcp(base: str) -> None:
     print("\n── GCP ──────────────────────────────────────────────────────────────")
     _seed_gcs(base)
     _seed_pubsub(base)
-    _seed_gcp_cloudfunctions(base)
-    _seed_gcp_cloudtasks(base)
-    _seed_gcp_firestore(base)
-    _seed_gcp_secretmanager(base)
 
 
 def _seed_gcs(base: str) -> None:
@@ -577,122 +449,6 @@ def _seed_pubsub(base: str) -> None:
     _ok("GCP Pub/Sub — 3 topics, 3 subscriptions, 9 messages")
 
 
-def _seed_gcp_cloudfunctions(base: str) -> None:
-    http = httpx.Client(base_url=base, timeout=10.0)
-    project = _GCP_PROJECT
-    location = "us-central1"
-
-    functions = [
-        ("image-processor", "python312", "main.handler"),
-        ("webhook-relay", "nodejs20", "index.handler"),
-    ]
-    for fn_name, runtime, entry in functions:
-        try:
-            http.post(
-                f"/v2/projects/{project}/locations/{location}/functions",
-                json={
-                    "name": fn_name,
-                    "buildConfig": {"runtime": runtime, "entryPoint": entry},
-                },
-            )
-        except Exception:
-            pass
-
-    _ok(f"Cloud Functions — {len(functions)} functions")
-
-
-def _seed_gcp_cloudtasks(base: str) -> None:
-    http = httpx.Client(base_url=base, timeout=10.0)
-    project = _GCP_PROJECT
-    location = "us-central1"
-
-    queues = ["default", "high-priority"]
-    for q in queues:
-        full_name = f"projects/{project}/locations/{location}/queues/{q}"
-        try:
-            http.post(
-                f"/v2/projects/{project}/locations/{location}/queues",
-                json={"name": full_name},
-            )
-            for i in range(2):
-                http.post(
-                    f"/v2/projects/{project}/locations/{location}/queues/{q}/tasks",
-                    json={
-                        "task": {
-                            "httpRequest": {"url": f"https://example.com/work/{i}"}
-                        }
-                    },
-                )
-        except Exception:
-            pass
-
-    _ok(f"Cloud Tasks — {len(queues)} queues, {len(queues) * 2} tasks")
-
-
-def _seed_gcp_firestore(base: str) -> None:
-    http = httpx.Client(base_url=base, timeout=10.0)
-    project = _GCP_PROJECT
-    db_base = f"/v1/projects/{project}/databases/(default)/documents"
-
-    # users collection
-    users = [
-        ("alice", {"name": {"stringValue": "Alice"}, "role": {"stringValue": "admin"}}),
-        ("bob", {"name": {"stringValue": "Bob"}, "role": {"stringValue": "viewer"}}),
-    ]
-    for doc_id, fields in users:
-        try:
-            http.patch(f"{db_base}/users/{doc_id}", json={"fields": fields})
-        except Exception:
-            pass
-
-    # orders collection
-    orders = [
-        (
-            "order-1",
-            {"total": {"doubleValue": 49.99}, "status": {"stringValue": "shipped"}},
-        ),
-        (
-            "order-2",
-            {"total": {"doubleValue": 129.0}, "status": {"stringValue": "pending"}},
-        ),
-        (
-            "order-3",
-            {"total": {"doubleValue": 24.5}, "status": {"stringValue": "delivered"}},
-        ),
-    ]
-    for doc_id, fields in orders:
-        try:
-            http.patch(f"{db_base}/orders/{doc_id}", json={"fields": fields})
-        except Exception:
-            pass
-
-    _ok("Firestore — 2 collections, 5 documents")
-
-
-def _seed_gcp_secretmanager(base: str) -> None:
-    import base64 as _b64
-
-    http = httpx.Client(base_url=base, timeout=10.0)
-    project = _GCP_PROJECT
-
-    secrets = [
-        ("db-password", "s3cur3_p4ssw0rd"),
-        ("service-account-key", '{"type":"service_account","project_id":"demo"}'),
-    ]
-    for name, value in secrets:
-        try:
-            http.post(f"/v1/projects/{project}/secrets", json={"secretId": name})
-            encoded = _b64.b64encode(value.encode()).decode()
-            http.post(
-                f"/v1/projects/{project}/secrets/{name}:addVersion",
-                json={"payload": {"data": encoded}},
-            )
-        except Exception:
-            pass
-
-    _ok(f"Secret Manager — {len(secrets)} secrets")
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Entry point
 # ─────────────────────────────────────────────────────────────────────────────
@@ -706,24 +462,15 @@ _DASHBOARD_ENDPOINTS = {
         ("SQS", "/api/dashboard/aws/sqs", "queues"),
         ("Bedrock", "/api/dashboard/aws/bedrock", "models"),
         ("DynamoDB", "/api/dashboard/aws/dynamodb", "tables"),
-        ("Lambda", "/api/dashboard/aws/lambda", "functions"),
         ("Secrets Manager", "/api/dashboard/aws/secretsmanager", "secrets"),
     ],
     "azure": [
         ("Blob Storage", "/api/dashboard/azure/blob", "containers"),
         ("Service Bus", "/api/dashboard/azure/servicebus", "queues"),
-        ("Event Grid", "/api/dashboard/azure/eventgrid", "topics"),
-        ("Functions", "/api/dashboard/azure/functions", "functions"),
-        ("Key Vault", "/api/dashboard/azure/keyvault", "secrets"),
-        ("Queue Storage", "/api/dashboard/azure/queue", "queues"),
     ],
     "gcp": [
         ("Cloud Storage", "/api/dashboard/gcp/storage", "buckets"),
         ("Pub/Sub", "/api/dashboard/gcp/pubsub", "topics"),
-        ("Cloud Functions", "/api/dashboard/gcp/cloudfunctions", "functions"),
-        ("Cloud Tasks", "/api/dashboard/gcp/cloudtasks", "queues"),
-        ("Firestore", "/api/dashboard/gcp/firestore", "collections"),
-        ("Secret Manager", "/api/dashboard/gcp/secretmanager", "secrets"),
     ],
 }
 

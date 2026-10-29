@@ -6,35 +6,12 @@ on:
   pull_request:
     branches: ["main", "master"]
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   test:
-    name: Test (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11"]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-
-      - name: Install dependencies
-        run: pip install -e ".[dev]"
-
-      - name: Lint
-        run: ruff check src/
-
-      - name: Run tests
-        run: pytest tests/ -v
-
-  rust-check:
-    name: Rust check (cloudtwin-lite)
+    name: Build, lint, and test
     runs-on: ubuntu-latest
 
     steps:
@@ -42,6 +19,8 @@ jobs:
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
 
       - name: Cache Cargo registry / build
         uses: actions/cache@v4
@@ -49,14 +28,31 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            rust/cloudtwin-lite/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/cloudtwin-lite/Cargo.lock') }}
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: cargo check
-        working-directory: rust/cloudtwin-lite
-        run: cargo check
+      - name: cargo fmt
+        run: cargo fmt --check
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: cargo test
-        working-directory: rust/cloudtwin-lite
         run: cargo test
+
+      - name: cargo build
+        run: cargo build
+
+      - name: Set up Python (SDK integration tests)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tests/requirements.txt
+
+      - name: Install test dependencies
+        run: pip install -r tests/requirements.txt
+
+      - name: SDK integration tests (boto3, Azure, GCP)
+        run: pytest tests -v

@@ -1,6 +1,11 @@
 """Integration tests for Azure Functions (httpx)."""
 
 from __future__ import annotations
+import pytest
+
+pytestmark = pytest.mark.skip(
+    reason="Azure Functions is not implemented in the Rust runtime yet"
+)
 
 _APP = "cloudtwin-fn-app"
 

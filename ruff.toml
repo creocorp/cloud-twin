@@ -1,0 +1,8 @@
+# Lint config for the Python SDK test suites and scripts.
+line-length = 88
+target-version = "py311"
+exclude = [".venv", "target"]
+
+[lint]
+# Pinned so newer ruff releases do not silently expand the rule set.
+select = ["E4", "E7", "E9", "F"]

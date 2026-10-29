@@ -3,7 +3,7 @@ name: Publish to Docker Hub
 on:
   push:
     tags:
-      - "v*.*.*"          # triggers on v1.0.0, v0.2.1, etc.
+      - "v*.*.*"          # triggers on v1.0.0, v0.4.0, etc.
   workflow_dispatch:       # manual trigger from the Actions tab
 
 jobs:

@@ -1,22 +1,25 @@
+# CloudTwin configuration. Every key is optional; CLOUDTWIN_* environment
+# variables override these values. See docs/developer-guide.md#configuration.
 cloudtwin:
+  api_port: 4793
+
   storage:
-    mode: sqlite          # sqlite | memory
-    path: /data/cloudtwin.db
+    path: /data/cloudtwin.db   # ":memory:" for ephemeral runs
 
   providers:
     aws:
-      services: ["ses", "sns", "sqs", "bedrock", "s3", "lambda", "dynamodb", "secretsmanager"]
       ses:
         strict_verification: true    # reject sends from unverified identities (MessageRejected), like SES
-        smtp:
-          host: null          # set to enable SMTP relay, e.g. smtp.example.local
-          port: 1025
-          username: null
-          password: null
-          use_tls: false
+        verification:
+          mode: auto                 # auto | manual | after_checks | delay
+          outcome: SUCCESS           # SUCCESS | FAILED | TEMPORARY_FAILURE
+        account:
+          production_access_enabled: true   # false = SES sandbox
+      s3:
+        virtual_host_suffix: s3.localhost   # {bucket}.s3.localhost → path style
+      cognito: {}                    # issuer_base_url, signing_key_path, *_token_ttl_seconds
 
     azure:
-      services: ["blob", "servicebus", "queue", "eventgrid", "keyvault", "functions"]
       blob:
         account_name: devstoreaccount1
       servicebus:
@@ -24,19 +27,15 @@ cloudtwin:
 
     gcp:
       project: cloudtwin-local
-      services: ["storage", "pubsub", "firestore", "cloudtasks", "secretmanager", "cloudfunctions"]
-
-  dashboard:
-    enabled: true
 
   mailbox:
     enabled: true
-    smtp_port: 1025       # Built-in SMTP capture server (inbound, no relay)
+    smtp_port: 1025       # SMTP listener: capture inbox + SES receipt rules
 
-  logging:
-    level: info
-
-  api_port: 4793
+  # Resources to create at startup and after POST /_cloudtwin/reset, e.g.:
+  # seed:
+  #   s3:  { buckets: [uploads] }
+  #   sqs: { queues: [jobs] }
 
   bedrock:
     defaults:
