@@ -57,7 +57,9 @@ For the full list of supported operations per service, see
 > available yet. Database files written by the Python backend are not
 > compatible — start with a fresh volume. Users of the `lite-*` image tags
 > should switch to the regular tags (`latest`, `0.4`, ...); the default
-> database file is now `/data/cloudtwin.db`.
+> database file is now `/data/cloudtwin.db`. See the
+> [changelog](CHANGELOG.md) for everything in 0.4.0 and 0.4.1, the full list of
+> breaking changes, and step-by-step upgrade notes.
 
 ---
 
@@ -562,6 +564,12 @@ make lint                 # cargo fmt --check + clippy
 The SDK suites in [`tests/`](tests/) start the debug binary on a free port with
 in-memory storage. Set `CLOUDTWIN_TEST_URL=http://host:port` to run them against
 an already-running server instead (for example a Docker container).
+
+---
+
+## Release history
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

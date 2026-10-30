@@ -2,7 +2,8 @@
 
 This guide is for contributors and anyone wanting to understand, extend, or
 modify CloudTwin. CloudTwin is a single Rust binary (axum + tokio + SQLite)
-that emulates AWS, Azure, and GCP APIs for local development and CI.
+that emulates AWS, Azure, and GCP APIs for local development and CI. For what
+changed in each release, see [CHANGELOG.md](../CHANGELOG.md).
 
 ---
 
@@ -19,6 +20,7 @@ that emulates AWS, Azure, and GCP APIs for local development and CI.
 - [Adding a new service](#adding-a-new-service)
 - [Dashboard](#dashboard)
 - [Not yet implemented](#not-yet-implemented)
+- [Releasing](#releasing)
 
 ---
 
@@ -829,3 +831,17 @@ GCP Firestore, Cloud Tasks, Secret Manager, Cloud Functions.
 
 Request signatures are never validated (presigned URLs and POST policies work
 because of this), and policies/lifecycle rules are stored but not enforced.
+
+---
+
+## Releasing
+
+1. Add the release to [CHANGELOG.md](../CHANGELOG.md) (Added / Changed / Fixed,
+   breaking changes, upgrade notes) and bump `version` in `Cargo.toml`
+   (`cargo build` refreshes `Cargo.lock`).
+2. Merge to `main` and wait for CI to pass.
+3. Tag and push: `git tag -a vX.Y.Z -m "CloudTwin X.Y.Z" && git push origin vX.Y.Z`.
+   The *Publish to Docker Hub* workflow builds `linux/amd64` and `linux/arm64`
+   images and pushes `creogroup/cloudtwin:X.Y.Z`, `X.Y`, and `latest`
+   (expect ~45 minutes; the arm64 build runs under emulation).
+4. Smoke-test the published image (`/_health` reports the version).

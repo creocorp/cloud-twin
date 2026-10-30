@@ -148,4 +148,7 @@ Whenever you add, modify, or remove a service, provider, or architectural patter
 | Architectural principle changed | ✅ (if user-facing) | ✅ | ✅ |
 | Bug fix / minor change | ❌ | ❌ | ❌ |
 
+Every user-visible change also gets an entry under the next release in
+`CHANGELOG.md`.
+
 > **Rule:** If you would tell a new contributor "here's how this works" — it belongs in the docs. Never leave architecture undocumented.
