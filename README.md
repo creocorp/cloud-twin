@@ -43,7 +43,7 @@ Highlights beyond basic CRUD:
 | S3 | ListObjectsV2 paging/delimiters, metadata, tagging, copy, ranges, DeleteObjects, versioning, SSE headers, lifecycle/public-access-block configs, multipart upload, CORS, presigned POST, event notifications to SQS/SNS, virtual-hosted `{bucket}.s3.localhost` |
 | SQS / SNS | Long polling, visibility timeouts, DLQ redrive, batch APIs, message attributes, FIFO; SNS delivery to SQS (envelope or raw), HTTP(S) and email, filter policies |
 | KMS | Symmetric keys with real AES-GCM, aliases, data keys, encryption context |
-| Cognito | Admin API, hosted login with Authorization Code + PKCE, RS256 tokens with Cognito claims, JWKS/discovery, refresh/revoke/logout |
+| Cognito | Admin API, hosted login with Authorization Code + PKCE, RS256 tokens with Cognito claims, JWKS/discovery, refresh/revoke/logout, CORS for browser token exchange |
 | Testing | `POST /_cloudtwin/reset`, `POST /_cloudtwin/seed`, YAML `seed:` block for a reproducible local stack |
 
 For the full list of supported operations per service, see
@@ -476,6 +476,7 @@ Environment variables take precedence over YAML values.
 | `CLOUDTWIN_SES_PRODUCTION_ACCESS` | `true` | `false` puts SES in sandbox mode |
 | `CLOUDTWIN_S3_VIRTUAL_HOST_SUFFIX` | `s3.localhost` | Host suffix for virtual-hosted-style S3 (empty disables) |
 | `CLOUDTWIN_COGNITO_SIGNING_KEY_PATH` | generated | RSA PEM used to sign Cognito tokens |
+| `CLOUDTWIN_COGNITO_CORS_ALLOWED_ORIGINS` | any origin | Comma-separated browser origins allowed to call Cognito's token/userInfo/revoke/discovery endpoints |
 
 The full list of settings, the seed document format, and per-service details are
 in [docs/developer-guide.md](docs/developer-guide.md#configuration).

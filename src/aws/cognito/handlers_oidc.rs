@@ -6,7 +6,7 @@ use std::sync::Arc;
 use axum::{
     body::Bytes,
     extract::{Path, Query, State},
-    http::{header, HeaderMap, HeaderValue, StatusCode},
+    http::{header, HeaderMap, HeaderValue, Method, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -14,7 +14,9 @@ use axum::{
 use base64::Engine;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use tower_http::cors::{AllowHeaders, AllowOrigin, CorsLayer};
 
+use super::config::CognitoConfig;
 use super::models::{now_i, Client, Pool, User};
 use super::service::{self as svc, run, AuthOutcome, CogError, Ctx, IssueOpts};
 use crate::proto::xml_escape as esc;
@@ -24,17 +26,42 @@ type Params = HashMap<String, String>;
 
 /// Pool-id path parameters are named `:bucket` so they share matchit's
 /// parameter slot with S3's `/:bucket/*key` routes.
-pub fn router() -> Router<Arc<AppState>> {
-    Router::new()
+///
+/// Endpoints a browser app calls with `fetch` (token exchange, userInfo,
+/// revoke, discovery, JWKS) answer CORS preflights and carry CORS headers, as
+/// Cognito does. The hosted-UI pages are top-level navigations and need none.
+pub fn router(cfg: &CognitoConfig) -> Router<Arc<AppState>> {
+    let api = Router::new()
         .route("/:bucket/.well-known/openid-configuration", get(discovery))
         .route("/:bucket/.well-known/jwks.json", get(jwks))
-        .route("/oauth2/authorize", get(authorize))
-        .route("/login", get(authorize).post(login_post))
         .route("/oauth2/token", post(token))
         .route("/oauth2/userInfo", get(userinfo).post(userinfo))
         .route("/oauth2/userinfo", get(userinfo).post(userinfo))
         .route("/oauth2/revoke", post(revoke))
+        .layer(cors_layer(cfg));
+    Router::new()
+        .route("/oauth2/authorize", get(authorize))
+        .route("/login", get(authorize).post(login_post))
         .route("/logout", get(logout))
+        .merge(api)
+}
+
+fn cors_layer(cfg: &CognitoConfig) -> CorsLayer {
+    let origins = if cfg.cors_allowed_origins.is_empty() {
+        AllowOrigin::mirror_request()
+    } else {
+        AllowOrigin::list(
+            cfg.cors_allowed_origins
+                .iter()
+                .filter_map(|o| HeaderValue::from_str(o).ok()),
+        )
+    };
+    CorsLayer::new()
+        .allow_origin(origins)
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers(AllowHeaders::mirror_request())
+        .allow_credentials(true)
+        .max_age(std::time::Duration::from_secs(600))
 }
 
 // ─── Small helpers ──────────────────────────────────────────────────────────

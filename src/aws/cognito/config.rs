@@ -17,6 +17,9 @@ pub struct CognitoConfig {
     pub id_token_ttl_seconds: Option<u64>,
     pub access_token_ttl_seconds: Option<u64>,
     pub refresh_token_ttl_seconds: Option<u64>,
+    /// Origins allowed to call the token, userInfo, revoke, discovery and JWKS
+    /// endpoints from a browser. Empty (default) allows any origin.
+    pub cors_allowed_origins: Vec<String>,
 }
 
 impl CognitoConfig {
@@ -40,6 +43,13 @@ impl CognitoConfig {
             env("CLOUDTWIN_COGNITO_REFRESH_TOKEN_TTL_SECONDS").and_then(|s| s.parse().ok())
         {
             self.refresh_token_ttl_seconds = Some(v);
+        }
+        if let Some(v) = env("CLOUDTWIN_COGNITO_CORS_ALLOWED_ORIGINS") {
+            self.cors_allowed_origins = v
+                .split(',')
+                .map(|o| o.trim().trim_end_matches('/').to_string())
+                .filter(|o| !o.is_empty())
+                .collect();
         }
     }
 }

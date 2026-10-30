@@ -64,7 +64,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         // SES v2 REST   (/v2/email/...)
         .merge(aws::ses::router_v2())
         // Cognito OIDC + hosted UI (/{userPoolId}/.well-known/..., /oauth2/...)
-        .merge(aws::cognito::router())
+        .merge(aws::cognito::router(&state.cfg.cognito))
         // Bedrock REST   (/foundation-models  and  /model/:id/invoke*)
         .merge(aws::bedrock::router())
         // S3 REST        (/:bucket  and  /:bucket/*key)

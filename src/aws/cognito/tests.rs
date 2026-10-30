@@ -1425,3 +1425,179 @@ async fn s3_routes_still_work_alongside_cognito() {
         200
     );
 }
+
+const APP: &str = "http://localhost:5173";
+
+fn preflight(uri: &str, origin: &str, method: &str) -> axum::http::Request<axum::body::Body> {
+    raw(
+        "OPTIONS",
+        uri,
+        &[
+            ("origin", origin),
+            ("access-control-request-method", method),
+            (
+                "access-control-request-headers",
+                "authorization,content-type",
+            ),
+        ],
+        Vec::new(),
+    )
+}
+
+#[tokio::test]
+async fn browser_cors_on_token_userinfo_revoke_and_discovery() {
+    let t = TestApp::new().await;
+    seed(&t, standard_seed()).await;
+
+    for (uri, method) in [
+        ("/oauth2/token", "POST"),
+        ("/oauth2/userInfo", "GET"),
+        ("/oauth2/revoke", "POST"),
+        (
+            &format!("/{POOL}/.well-known/openid-configuration") as &str,
+            "GET",
+        ),
+        (&format!("/{POOL}/.well-known/jwks.json") as &str, "GET"),
+    ] {
+        let r = t.call(preflight(uri, APP, method)).await;
+        assert_eq!(r.status, 200, "preflight {uri}: {}", r.text());
+        assert_eq!(
+            r.header("access-control-allow-origin").as_deref(),
+            Some(APP),
+            "{uri}"
+        );
+        assert_eq!(
+            r.header("access-control-allow-credentials").as_deref(),
+            Some("true")
+        );
+        let methods = r.header("access-control-allow-methods").unwrap_or_default();
+        assert!(methods.contains(method), "{uri}: {methods}");
+        let headers = r.header("access-control-allow-headers").unwrap_or_default();
+        assert!(
+            headers.contains("authorization") && headers.contains("content-type"),
+            "{headers}"
+        );
+    }
+
+    // Discovery fetched from the page.
+    let d = t
+        .call(get(
+            &format!("/{POOL}/.well-known/openid-configuration"),
+            &[("origin", APP)],
+        ))
+        .await;
+    assert_eq!(d.status, 200);
+    assert_eq!(
+        d.header("access-control-allow-origin").as_deref(),
+        Some(APP)
+    );
+
+    // Code exchange from the browser, the case in the gap report.
+    let (verifier, challenge) = pkce();
+    let r = login_form(
+        &t,
+        &authorize_uri(&challenge),
+        "dev@example.com",
+        "Passw0rd!",
+    )
+    .await;
+    let code = query_of(&r.header("location").unwrap())["code"].clone();
+    let tok = t
+        .call(form_req(
+            "/oauth2/token",
+            &[
+                ("grant_type", "authorization_code"),
+                ("client_id", CLIENT),
+                ("code", &code),
+                ("redirect_uri", CB),
+                ("code_verifier", &verifier),
+            ],
+            &[("origin", APP)],
+        ))
+        .await;
+    assert_eq!(tok.status, 200, "{}", tok.text());
+    assert_eq!(
+        tok.header("access-control-allow-origin").as_deref(),
+        Some(APP)
+    );
+    let body = tok.json();
+    let access = body["access_token"].as_str().unwrap();
+    let refresh = body["refresh_token"].as_str().unwrap();
+
+    // OAuth errors must be readable by the page too.
+    let bad = t
+        .call(form_req(
+            "/oauth2/token",
+            &[
+                ("grant_type", "authorization_code"),
+                ("client_id", CLIENT),
+                ("code", "nope"),
+            ],
+            &[("origin", APP)],
+        ))
+        .await;
+    assert_eq!(bad.status, 400);
+    assert_eq!(
+        bad.header("access-control-allow-origin").as_deref(),
+        Some(APP)
+    );
+
+    let auth = format!("Bearer {access}");
+    let ui = t
+        .call(get(
+            "/oauth2/userInfo",
+            &[("origin", APP), ("authorization", &auth)],
+        ))
+        .await;
+    assert_eq!(ui.status, 200, "{}", ui.text());
+    assert_eq!(
+        ui.header("access-control-allow-origin").as_deref(),
+        Some(APP)
+    );
+
+    let rv = t
+        .call(form_req(
+            "/oauth2/revoke",
+            &[("token", refresh), ("client_id", CLIENT)],
+            &[("origin", APP)],
+        ))
+        .await;
+    assert_eq!(rv.status, 200, "{}", rv.text());
+    assert_eq!(
+        rv.header("access-control-allow-origin").as_deref(),
+        Some(APP)
+    );
+
+    // Hosted-UI pages are navigations and stay CORS-free.
+    let page = t
+        .call(get(&authorize_uri(&challenge), &[("origin", APP)]))
+        .await;
+    assert!(page.header("access-control-allow-origin").is_none());
+}
+
+#[tokio::test]
+async fn cors_allowed_origins_restricts_browser_access() {
+    let t = TestApp::with_config(|c| {
+        c.cognito.cors_allowed_origins = vec![APP.to_string()];
+    })
+    .await;
+    seed(&t, standard_seed()).await;
+
+    let ok = t.call(preflight("/oauth2/token", APP, "POST")).await;
+    assert_eq!(
+        ok.header("access-control-allow-origin").as_deref(),
+        Some(APP)
+    );
+
+    let evil = "http://evil.example";
+    let r = t.call(preflight("/oauth2/token", evil, "POST")).await;
+    assert!(r.header("access-control-allow-origin").is_none());
+    let r = t
+        .call(get(
+            &format!("/{POOL}/.well-known/jwks.json"),
+            &[("origin", evil)],
+        ))
+        .await;
+    assert_eq!(r.status, 200);
+    assert!(r.header("access-control-allow-origin").is_none());
+}

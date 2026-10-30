@@ -27,8 +27,8 @@ pub async fn handle_json(state: &Arc<AppState>, target: &str, body: Value) -> Re
 }
 
 /// OIDC discovery, JWKS, and hosted-UI routes.
-pub fn router() -> Router<Arc<AppState>> {
-    handlers_oidc::router()
+pub fn router(cfg: &CognitoConfig) -> Router<Arc<AppState>> {
+    handlers_oidc::router(cfg)
 }
 
 /// Provision user pools, clients, and users (idempotent):

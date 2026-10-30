@@ -17,7 +17,8 @@ cloudtwin:
           production_access_enabled: true   # false = SES sandbox
       s3:
         virtual_host_suffix: s3.localhost   # {bucket}.s3.localhost → path style
-      cognito: {}                    # issuer_base_url, signing_key_path, *_token_ttl_seconds
+      cognito: {}                    # issuer_base_url, signing_key_path, *_token_ttl_seconds,
+                                     # cors_allowed_origins (default: any origin)
 
     azure:
       blob:

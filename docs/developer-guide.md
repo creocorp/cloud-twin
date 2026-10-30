@@ -120,6 +120,7 @@ services read `state.cfg`, never the environment.
 | `providers.aws.cognito.issuer_base_url` | `CLOUDTWIN_COGNITO_ISSUER_BASE_URL` | `base_url` | OIDC issuer prefix |
 | `providers.aws.cognito.signing_key_path` | `CLOUDTWIN_COGNITO_SIGNING_KEY_PATH` | generated + persisted | RSA PEM for RS256 tokens |
 | `providers.aws.cognito.{id,access,refresh}_token_ttl_seconds` | `CLOUDTWIN_COGNITO_*_TTL_SECONDS` | 3600 / 3600 / 30 days | Defaults when a client sets none |
+| `providers.aws.cognito.cors_allowed_origins` | `CLOUDTWIN_COGNITO_CORS_ALLOWED_ORIGINS` (comma-separated) | any origin | Browser origins allowed to call token/userInfo/revoke/discovery/JWKS |
 
 ---
 
@@ -412,6 +413,14 @@ Cognito's claim shapes — ID token: `sub`, `email`, `email_verified`, `cognito:
 
 Issuer: `{issuer_base_url or base_url}/{poolId}`. The signing key is generated once and
 stored in the DB (it survives `/_cloudtwin/reset`), or loaded from a PEM file.
+
+**Browser apps (CORS).** Discovery, JWKS, `/oauth2/token`, `/oauth2/userInfo`, and
+`/oauth2/revoke` answer CORS preflights and return `Access-Control-Allow-Origin` (echoing
+the request origin, with credentials allowed), so a SPA can run the Authorization Code +
+PKCE exchange with `fetch` directly — no backend or dev proxy needed. Error responses carry
+the headers too, so the page can read `invalid_grant` and friends. Set
+`cors_allowed_origins` to restrict which origins may call them; the hosted-UI pages
+(`/oauth2/authorize`, `/login`, `/logout`) are navigations and send no CORS headers.
 
 API: pool/client/domain CRUD, AdminCreateUser (temporary password, invite email captured in
 the inbox), AdminGetUser, ListUsers (`attr = "v"` / `attr ^= "v"`),
